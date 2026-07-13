@@ -120,6 +120,16 @@ function getExpPct(inputs, defaultValue) {
   return Math.min(100, Math.max(0, parseFloat(val)));
 }
 
+// Returns the number of active working days per month (1–31, default 30).
+// Used for daily-income categories: Kios Campuran, Kuliner, Nelayan.
+function getDays(inputs) {
+  const val = inputs?.custom_days;
+  if (val === undefined || val === '') return 30;
+  const parsed = parseInt(val);
+  if (isNaN(parsed)) return 30;
+  return Math.min(31, Math.max(1, parsed));
+}
+
 // ═══════════════════════════════════════════════════════════
 // CALCULATION ENGINE — Each category returns a standardized result object
 // ═══════════════════════════════════════════════════════════
@@ -138,14 +148,15 @@ function getExpPct(inputs, defaultValue) {
 
 /**
  * Category 1: Kios Campuran
- * Default: Rev = 10% | Exp = 30%
+ * Default: Rev = 10% | Exp = 30% | Days = 30
  */
 export function calcKiosCampuran(inputs = {}) {
   const ph = parseFloat(inputs.pemasukan_harian) || 0;
   const revPct = getRevPct(inputs, 10);
   const expPct = getExpPct(inputs, 30);
+  const days = getDays(inputs);
 
-  const totalPendapatan = ph * 30 * 12 * (revPct / 100);
+  const totalPendapatan = ph * days * 12 * (revPct / 100);
   const totalPengeluaran = totalPendapatan * (expPct / 100);
   const totalHasilUsaha = totalPendapatan - totalPengeluaran;
   const pendapatanPerBulan = totalHasilUsaha / 12;
@@ -157,20 +168,21 @@ export function calcKiosCampuran(inputs = {}) {
     pendapatanPerBulan,
     perPanen: null,
     setahun: null,
-    meta: { koefisien: `${revPct}%`, faktorPengeluaran: `${expPct}%`, pemasukan_harian: ph }
+    meta: { koefisien: `${revPct}%`, faktorPengeluaran: `${expPct}%`, hariKerja: days, pemasukan_harian: ph }
   };
 }
 
 /**
  * Category 2: Usaha Kuliner / Rumah Makan
- * Default: Rev = 60% | Exp = 40%
+ * Default: Rev = 60% | Exp = 40% | Days = 30
  */
 export function calcKuliner(inputs = {}) {
   const ph = parseFloat(inputs.pemasukan_harian) || 0;
   const revPct = getRevPct(inputs, 60);
   const expPct = getExpPct(inputs, 40);
+  const days = getDays(inputs);
 
-  const totalPendapatan = ph * 30 * 12 * (revPct / 100);
+  const totalPendapatan = ph * days * 12 * (revPct / 100);
   const totalPengeluaran = totalPendapatan * (expPct / 100);
   const totalHasilUsaha = totalPendapatan - totalPengeluaran;
   const pendapatanPerBulan = totalHasilUsaha / 12;
@@ -182,7 +194,7 @@ export function calcKuliner(inputs = {}) {
     pendapatanPerBulan,
     perPanen: null,
     setahun: null,
-    meta: { koefisien: `${revPct}%`, faktorPengeluaran: `${expPct}%`, pemasukan_harian: ph }
+    meta: { koefisien: `${revPct}%`, faktorPengeluaran: `${expPct}%`, hariKerja: days, pemasukan_harian: ph }
   };
 }
 
@@ -350,15 +362,16 @@ export function calcArangTempurung(inputs = {}, linkedNilaiHarianBox = null) {
 
 /**
  * Category 8: Nelayan Tangkap Ikan
- * Default: Rev = 10% | Exp = 30%
+ * Default: Rev = 10% | Exp = 30% | Days = 30
  */
 export function calcNelayan(inputs = {}) {
   const satuan = parseFloat(inputs.satuan_kg) || 0;
   const ph = parseFloat(inputs.pemasukan_harian) || 0;
   const revPct = getRevPct(inputs, 10);
   const expPct = getExpPct(inputs, 30);
+  const days = getDays(inputs);
 
-  const totalPendapatan = satuan * ph * 30 * 12 * (revPct / 100);
+  const totalPendapatan = satuan * ph * days * 12 * (revPct / 100);
   const totalPengeluaran = totalPendapatan * (expPct / 100);
   const totalHasilUsaha = totalPendapatan - totalPengeluaran;
   const pendapatanPerBulan = totalHasilUsaha / 12;
@@ -373,6 +386,7 @@ export function calcNelayan(inputs = {}) {
     meta: {
       satuan_kg: satuan, pemasukan_harian: ph,
       koefisien: `${revPct}%`, faktorPengeluaran: `${expPct}%`,
+      hariKerja: days,
       catatan: 'Menangkap ikan setiap hari'
     }
   };

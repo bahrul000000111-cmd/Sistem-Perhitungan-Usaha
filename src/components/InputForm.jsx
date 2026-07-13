@@ -167,21 +167,21 @@ export default function InputForm({ categoryId, inputs, onInputChange, records }
         </div>
       )}
 
-      {/* Dynamic percentage settings section */}
+      {/* Dynamic percentage + days settings section */}
       {(() => {
-        const hasRevenueModifier = ['kios_campuran', 'kuliner_rumah_makan', 'nelayan_tangkap'].includes(categoryId);
+        // Determine which controls to show for each category
+        const hasDailyModifier = ['kios_campuran', 'kuliner_rumah_makan', 'nelayan_tangkap'].includes(categoryId);
+        const hasRevenueModifier = hasDailyModifier; // same set currently
+
         let defaultRevPct = 10;
         let defaultExpPct = 30;
+        if (categoryId === 'kios_campuran')       { defaultRevPct = 10;  defaultExpPct = 30; }
+        else if (categoryId === 'kuliner_rumah_makan') { defaultRevPct = 60; defaultExpPct = 40; }
+        else if (categoryId === 'tempurung' || categoryId === 'arang_tempurung') { defaultExpPct = 10; }
 
-        if (categoryId === 'kios_campuran') {
-          defaultRevPct = 10;
-          defaultExpPct = 30;
-        } else if (categoryId === 'kuliner_rumah_makan') {
-          defaultRevPct = 60;
-          defaultExpPct = 40;
-        } else if (categoryId === 'tempurung' || categoryId === 'arang_tempurung') {
-          defaultExpPct = 10;
-        }
+        // Days helpers — only relevant for daily categories
+        const rawDays = inputs.custom_days;
+        const displayDays = (rawDays !== undefined && rawDays !== '') ? rawDays : 30;
 
         return (
           <div className="mt-2 pt-4 border-t border-white/[0.06] space-y-3.5">
@@ -203,28 +203,20 @@ export default function InputForm({ categoryId, inputs, onInputChange, records }
                 <div className="flex items-center gap-3">
                   <input
                     id="range-custom-rev-pct"
-                    type="range"
-                    min="0"
-                    max="100"
+                    type="range" min="0" max="100"
                     value={inputs.custom_rev_pct !== undefined && inputs.custom_rev_pct !== '' ? inputs.custom_rev_pct : defaultRevPct}
                     onChange={e => onInputChange('custom_rev_pct', e.target.value)}
                     className="flex-1 accent-indigo-500 h-1.5 bg-surface-800 rounded-lg appearance-none cursor-pointer"
                   />
                   <input
                     id="input-custom-rev-pct"
-                    type="number"
-                    min="0"
-                    max="100"
+                    type="number" min="0" max="100"
                     value={inputs.custom_rev_pct !== undefined ? inputs.custom_rev_pct : ''}
                     placeholder={String(defaultRevPct)}
                     onChange={e => {
                       const val = e.target.value;
-                      if (val === '') {
-                        onInputChange('custom_rev_pct', '');
-                      } else {
-                        const parsed = Math.min(100, Math.max(0, parseInt(val) || 0));
-                        onInputChange('custom_rev_pct', String(parsed));
-                      }
+                      if (val === '') { onInputChange('custom_rev_pct', ''); }
+                      else { onInputChange('custom_rev_pct', String(Math.min(100, Math.max(0, parseInt(val) || 0)))); }
                     }}
                     className="w-16 rounded-lg border border-white/[0.08] bg-surface-700 text-slate-100 text-[12px] font-mono py-1 text-center"
                   />
@@ -245,41 +237,84 @@ export default function InputForm({ categoryId, inputs, onInputChange, records }
               <div className="flex items-center gap-3">
                 <input
                   id="range-custom-exp-pct"
-                  type="range"
-                  min="0"
-                  max="100"
+                  type="range" min="0" max="100"
                   value={inputs.custom_exp_pct !== undefined && inputs.custom_exp_pct !== '' ? inputs.custom_exp_pct : defaultExpPct}
                   onChange={e => onInputChange('custom_exp_pct', e.target.value)}
                   className="flex-1 accent-indigo-500 h-1.5 bg-surface-800 rounded-lg appearance-none cursor-pointer"
                 />
                 <input
                   id="input-custom-exp-pct"
-                  type="number"
-                  min="0"
-                  max="100"
+                  type="number" min="0" max="100"
                   value={inputs.custom_exp_pct !== undefined ? inputs.custom_exp_pct : ''}
                   placeholder={String(defaultExpPct)}
                   onChange={e => {
                     const val = e.target.value;
-                    if (val === '') {
-                      onInputChange('custom_exp_pct', '');
-                    } else {
-                      const parsed = Math.min(100, Math.max(0, parseInt(val) || 0));
-                      onInputChange('custom_exp_pct', String(parsed));
-                    }
+                    if (val === '') { onInputChange('custom_exp_pct', ''); }
+                    else { onInputChange('custom_exp_pct', String(Math.min(100, Math.max(0, parseInt(val) || 0)))); }
                   }}
                   className="w-16 rounded-lg border border-white/[0.08] bg-surface-700 text-slate-100 text-[12px] font-mono py-1 text-center"
                 />
               </div>
             </div>
+
+            {/* ── Hari Kerja slider — only for daily-income categories ── */}
+            {hasDailyModifier && (
+              <div className="flex flex-col gap-1.5">
+                <div className="flex justify-between items-center">
+                  <label htmlFor="input-custom-days" className="text-[12px] font-medium text-slate-300">
+                    Jumlah Hari Kerja / Bulan
+                  </label>
+                  <span className="text-[11px] font-semibold font-mono text-cyan-300 bg-cyan-500/15 px-1.5 py-0.5 rounded">
+                    {displayDays} hari
+                  </span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <input
+                    id="range-custom-days"
+                    type="range" min="1" max="31"
+                    value={displayDays}
+                    onChange={e => onInputChange('custom_days', e.target.value)}
+                    className="flex-1 accent-cyan-500 h-1.5 bg-surface-800 rounded-lg appearance-none cursor-pointer"
+                  />
+                  <input
+                    id="input-custom-days"
+                    type="number" min="1" max="31"
+                    value={rawDays !== undefined ? rawDays : ''}
+                    placeholder="30"
+                    onChange={e => {
+                      const val = e.target.value;
+                      if (val === '') { onInputChange('custom_days', ''); }
+                      else { onInputChange('custom_days', String(Math.min(31, Math.max(1, parseInt(val) || 1)))); }
+                    }}
+                    className="w-16 rounded-lg border border-white/[0.08] bg-surface-700 text-slate-100 text-[12px] font-mono py-1 text-center"
+                  />
+                </div>
+                {/* Tick marks for visual reference */}
+                <div className="flex justify-between text-[10px] text-slate-600 px-0.5 select-none">
+                  <span>1</span><span>8</span><span>15</span><span>22</span><span>31</span>
+                </div>
+              </div>
+            )}
           </div>
         );
       })()}
 
-      {/* Category note */}
+      {/* Category note — dynamic for daily-income categories */}
       <div className="text-[11px] text-slate-500 bg-surface-800/50 border border-white/[0.04] rounded-xl px-3 py-2.5 leading-relaxed">
         <span className="text-slate-400 font-medium">Formula: </span>
-        {category.note}
+        {['kios_campuran', 'kuliner_rumah_makan', 'nelayan_tangkap'].includes(categoryId)
+          ? (() => {
+              const days = (inputs.custom_days !== undefined && inputs.custom_days !== '') ? inputs.custom_days : 30;
+              const revPct = (inputs.custom_rev_pct !== undefined && inputs.custom_rev_pct !== '')
+                ? inputs.custom_rev_pct
+                : (categoryId === 'kuliner_rumah_makan' ? 60 : 10);
+              const expPct = (inputs.custom_exp_pct !== undefined && inputs.custom_exp_pct !== '')
+                ? inputs.custom_exp_pct
+                : (categoryId === 'kuliner_rumah_makan' ? 40 : 30);
+              return `Pemasukan × ${days} Hari × 12 Bulan × ${revPct}% koefisien · Pengeluaran ${expPct}%`;
+            })()
+          : category.note
+        }
       </div>
     </div>
   );
