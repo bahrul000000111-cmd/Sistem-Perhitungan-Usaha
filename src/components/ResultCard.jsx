@@ -4,7 +4,7 @@
  * Shows revenue, expense, net profit, and monthly income.
  * For dual-mode categories (kelapa, kopra), shows per-panen & setahun breakdown.
  */
-import { TrendingUp, TrendingDown, DollarSign, Calendar, ChevronDown, ChevronUp, Info } from 'lucide-react';
+import { TrendingUp, TrendingDown, DollarSign, ChevronDown, ChevronUp, Info } from 'lucide-react';
 import { useState } from 'react';
 import { formatRupiah } from '../utils/formatters';
 

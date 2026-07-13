@@ -6,7 +6,7 @@
  */
 import { useState } from 'react';
 import { AlertCircle, Link2, Link2Off } from 'lucide-react';
-import { sanitizeNumericInput, formatRupiah } from '../utils/formatters';
+import { formatRupiah } from '../utils/formatters';
 import { CATEGORIES } from '../utils/calculations';
 
 /**
@@ -77,7 +77,7 @@ function NumericField({ field, value, onChange, currencyPreview = false }) {
 /**
  * Boolean toggle field (e.g., link_tempurung checkbox).
  */
-function BooleanField({ field, value, onChange, linkedRecords = [] }) {
+function BooleanField({ field, value, onChange, _linkedRecords = [] }) {
   return (
     <div className="flex flex-col gap-2">
       <label className="text-[12px] font-medium text-slate-300">{field.label}</label>
@@ -148,7 +148,7 @@ export default function InputForm({ categoryId, inputs, onInputChange, records }
         <div className="flex flex-col gap-1">
           <label className="text-[12px] font-medium text-slate-300">Pilih Usaha Tempurung</label>
           {tempurungRecords.length === 0 ? (
-            <p className="text-[11px] text-amber-400 bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2">
+            <p className="text-[11px] text-amber-400 bg-amber-500/10 border border-amber-500/25 rounded-lg px-3 py-2">
               Belum ada catatan Tempurung Kelapa. Buat terlebih dahulu di kategori Tempurung.
             </p>
           ) : (
@@ -166,6 +166,115 @@ export default function InputForm({ categoryId, inputs, onInputChange, records }
           )}
         </div>
       )}
+
+      {/* Dynamic percentage settings section */}
+      {(() => {
+        const hasRevenueModifier = ['kios_campuran', 'kuliner_rumah_makan', 'nelayan_tangkap'].includes(categoryId);
+        let defaultRevPct = 10;
+        let defaultExpPct = 30;
+
+        if (categoryId === 'kios_campuran') {
+          defaultRevPct = 10;
+          defaultExpPct = 30;
+        } else if (categoryId === 'kuliner_rumah_makan') {
+          defaultRevPct = 60;
+          defaultExpPct = 40;
+        } else if (categoryId === 'tempurung' || categoryId === 'arang_tempurung') {
+          defaultExpPct = 10;
+        }
+
+        return (
+          <div className="mt-2 pt-4 border-t border-white/[0.06] space-y-3.5">
+            <p className="text-[10px] font-bold text-indigo-400 uppercase tracking-wider">
+              Koefisien &amp; Parameter Kustom
+            </p>
+
+            {/* Revenue Modifier */}
+            {hasRevenueModifier && (
+              <div className="flex flex-col gap-1.5">
+                <div className="flex justify-between items-center">
+                  <label htmlFor="input-custom-rev-pct" className="text-[12px] font-medium text-slate-300">
+                    Koefisien Pendapatan (%)
+                  </label>
+                  <span className="text-[11px] font-semibold font-mono text-indigo-300 bg-indigo-500/15 px-1.5 py-0.5 rounded">
+                    {inputs.custom_rev_pct !== undefined && inputs.custom_rev_pct !== '' ? inputs.custom_rev_pct : defaultRevPct}%
+                  </span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <input
+                    id="range-custom-rev-pct"
+                    type="range"
+                    min="0"
+                    max="100"
+                    value={inputs.custom_rev_pct !== undefined && inputs.custom_rev_pct !== '' ? inputs.custom_rev_pct : defaultRevPct}
+                    onChange={e => onInputChange('custom_rev_pct', e.target.value)}
+                    className="flex-1 accent-indigo-500 h-1.5 bg-surface-800 rounded-lg appearance-none cursor-pointer"
+                  />
+                  <input
+                    id="input-custom-rev-pct"
+                    type="number"
+                    min="0"
+                    max="100"
+                    value={inputs.custom_rev_pct !== undefined ? inputs.custom_rev_pct : ''}
+                    placeholder={String(defaultRevPct)}
+                    onChange={e => {
+                      const val = e.target.value;
+                      if (val === '') {
+                        onInputChange('custom_rev_pct', '');
+                      } else {
+                        const parsed = Math.min(100, Math.max(0, parseInt(val) || 0));
+                        onInputChange('custom_rev_pct', String(parsed));
+                      }
+                    }}
+                    className="w-16 rounded-lg border border-white/[0.08] bg-surface-700 text-slate-100 text-[12px] font-mono py-1 text-center"
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Expense Modifier */}
+            <div className="flex flex-col gap-1.5">
+              <div className="flex justify-between items-center">
+                <label htmlFor="input-custom-exp-pct" className="text-[12px] font-medium text-slate-300">
+                  Persentase Pengeluaran (%)
+                </label>
+                <span className="text-[11px] font-semibold font-mono text-indigo-300 bg-indigo-500/15 px-1.5 py-0.5 rounded">
+                  {inputs.custom_exp_pct !== undefined && inputs.custom_exp_pct !== '' ? inputs.custom_exp_pct : defaultExpPct}%
+                </span>
+              </div>
+              <div className="flex items-center gap-3">
+                <input
+                  id="range-custom-exp-pct"
+                  type="range"
+                  min="0"
+                  max="100"
+                  value={inputs.custom_exp_pct !== undefined && inputs.custom_exp_pct !== '' ? inputs.custom_exp_pct : defaultExpPct}
+                  onChange={e => onInputChange('custom_exp_pct', e.target.value)}
+                  className="flex-1 accent-indigo-500 h-1.5 bg-surface-800 rounded-lg appearance-none cursor-pointer"
+                />
+                <input
+                  id="input-custom-exp-pct"
+                  type="number"
+                  min="0"
+                  max="100"
+                  value={inputs.custom_exp_pct !== undefined ? inputs.custom_exp_pct : ''}
+                  placeholder={String(defaultExpPct)}
+                  onChange={e => {
+                    const val = e.target.value;
+                    if (val === '') {
+                      onInputChange('custom_exp_pct', '');
+                    } else {
+                      const parsed = Math.min(100, Math.max(0, parseInt(val) || 0));
+                      onInputChange('custom_exp_pct', String(parsed));
+                    }
+                  }}
+                  className="w-16 rounded-lg border border-white/[0.08] bg-surface-700 text-slate-100 text-[12px] font-mono py-1 text-center"
+                />
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Category note */}
       <div className="text-[11px] text-slate-500 bg-surface-800/50 border border-white/[0.04] rounded-xl px-3 py-2.5 leading-relaxed">

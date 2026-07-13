@@ -104,6 +104,22 @@ export const CATEGORIES = [
   }
 ];
 
+// Helper functions to safely get custom percentages with fallback defaults.
+// Empty string or NaN during typing returns 0 to avoid breaking UI.
+function getRevPct(inputs, defaultValue) {
+  const val = inputs?.custom_rev_pct;
+  if (val === undefined) return defaultValue;
+  if (val === '' || isNaN(val)) return 0;
+  return Math.min(100, Math.max(0, parseFloat(val)));
+}
+
+function getExpPct(inputs, defaultValue) {
+  const val = inputs?.custom_exp_pct;
+  if (val === undefined) return defaultValue;
+  if (val === '' || isNaN(val)) return 0;
+  return Math.min(100, Math.max(0, parseFloat(val)));
+}
+
 // ═══════════════════════════════════════════════════════════
 // CALCULATION ENGINE — Each category returns a standardized result object
 // ═══════════════════════════════════════════════════════════
@@ -122,12 +138,15 @@ export const CATEGORIES = [
 
 /**
  * Category 1: Kios Campuran
- * Koefisien normatif: 10% | Faktor pengeluaran: 30%
+ * Default: Rev = 10% | Exp = 30%
  */
-export function calcKiosCampuran({ pemasukan_harian = 0 }) {
-  const ph = parseFloat(pemasukan_harian) || 0;
-  const totalPendapatan = ph * 30 * 12 * 0.10;
-  const totalPengeluaran = totalPendapatan * 0.30;
+export function calcKiosCampuran(inputs = {}) {
+  const ph = parseFloat(inputs.pemasukan_harian) || 0;
+  const revPct = getRevPct(inputs, 10);
+  const expPct = getExpPct(inputs, 30);
+
+  const totalPendapatan = ph * 30 * 12 * (revPct / 100);
+  const totalPengeluaran = totalPendapatan * (expPct / 100);
   const totalHasilUsaha = totalPendapatan - totalPengeluaran;
   const pendapatanPerBulan = totalHasilUsaha / 12;
 
@@ -138,18 +157,21 @@ export function calcKiosCampuran({ pemasukan_harian = 0 }) {
     pendapatanPerBulan,
     perPanen: null,
     setahun: null,
-    meta: { koefisien: '10%', faktorPengeluaran: '30%', pemasukan_harian: ph }
+    meta: { koefisien: `${revPct}%`, faktorPengeluaran: `${expPct}%`, pemasukan_harian: ph }
   };
 }
 
 /**
  * Category 2: Usaha Kuliner / Rumah Makan
- * Koefisien normatif: 60% | Faktor pengeluaran: 40%
+ * Default: Rev = 60% | Exp = 40%
  */
-export function calcKuliner({ pemasukan_harian = 0 }) {
-  const ph = parseFloat(pemasukan_harian) || 0;
-  const totalPendapatan = ph * 30 * 12 * 0.60;
-  const totalPengeluaran = totalPendapatan * 0.40;
+export function calcKuliner(inputs = {}) {
+  const ph = parseFloat(inputs.pemasukan_harian) || 0;
+  const revPct = getRevPct(inputs, 60);
+  const expPct = getExpPct(inputs, 40);
+
+  const totalPendapatan = ph * 30 * 12 * (revPct / 100);
+  const totalPengeluaran = totalPendapatan * (expPct / 100);
   const totalHasilUsaha = totalPendapatan - totalPengeluaran;
   const pendapatanPerBulan = totalHasilUsaha / 12;
 
@@ -160,17 +182,19 @@ export function calcKuliner({ pemasukan_harian = 0 }) {
     pendapatanPerBulan,
     perPanen: null,
     setahun: null,
-    meta: { koefisien: '60%', faktorPengeluaran: '40%', pemasukan_harian: ph }
+    meta: { koefisien: `${revPct}%`, faktorPengeluaran: `${expPct}%`, pemasukan_harian: ph }
   };
 }
 
 /**
  * Category 3: Perkebunan & Pertanian Tahunan
- * Input langsung pendapatan tahunan | Faktor pengeluaran: 30%
+ * Default: Exp = 30%
  */
-export function calcPerkebunanTahunan({ total_pendapatan_tahunan = 0 }) {
-  const totalPendapatan = parseFloat(total_pendapatan_tahunan) || 0;
-  const totalPengeluaran = totalPendapatan * 0.30;
+export function calcPerkebunanTahunan(inputs = {}) {
+  const totalPendapatan = parseFloat(inputs.total_pendapatan_tahunan) || 0;
+  const expPct = getExpPct(inputs, 30);
+
+  const totalPengeluaran = totalPendapatan * (expPct / 100);
   const totalHasilUsaha = totalPendapatan - totalPengeluaran;
   const pendapatanPerBulan = totalHasilUsaha / 12;
 
@@ -181,20 +205,21 @@ export function calcPerkebunanTahunan({ total_pendapatan_tahunan = 0 }) {
     pendapatanPerBulan,
     perPanen: null,
     setahun: null,
-    meta: { faktorPengeluaran: '30%' }
+    meta: { faktorPengeluaran: `${expPct}%` }
   };
 }
 
 /**
  * Category 4: Perkebunan Kelapa Per 3 Bulan
- * 25 buah/pohon × Rp 2.000 | 4 panen/tahun | Pengeluaran 30%
+ * Default: Exp = 30%
  */
-export function calcKelapaPerTigaBulan({ jumlah_pohon = 30 }) {
-  const pohon = parseFloat(jumlah_pohon) || 0;
+export function calcKelapaPerTigaBulan(inputs = {}) {
+  const pohon = parseFloat(inputs.jumlah_pohon) || 0;
+  const expPct = getExpPct(inputs, 30);
 
   // Per panen (single harvest)
   const nilaiRevenuePanen = pohon * 25 * 2000;
-  const pengeluaranPanen = nilaiRevenuePanen * 0.30;
+  const pengeluaranPanen = nilaiRevenuePanen * (expPct / 100);
   const hasilPanen = nilaiRevenuePanen - pengeluaranPanen;
   const pendapatanBulanPanen = hasilPanen / 12; // annualized monthly basis
 
@@ -221,20 +246,21 @@ export function calcKelapaPerTigaBulan({ jumlah_pohon = 30 }) {
       totalHasilUsaha,
       pendapatanPerBulan
     },
-    meta: { jumlah_pohon: pohon, hargaPerBuah: 2000, buahPerPohon: 25, panenPerTahun: 4, faktorPengeluaran: '30%' }
+    meta: { jumlah_pohon: pohon, hargaPerBuah: 2000, buahPerPohon: 25, panenPerTahun: 4, faktorPengeluaran: `${expPct}%` }
   };
 }
 
 /**
  * Category 5: Industri Kelapa (Kopra)
- * (berat ÷ 5) × Rp 15.000 | 4 panen/tahun | Pengeluaran 30%
+ * Default: Exp = 30%
  */
-export function calcKopra({ berat_kopra = 400 }) {
-  const berat = parseFloat(berat_kopra) || 0;
+export function calcKopra(inputs = {}) {
+  const berat = parseFloat(inputs.berat_kopra) || 0;
+  const expPct = getExpPct(inputs, 30);
 
   // Per panen
   const nilaiRevenuePanen = (berat / 5) * 15000;
-  const pengeluaranPanen = nilaiRevenuePanen * 0.30;
+  const pengeluaranPanen = nilaiRevenuePanen * (expPct / 100);
   const hasilPanen = nilaiRevenuePanen - pengeluaranPanen;
   const pendapatanBulanPanen = hasilPanen / 12;
 
@@ -261,20 +287,21 @@ export function calcKopra({ berat_kopra = 400 }) {
       totalHasilUsaha,
       pendapatanPerBulan
     },
-    meta: { berat_kopra: berat, hargaPerUnit: 15000, unitPer5Kg: berat / 5, panenPerTahun: 4, faktorPengeluaran: '30%' }
+    meta: { berat_kopra: berat, hargaPerUnit: 15000, unitPer5Kg: berat / 5, panenPerTahun: 4, faktorPengeluaran: `${expPct}%` }
   };
 }
 
 /**
  * Category 6: Tempurung Kelapa
- * (berat ÷ 10) × Rp 5.000 | Pengeluaran 10%
- * Returns nilaiHarianBox for use by Category 7
+ * Default: Exp = 10%
  */
-export function calcTempurung({ berat_tempurung = 90 }) {
-  const berat = parseFloat(berat_tempurung) || 0;
+export function calcTempurung(inputs = {}) {
+  const berat = parseFloat(inputs.berat_tempurung) || 0;
+  const expPct = getExpPct(inputs, 10);
+
   const nilaiHarianBox = (berat / 10) * 5000;
   const totalPendapatan = nilaiHarianBox;
-  const totalPengeluaran = totalPendapatan * 0.10;
+  const totalPengeluaran = totalPendapatan * (expPct / 100);
   const totalHasilUsaha = totalPendapatan - totalPengeluaran;
   const pendapatanPerBulan = totalHasilUsaha / 12;
 
@@ -285,31 +312,28 @@ export function calcTempurung({ berat_tempurung = 90 }) {
     pendapatanPerBulan,
     perPanen: null,
     setahun: null,
-    meta: { nilaiHarianBox, berat_tempurung: berat, faktorPengeluaran: '10%' }
+    meta: { nilaiHarianBox, berat_tempurung: berat, faktorPengeluaran: `${expPct}%` }
   };
 }
 
 /**
  * Category 7: Tempurung → Arang
- * Nilai Harian = Nilai Box Tempurung + Rp 13.500 | Pengeluaran 10%
- * @param {Object} inputs
- * @param {number} inputs.berat_tempurung - fallback if not linked
- * @param {boolean} inputs.link_tempurung - if true, use linked value
- * @param {number} [linkedNilaiHarianBox] - value from a linked Category 6 record
+ * Default: Exp = 10%
  */
-export function calcArangTempurung({ berat_tempurung = 90, link_tempurung = false }, linkedNilaiHarianBox = null) {
+export function calcArangTempurung(inputs = {}, linkedNilaiHarianBox = null) {
   let nilaiHarianBox;
+  const expPct = getExpPct(inputs, 10);
 
-  if (link_tempurung && linkedNilaiHarianBox !== null) {
+  if (inputs.link_tempurung && linkedNilaiHarianBox !== null) {
     nilaiHarianBox = linkedNilaiHarianBox;
   } else {
-    const berat = parseFloat(berat_tempurung) || 0;
+    const berat = parseFloat(inputs.berat_tempurung) || 0;
     nilaiHarianBox = (berat / 10) * 5000;
   }
 
   const nilaiHarianArang = nilaiHarianBox + 13500;
   const totalPendapatan = nilaiHarianArang;
-  const totalPengeluaran = totalPendapatan * 0.10;
+  const totalPengeluaran = totalPendapatan * (expPct / 100);
   const totalHasilUsaha = totalPendapatan - totalPengeluaran;
   const pendapatanPerBulan = totalHasilUsaha / 12;
 
@@ -320,19 +344,22 @@ export function calcArangTempurung({ berat_tempurung = 90, link_tempurung = fals
     pendapatanPerBulan,
     perPanen: null,
     setahun: null,
-    meta: { nilaiHarianBox, nilaiHarianArang, tambahan: 13500, faktorPengeluaran: '10%' }
+    meta: { nilaiHarianBox, nilaiHarianArang, tambahan: 13500, faktorPengeluaran: `${expPct}%` }
   };
 }
 
 /**
  * Category 8: Nelayan Tangkap Ikan
- * satuan_kg × pemasukan_harian × 30 × 12 × 10% | Pengeluaran 30%
+ * Default: Rev = 10% | Exp = 30%
  */
-export function calcNelayan({ satuan_kg = 1, pemasukan_harian = 0 }) {
-  const satuan = parseFloat(satuan_kg) || 0;
-  const ph = parseFloat(pemasukan_harian) || 0;
-  const totalPendapatan = satuan * ph * 30 * 12 * 0.10;
-  const totalPengeluaran = totalPendapatan * 0.30;
+export function calcNelayan(inputs = {}) {
+  const satuan = parseFloat(inputs.satuan_kg) || 0;
+  const ph = parseFloat(inputs.pemasukan_harian) || 0;
+  const revPct = getRevPct(inputs, 10);
+  const expPct = getExpPct(inputs, 30);
+
+  const totalPendapatan = satuan * ph * 30 * 12 * (revPct / 100);
+  const totalPengeluaran = totalPendapatan * (expPct / 100);
   const totalHasilUsaha = totalPendapatan - totalPengeluaran;
   const pendapatanPerBulan = totalHasilUsaha / 12;
 
@@ -345,7 +372,7 @@ export function calcNelayan({ satuan_kg = 1, pemasukan_harian = 0 }) {
     setahun: null,
     meta: {
       satuan_kg: satuan, pemasukan_harian: ph,
-      koefisien: '10%', faktorPengeluaran: '30%',
+      koefisien: `${revPct}%`, faktorPengeluaran: `${expPct}%`,
       catatan: 'Menangkap ikan setiap hari'
     }
   };
