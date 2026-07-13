@@ -1,0 +1,303 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap');
+
+@import "tailwindcss";
+
+/* ═══════════════════════════════════════════════════════════
+   DESIGN TOKENS — UMK Calculator
+   ═══════════════════════════════════════════════════════════ */
+@theme {
+  /* Indigo primary brand */
+  --color-primary-50:  #eef2ff;
+  --color-primary-100: #e0e7ff;
+  --color-primary-200: #c7d2fe;
+  --color-primary-300: #a5b4fc;
+  --color-primary-400: #818cf8;
+  --color-primary-500: #6366f1;
+  --color-primary-600: #4f46e5;
+  --color-primary-700: #4338ca;
+  --color-primary-800: #3730a3;
+  --color-primary-900: #312e81;
+
+  /* Slate surface palette */
+  --color-surface-950: #0a0c12;
+  --color-surface-900: #0f1117;
+  --color-surface-800: #161b27;
+  --color-surface-700: #1e2636;
+  --color-surface-600: #263045;
+  --color-surface-500: #2e3a52;
+  --color-surface-400: #3d4f6e;
+  --color-surface-300: #556080;
+
+  /* Semantic accent colors */
+  --color-emerald-400: #34d399;
+  --color-emerald-500: #10b981;
+  --color-emerald-600: #059669;
+  --color-rose-400:    #fb7185;
+  --color-rose-500:    #f43f5e;
+  --color-rose-600:    #e11d48;
+  --color-amber-400:   #fbbf24;
+  --color-amber-500:   #f59e0b;
+  --color-cyan-400:    #22d3ee;
+  --color-cyan-500:    #06b6d4;
+  --color-violet-500:  #8b5cf6;
+
+  --font-family-sans: 'Inter', sans-serif;
+  --font-family-mono: 'JetBrains Mono', monospace;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   BASE RESET
+   ═══════════════════════════════════════════════════════════ */
+*, *::before, *::after { box-sizing: border-box; }
+
+html { scroll-behavior: smooth; }
+
+body {
+  font-family: var(--font-family-sans);
+  background-color: var(--color-surface-900);
+  color: #e2e8f0;
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   SCROLLBAR
+   ═══════════════════════════════════════════════════════════ */
+::-webkit-scrollbar         { width: 6px; height: 6px; }
+::-webkit-scrollbar-track   { background: var(--color-surface-800); }
+::-webkit-scrollbar-thumb   { background: var(--color-surface-400); border-radius: 999px; }
+::-webkit-scrollbar-thumb:hover { background: var(--color-primary-500); }
+
+/* ═══════════════════════════════════════════════════════════
+   GLASSMORPHISM CARD
+   ═══════════════════════════════════════════════════════════ */
+.glass {
+  background: rgba(30, 38, 54, 0.72);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid rgba(255,255,255,0.07);
+}
+
+.glass-light {
+  background: rgba(46, 58, 82, 0.5);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255,255,255,0.06);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   ANIMATIONS
+   ═══════════════════════════════════════════════════════════ */
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.fade-in-up { animation: fadeInUp 0.4s cubic-bezier(0.16,1,0.3,1) both; }
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+.fade-in { animation: fadeIn 0.3s ease both; }
+
+@keyframes slideInLeft {
+  from { opacity: 0; transform: translateX(-24px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+.slide-in-left { animation: slideInLeft 0.35s cubic-bezier(0.16,1,0.3,1) both; }
+
+@keyframes slideInRight {
+  from { opacity: 0; transform: translateX(24px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+.slide-in-right { animation: slideInRight 0.35s cubic-bezier(0.16,1,0.3,1) both; }
+
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.92); }
+  to   { opacity: 1; transform: scale(1); }
+}
+.scale-in { animation: scaleIn 0.3s cubic-bezier(0.34,1.56,0.64,1) both; }
+
+@keyframes pulse-ring {
+  0%   { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(99,102,241,0.4); }
+  70%  { transform: scale(1);    box-shadow: 0 0 0 10px rgba(99,102,241,0); }
+  100% { transform: scale(0.95); box-shadow: 0 0 0 0  rgba(99,102,241,0); }
+}
+.pulse-ring { animation: pulse-ring 2s cubic-bezier(0.455,0.03,0.515,0.955) infinite; }
+
+@keyframes shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position:  200% 0; }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50%       { transform: translateY(-8px); }
+}
+.float { animation: float 4s ease-in-out infinite; }
+
+@keyframes dangerPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(244,63,94,0); }
+  50%       { box-shadow: 0 0 0 8px rgba(244,63,94,0.2); }
+}
+.danger-pulse { animation: dangerPulse 1.6s ease infinite; }
+
+@keyframes countUp {
+  from { opacity: 0.3; transform: translateY(5px); }
+  to   { opacity: 1;   transform: translateY(0); }
+}
+.count-up { animation: countUp 0.25s ease both; }
+
+/* ═══════════════════════════════════════════════════════════
+   PROGRESS BAR
+   ═══════════════════════════════════════════════════════════ */
+.progress-fill {
+  transition: width 0.7s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   TOOLTIP
+   ═══════════════════════════════════════════════════════════ */
+.tooltip { position: relative; }
+.tooltip::after {
+  content: attr(data-tip);
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%) scale(0.9);
+  background: #1e2636;
+  border: 1px solid rgba(255,255,255,0.12);
+  color: #e2e8f0;
+  padding: 5px 12px;
+  border-radius: 8px;
+  font-size: 12px;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s, transform 0.2s;
+  z-index: 50;
+}
+.tooltip:hover::after {
+  opacity: 1;
+  transform: translateX(-50%) scale(1);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   FORM INPUTS
+   ═══════════════════════════════════════════════════════════ */
+input[type="text"]:focus,
+input[type="number"]:focus,
+select:focus,
+textarea:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(99,102,241,0.5);
+}
+
+/* Remove number input spinners */
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+input[type="number"] { -moz-appearance: textfield; }
+
+/* ═══════════════════════════════════════════════════════════
+   MODAL
+   ═══════════════════════════════════════════════════════════ */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.65);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   GLOW UTILITIES
+   ═══════════════════════════════════════════════════════════ */
+.glow-indigo  { box-shadow: 0 0 24px rgba(99,102,241,0.3); }
+.glow-emerald { box-shadow: 0 0 24px rgba(16,185,129,0.3); }
+.glow-rose    { box-shadow: 0 0 24px rgba(244,63,94,0.3); }
+.glow-amber   { box-shadow: 0 0 24px rgba(245,158,11,0.3); }
+.glow-cyan    { box-shadow: 0 0 24px rgba(6,182,212,0.3); }
+
+/* ═══════════════════════════════════════════════════════════
+   CATEGORY SIDEBAR ITEM
+   ═══════════════════════════════════════════════════════════ */
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s, transform 0.15s;
+  font-size: 13px;
+  font-weight: 500;
+  color: #94a3b8;
+  user-select: none;
+}
+.nav-item:hover {
+  background: rgba(99,102,241,0.12);
+  color: #e2e8f0;
+  transform: translateX(3px);
+}
+.nav-item.active {
+  background: rgba(99,102,241,0.2);
+  color: #a5b4fc;
+  border-left: 3px solid #6366f1;
+  padding-left: 11px;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   METRIC CARDS
+   ═══════════════════════════════════════════════════════════ */
+.metric-card {
+  border-radius: 16px;
+  padding: 20px;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+.metric-card:hover {
+  transform: translateY(-2px);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   RESULT HIGHLIGHT TABLE
+   ═══════════════════════════════════════════════════════════ */
+.result-row-revenue  { border-left: 3px solid #6366f1; }
+.result-row-expense  { border-left: 3px solid #f43f5e; }
+.result-row-profit   { border-left: 3px solid #10b981; }
+.result-row-monthly  { border-left: 3px solid #f59e0b; }
+
+/* ═══════════════════════════════════════════════════════════
+   RECORD CARD
+   ═══════════════════════════════════════════════════════════ */
+.record-card {
+  transition: border-color 0.2s, transform 0.2s, box-shadow 0.2s;
+}
+.record-card:hover {
+  border-color: rgba(99,102,241,0.35) !important;
+  transform: translateY(-1px);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   PRINT STYLES
+   ═══════════════════════════════════════════════════════════ */
+@media print {
+  /* Hide the full app UI */
+  body > #root > div { display: none !important; }
+  /* Show only the print report */
+  #print-report { display: block !important; }
+  body { background: white !important; color: black !important; font-size: 11pt; }
+  .no-print { display: none !important; }
+  .print-only { display: block !important; }
+  * { color: black !important; box-shadow: none !important; }
+  h1, h2, h3 { color: #1e40af !important; }
+  table { border-collapse: collapse; width: 100%; }
+  th, td { border: 1px solid #e2e8f0; padding: 8px; }
+}
+.print-only { display: none; }
