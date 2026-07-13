@@ -12,10 +12,10 @@
 export const CATEGORIES = [
   {
     id: 'kios_campuran',
-    name: 'Kios Campuran',
+    name: 'KBLI 47112 - Toko Kelontong / Kios Campuran',
     icon: 'Store',
     color: 'indigo',
-    description: 'Toko / kios serba ada dengan pendapatan harian',
+    description: 'Kategori G · Perdagangan Eceran Kelontong & Kebutuhan Sehari-hari',
     fields: [
       { key: 'pemasukan_harian', label: 'Pendapatan Kotor Harian', placeholder: '500000', suffix: '/hari' }
     ],
@@ -23,10 +23,10 @@ export const CATEGORIES = [
   },
   {
     id: 'kuliner_rumah_makan',
-    name: 'Usaha Kuliner / Rumah Makan',
+    name: 'KBLI 56101 - Restoran dan Rumah Makan',
     icon: 'UtensilsCrossed',
     color: 'amber',
-    description: 'Restoran, warung makan, atau usaha kuliner lainnya',
+    description: 'Kategori I · Penyediaan Akomodasi & Makan Minum',
     fields: [
       { key: 'pemasukan_harian', label: 'Pendapatan Kotor Harian', placeholder: '1000000', suffix: '/hari' }
     ],
@@ -34,10 +34,10 @@ export const CATEGORIES = [
   },
   {
     id: 'perkebunan_tahunan',
-    name: 'Perkebunan & Pertanian Tahunan',
+    name: 'KBLI 01200 - Perkebunan Tanaman Tahunan',
     icon: 'Sprout',
     color: 'emerald',
-    description: 'Hasil perkebunan dan pertanian tahunan langsung',
+    description: 'Kategori A · Pertanian, Kehutanan dan Perikanan',
     fields: [
       { key: 'total_pendapatan_tahunan', label: 'Total Pendapatan Tahunan', placeholder: '12000000', suffix: '/tahun' }
     ],
@@ -45,10 +45,10 @@ export const CATEGORIES = [
   },
   {
     id: 'kelapa_per3bulan',
-    name: 'Perkebunan Kelapa Per 3 Bulan',
+    name: 'KBLI 01262 - Perkebunan Buah Kelapa',
     icon: 'TreePalm',
     color: 'cyan',
-    description: 'Kebun kelapa dengan panen per 3 bulan (4x setahun)',
+    description: 'Kategori A · Pertanian, Kehutanan dan Perikanan · Panen 4×/tahun',
     fields: [
       { key: 'jumlah_pohon', label: 'Jumlah Pohon Kelapa', placeholder: '30', suffix: 'pohon', defaultValue: 30 }
     ],
@@ -57,10 +57,10 @@ export const CATEGORIES = [
   },
   {
     id: 'industri_kopra',
-    name: 'Industri Kelapa (Kopra)',
+    name: 'KBLI 10411 - Industri Pengolahan Kopra',
     icon: 'Package',
     color: 'orange',
-    description: 'Pengolahan kelapa menjadi kopra',
+    description: 'Kategori C · Industri Pengolahan Hasil Kelapa',
     fields: [
       { key: 'berat_kopra', label: 'Berat Kopra Per Panen (Kg)', placeholder: '400', suffix: 'kg', defaultValue: 400 }
     ],
@@ -69,10 +69,10 @@ export const CATEGORIES = [
   },
   {
     id: 'tempurung',
-    name: 'Tempurung Kelapa',
+    name: 'KBLI 46696 - Perdagangan Hasil Sampingan (Tempurung)',
     icon: 'Shell',
     color: 'brown',
-    description: 'Penjualan tempurung kelapa per satuan kotak',
+    description: 'Kategori G · Perdagangan Besar Bahan Sisa & Hasil Sampingan',
     fields: [
       { key: 'berat_tempurung', label: 'Berat Tempurung (Kg)', placeholder: '90', suffix: 'kg', defaultValue: 90 }
     ],
@@ -80,10 +80,10 @@ export const CATEGORIES = [
   },
   {
     id: 'arang_tempurung',
-    name: 'Tempurung → Arang',
+    name: 'KBLI 20114 - Industri Arang Tempurung Kelapa',
     icon: 'Flame',
     color: 'rose',
-    description: 'Tempurung kelapa diolah menjadi arang (nilai tambah)',
+    description: 'Kategori C · Industri Pengolahan — Nilai Tambah dari Tempurung',
     fields: [
       { key: 'berat_tempurung', label: 'Berat Tempurung Dasar (Kg)', placeholder: '90', suffix: 'kg', defaultValue: 90 },
       { key: 'link_tempurung', label: 'Gunakan Nilai Tempurung Kategori 6', type: 'boolean', defaultValue: false }
@@ -92,10 +92,10 @@ export const CATEGORIES = [
   },
   {
     id: 'nelayan_tangkap',
-    name: 'Nelayan Tangkap Ikan',
+    name: 'KBLI 03111 - Penangkapan Ikan di Laut',
     icon: 'Fish',
     color: 'blue',
-    description: 'Penangkapan ikan setiap hari, dihitung per unit tangkapan',
+    description: 'Kategori A · Pertanian, Kehutanan dan Perikanan — Tangkap Harian',
     fields: [
       { key: 'satuan_kg', label: 'Satuan Tangkapan (Kg)', placeholder: '1', suffix: 'kg/hari', defaultValue: 1 },
       { key: 'pemasukan_harian', label: 'Nilai Per Satuan (Rp)', placeholder: '150000', suffix: '/satuan' }
