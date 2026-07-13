@@ -86,7 +86,7 @@ export default function App() {
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (
-    <div className="min-h-screen bg-surface-900 flex flex-col">
+    <div className="min-h-screen w-full bg-surface-900 flex flex-col overflow-x-hidden">
 
       {/* ── Ambient blobs (decorative) ── */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden" aria-hidden="true">
@@ -99,7 +99,7 @@ export default function App() {
       <AppHeader onPrint={handlePrint} />
 
       {/* ── Main Content ── */}
-      <main className="flex-1 max-w-screen-2xl w-full mx-auto px-3 sm:px-5 py-4 flex flex-col gap-4">
+      <main className="flex-1 w-full max-w-screen-2xl mx-auto px-3 sm:px-5 py-4 flex flex-col gap-4">
 
         {/* ① Dashboard KPI strip */}
         <section aria-label="Ringkasan Dashboard">
@@ -107,30 +107,36 @@ export default function App() {
         </section>
 
         {/* ② Category navigation + content area */}
-        <div className="flex gap-4 items-start">
+        <div className="flex flex-col md:flex-row w-full gap-4 items-start">
 
-          {/* Sidebar (desktop only) */}
-          <CategorySidebar
-            activeCategory={activeCategory}
-            onSelect={(id) => setActiveCategory(prev => prev === id ? null : id)}
-            records={records}
-          />
-
-          {/* ── Right column: toolbar + record list ── */}
-          <div className="flex-1 min-w-0 flex flex-col gap-3">
-
-            {/* Mobile category tabs */}
+          {/* Sidebar — desktop only (hidden on mobile) */}
+          <aside className="no-print hidden md:block shrink-0">
             <CategorySidebar
               activeCategory={activeCategory}
               onSelect={(id) => setActiveCategory(prev => prev === id ? null : id)}
               records={records}
+              variant="sidebar"
             />
+          </aside>
+
+          {/* ── Right column: mobile tabs + toolbar + record list ── */}
+          <div className="w-full flex-1 flex flex-col gap-3">
+
+            {/* Mobile category tabs — only visible below md breakpoint */}
+            <div className="md:hidden">
+              <CategorySidebar
+                activeCategory={activeCategory}
+                onSelect={(id) => setActiveCategory(prev => prev === id ? null : id)}
+                records={records}
+                variant="tabs"
+              />
+            </div>
 
             {/* ── Toolbar ── */}
-            <div className="no-print glass rounded-2xl border border-white/[0.06] px-4 py-3 flex flex-wrap items-center gap-3">
+            <div className="no-print glass rounded-2xl border border-white/[0.06] px-4 py-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 w-full">
 
               {/* Page title / breadcrumb */}
-              <div className="flex items-center gap-2 mr-auto">
+              <div className="flex items-center gap-2">
                 <LayoutDashboard size={14} className="text-slate-500" />
                 <span className="text-[12px] text-slate-500">Semua Usaha</span>
                 {activeCategory_obj && (
@@ -141,48 +147,53 @@ export default function App() {
                 )}
               </div>
 
-              {/* Search */}
-              <div className="relative">
-                <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" />
-                <input
-                  id="input-search"
-                  type="text"
-                  placeholder="Cari usaha..."
-                  value={searchQuery}
-                  onChange={e => setSearchQuery(e.target.value)}
-                  className="pl-8 pr-3 py-1.5 text-[12px] rounded-xl bg-surface-700 border border-white/[0.07] text-slate-200 placeholder:text-slate-600 w-40 sm:w-52"
-                />
+              {/* Actions container */}
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full sm:w-auto">
+                {/* Search */}
+                <div className="relative w-full sm:w-auto">
+                  <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" />
+                  <input
+                    id="input-search"
+                    type="text"
+                    placeholder="Cari usaha..."
+                    value={searchQuery}
+                    onChange={e => setSearchQuery(e.target.value)}
+                    className="pl-8 pr-3 py-1.5 text-[12px] rounded-xl bg-surface-700 border border-white/[0.07] text-slate-200 placeholder:text-slate-600 w-full sm:w-48"
+                  />
+                </div>
+
+                <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+                  {/* Clear all button */}
+                  {records.length > 0 && (
+                    <button
+                      id="btn-clear-all"
+                      onClick={() => setShowClearModal(true)}
+                      className="tooltip flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl text-[12px] text-slate-400 hover:text-amber-400 border border-white/[0.07] hover:border-amber-500/30 hover:bg-amber-500/5 transition-all flex-1 sm:flex-initial"
+                      data-tip="Hapus semua data"
+                    >
+                      <DatabaseZap size={13} />
+                      <span>Reset</span>
+                    </button>
+                  )}
+
+                  {/* Add record CTA */}
+                  <button
+                    id="btn-add-record"
+                    onClick={() => setShowAddModal(true)}
+                    className="flex items-center justify-center gap-2 px-4 py-1.5 rounded-xl text-[12px] font-semibold bg-indigo-500 hover:bg-indigo-400 text-white transition-all shadow-lg shadow-indigo-900/30 flex-1 sm:flex-initial"
+                  >
+                    <Plus size={14} />
+                    <span>Tambah Usaha</span>
+                  </button>
+                </div>
               </div>
-
-              {/* Clear all button */}
-              {records.length > 0 && (
-                <button
-                  id="btn-clear-all"
-                  onClick={() => setShowClearModal(true)}
-                  className="tooltip flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[12px] text-slate-400 hover:text-amber-400 border border-white/[0.07] hover:border-amber-500/30 hover:bg-amber-500/5 transition-all"
-                  data-tip="Hapus semua data"
-                >
-                  <DatabaseZap size={13} />
-                  <span className="hidden sm:inline">Reset</span>
-                </button>
-              )}
-
-              {/* Add record CTA */}
-              <button
-                id="btn-add-record"
-                onClick={() => setShowAddModal(true)}
-                className="flex items-center gap-2 px-4 py-1.5 rounded-xl text-[12px] font-semibold bg-indigo-500 hover:bg-indigo-400 text-white transition-all shadow-lg shadow-indigo-900/30"
-              >
-                <Plus size={14} />
-                <span>Tambah Usaha</span>
-              </button>
             </div>
 
             {/* ── Record list ── */}
             <div className="flex flex-col gap-3">
               {filteredRecords.length === 0 ? (
                 /* Empty state */
-                <div className="glass rounded-2xl border border-white/[0.06] flex flex-col items-center justify-center py-16 px-6 text-center fade-in-up">
+                <div className="w-full glass rounded-2xl border border-white/[0.06] flex flex-col items-center justify-center py-12 px-6 text-center fade-in-up">
                   <div className="w-16 h-16 rounded-2xl bg-surface-700/50 flex items-center justify-center mb-4">
                     <Inbox size={28} className="text-slate-500" />
                   </div>

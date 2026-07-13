@@ -69,6 +69,10 @@ body {
 ::-webkit-scrollbar-thumb   { background: var(--color-surface-400); border-radius: 999px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--color-primary-500); }
 
+/* Hide scrollbar utility (for mobile tabs row) */
+.scrollbar-none { scrollbar-width: none; -ms-overflow-style: none; -webkit-overflow-scrolling: touch; }
+.scrollbar-none::-webkit-scrollbar { display: none; }
+
 /* ═══════════════════════════════════════════════════════════
    GLASSMORPHISM CARD
    ═══════════════════════════════════════════════════════════ */
@@ -261,6 +265,22 @@ input[type="number"] { -moz-appearance: textfield; }
   transition: transform 0.2s, box-shadow 0.2s;
 }
 .metric-card:hover {
+  transform: translateY(-2px);
+}
+
+/* Compact version used on dashboard — smaller padding on mobile */
+.metric-card-mobile {
+  border-radius: 16px;
+  padding: 12px;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+@media (min-width: 640px) {
+  .metric-card-mobile { padding: 16px; }
+}
+@media (min-width: 1024px) {
+  .metric-card-mobile { padding: 20px; }
+}
+.metric-card-mobile:hover {
   transform: translateY(-2px);
 }
 

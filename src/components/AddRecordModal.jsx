@@ -56,10 +56,10 @@ export default function AddRecordModal({ onConfirm, onClose }) {
 
   return (
     <div className="modal-overlay" role="dialog" aria-modal="true" aria-label="Tambah Usaha Baru">
-      <div className="glass rounded-2xl border border-white/[0.1] w-full max-w-lg max-h-[90vh] overflow-y-auto scale-in">
+      <div className="glass rounded-xl border border-white/[0.1] w-full max-w-md max-h-[90vh] flex flex-col overflow-hidden scale-in mx-4">
 
-        {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-white/[0.07]">
+        {/* Header (sticky at the top) */}
+        <div className="flex items-center justify-between px-5 py-4 border-b border-white/[0.07] shrink-0">
           <div>
             <h2 className="text-[15px] font-bold text-white">Tambah Usaha Baru</h2>
             <p className="text-[11px] text-slate-400 mt-0.5">
@@ -75,9 +75,9 @@ export default function AddRecordModal({ onConfirm, onClose }) {
           </button>
         </div>
 
-        {/* Step 1: Category selection */}
+        {/* Step 1: Category selection (scrollable) */}
         {step === 1 && (
-          <div className="p-4 grid grid-cols-1 gap-2">
+          <div className="p-4 grid grid-cols-1 gap-2 overflow-y-auto flex-1 scrollbar-none" style={{ scrollbarWidth: 'none' }}>
             {CATEGORIES.map((cat) => {
               const Icon = ICON_MAP[cat.icon] || Store;
               const bgClass = COLOR_BG[cat.color] || COLOR_BG.indigo;
@@ -106,7 +106,7 @@ export default function AddRecordModal({ onConfirm, onClose }) {
 
         {/* Step 2: Name the record */}
         {step === 2 && selectedCategory && (
-          <div className="p-5 flex flex-col gap-4">
+          <div className="p-5 flex flex-col gap-4 overflow-y-auto flex-1">
             <div>
               <label className="block text-[12px] font-medium text-slate-300 mb-1.5">
                 Nama Usaha / Catatan
@@ -126,7 +126,7 @@ export default function AddRecordModal({ onConfirm, onClose }) {
               </p>
             </div>
 
-            <div className="flex gap-3">
+            <div className="flex gap-3 mt-auto">
               <button
                 onClick={() => setStep(1)}
                 className="flex-1 py-2.5 rounded-xl text-[13px] font-medium text-slate-400 border border-white/[0.08] hover:text-slate-200 hover:border-white/[0.15] transition-all"

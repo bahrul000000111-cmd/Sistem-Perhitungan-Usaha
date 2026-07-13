@@ -56,7 +56,7 @@ export default function DashboardStats({ records }) {
   const stats = aggregateStats(records);
 
   return (
-    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+    <div className="grid grid-cols-2 gap-3 p-3 md:grid-cols-4 md:gap-4 md:p-6">
       {STAT_CONFIG.map((cfg, i) => {
         const c = COLOR_MAP[cfg.color];
         const Icon = cfg.icon;
@@ -65,28 +65,30 @@ export default function DashboardStats({ records }) {
         return (
           <div
             key={cfg.key}
-            className={`metric-card glass border ${c.border} fade-in-up`}
+            className={`metric-card-mobile glass border ${c.border} flex flex-col justify-between fade-in-up`}
             style={{ animationDelay: `${i * 60}ms` }}
           >
-            {/* Icon */}
-            <div className={`w-9 h-9 rounded-xl ${c.bg} flex items-center justify-center mb-3`}>
-              <Icon size={18} className={c.icon} />
+            <div>
+              {/* Icon */}
+              <div className={`w-7 h-7 sm:w-9 sm:h-9 rounded-xl ${c.bg} flex items-center justify-center mb-2`}>
+                <Icon size={14} className={c.icon} />
+              </div>
+
+              {/* Value */}
+              <p className={`text-base sm:text-lg md:text-2xl font-bold ${c.val} leading-none mb-1 count-up whitespace-nowrap overflow-hidden text-ellipsis`}>
+                {cfg.format(value)}
+              </p>
+
+              {/* Label */}
+              <p className="text-[10px] sm:text-xs text-slate-400 font-normal leading-tight">{cfg.label}</p>
+              <p className="text-[10px] sm:text-xs text-slate-500 font-normal mt-0.5">{cfg.suffix}</p>
             </div>
-
-            {/* Value */}
-            <p className={`text-xl sm:text-2xl font-bold ${c.val} leading-none mb-1 count-up`}>
-              {cfg.format(value)}
-            </p>
-
-            {/* Label */}
-            <p className="text-[11px] text-slate-400 leading-tight">{cfg.label}</p>
-            <p className="text-[10px] text-slate-600 mt-0.5">{cfg.suffix}</p>
 
             {/* Trend indicator (static, decorative) */}
             {value > 0 && (
-              <div className="flex items-center gap-1 mt-2">
-                <ArrowUpRight size={12} className={c.icon} />
-                <span className={`text-[10px] font-medium ${c.icon}`}>Aktif</span>
+              <div className="flex items-center gap-1 mt-2.5 pt-2 border-t border-white/[0.04]">
+                <ArrowUpRight size={11} className={c.icon} />
+                <span className={`text-[9px] font-medium ${c.icon}`}>Aktif</span>
               </div>
             )}
           </div>
