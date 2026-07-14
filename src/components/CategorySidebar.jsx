@@ -65,7 +65,7 @@ function saveCollapseState(state) {
 // ─────────────────────────────────────────────────────────────────────────────
 // Sub-component: Individual KBLI category button (Tingkat 3)
 // ─────────────────────────────────────────────────────────────────────────────
-function CategoryItem({ cat, isActive, count, onSelect }) {
+function CategoryItem({ cat, isActive, count, onSelect, label }) {
   const Icon   = CATEGORY_ICON_MAP[cat.icon] || Store;
   const colors = COLOR_VARIANTS[cat.color]   || COLOR_VARIANTS.indigo;
 
@@ -85,7 +85,7 @@ function CategoryItem({ cat, isActive, count, onSelect }) {
         <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${
           count > 0 ? 'bg-emerald-400 shadow-sm shadow-emerald-400/50' : 'bg-slate-600'
         }`} />
-        {cat.name}
+        {label || cat.name}
       </span>
       {count > 0 && (
         <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full shrink-0 ${colors.tag}`}>
@@ -101,7 +101,7 @@ function CategoryItem({ cat, isActive, count, onSelect }) {
 // ─────────────────────────────────────────────────────────────────────────────
 function SubSectorGroup({
   subSector, categories, countMap, activeCategory, onSelect,
-  collapseState, onToggle, onAddRequest,
+  collapseState, onToggle, onAddRequest, labelMap,
 }) {
   // KBLI items that belong to this sub-sector
   const subCats       = categories.filter(c => c.subSectorId === subSector.subSectorId);
@@ -127,8 +127,8 @@ function SubSectorGroup({
         // min 44px touch target via py-2
         className={`flex items-center gap-1.5 px-2 py-2 rounded-lg w-full text-left transition-colors group ${
           isEmpty
-            ? 'opacity-50 hover:opacity-70'
-            : 'hover:bg-surface-700/40'
+             ? 'opacity-50 hover:opacity-70'
+             : 'hover:bg-surface-700/40'
         }`}
         aria-expanded={isExpanded}
       >
@@ -187,6 +187,7 @@ function SubSectorGroup({
                 isActive={activeCategory === cat.id}
                 count={countMap[cat.id] || 0}
                 onSelect={onSelect}
+                label={labelMap?.[cat.id]}
               />
             ))
           )}
@@ -201,7 +202,7 @@ function SubSectorGroup({
 // ─────────────────────────────────────────────────────────────────────────────
 function SectorGroup({
   sector, categories, countMap, activeCategory, onSelect,
-  collapseState, onToggle, onAddRequest,
+  collapseState, onToggle, onAddRequest, labelMap,
 }) {
   const SectorIcon = SECTOR_ICON_MAP[sector.icon] || Leaf;
 
@@ -266,6 +267,7 @@ function SectorGroup({
                 collapseState={collapseState}
                 onToggle={onToggle}
                 onAddRequest={onAddRequest}
+                labelMap={labelMap}
               />
             ))
           ) : (
@@ -277,6 +279,7 @@ function SectorGroup({
                 isActive={activeCategory === cat.id}
                 count={countMap[cat.id] || 0}
                 onSelect={onSelect}
+                label={labelMap?.[cat.id]}
               />
             ))
           )}
@@ -293,6 +296,21 @@ export default function CategorySidebar({ activeCategory, onSelect, records, var
   // countMap: categoryId → number of records
   const countMap = {};
   records.forEach(r => { countMap[r.categoryId] = (countMap[r.categoryId] || 0) + 1; });
+
+  // labelMap: categoryId → display label (oldest record displayName or fallback to universal/mech label)
+  const labelMap = useMemo(() => {
+    const map = {};
+    CATEGORIES.forEach(cat => {
+      const catRecords = records.filter(r => r.categoryId === cat.id);
+      if (catRecords.length > 0) {
+        const oldest = [...catRecords].sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt))[0];
+        map[cat.id] = oldest.displayName || oldest.name;
+      } else {
+        map[cat.id] = cat.mechLabel || cat.name.replace(/^KBLI \d+ - /, '');
+      }
+    });
+    return map;
+  }, [records]);
 
   // Collapse state (persisted in localStorage)
   const [collapseState, setCollapseState] = useState(() => loadCollapseState());
@@ -352,6 +370,7 @@ export default function CategorySidebar({ activeCategory, onSelect, records, var
             collapseState={collapseState}
             onToggle={handleToggle}
             onAddRequest={handleAddRequest}
+            labelMap={labelMap}
           />
         ))}
       </div>
@@ -374,7 +393,7 @@ export default function CategorySidebar({ activeCategory, onSelect, records, var
             <optgroup key={sector.sectorId} label={`── ${sector.sectorName}`}>
               {CATEGORIES.filter(c => c.sectorId === sector.sectorId).map(cat => (
                 <option key={cat.id} value={cat.id} className="bg-surface-800 text-slate-200">
-                  {cat.name}{countMap[cat.id] ? ` (${countMap[cat.id]})` : ''}
+                  {labelMap[cat.id] || cat.name}{countMap[cat.id] ? ` (${countMap[cat.id]})` : ''}
                 </option>
               ))}
             </optgroup>
@@ -406,7 +425,7 @@ export default function CategorySidebar({ activeCategory, onSelect, records, var
                     count > 0 ? 'bg-emerald-400 shadow-sm shadow-emerald-400/50' : 'bg-slate-600'
                   }`} />
                   <Icon size={12} />
-                  <span>{cat.name}</span>
+                  <span>{labelMap[cat.id] || cat.name}</span>
                   {count > 0 && (
                     <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${colors.tag}`}>
                       {count}

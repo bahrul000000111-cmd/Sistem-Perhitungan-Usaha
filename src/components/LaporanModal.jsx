@@ -64,7 +64,7 @@ export default function LaporanModal({ records, onClose }) {
     // Map data for spreadsheet export
     const exportData = calculatedRecords.map((r, idx) => ({
       'No': idx + 1,
-      'Nama Usaha': r.name,
+      'Nama Usaha': r.displayName || r.name,
       'Kategori KBLI': r.categoryName,
       'Tahun Beroperasi': r.result.bps?.tahunMulai || '-',
       'Pekerja Laki-laki': r.result.bps?.pekerjaL || 0,
@@ -206,7 +206,7 @@ export default function LaporanModal({ records, onClose }) {
                       return (
                         <div key={r.id} className="space-y-1.5">
                           <div className="flex justify-between text-[11.5px] font-semibold text-slate-300">
-                            <span className="truncate max-w-[200px]">{r.name}</span>
+                            <span className="truncate max-w-[200px]">{r.displayName || r.name}</span>
                             <span className={isLoss ? 'text-rose-400' : 'text-emerald-400'}>
                               {ratio.toFixed(1)}%
                             </span>
@@ -298,7 +298,7 @@ export default function LaporanModal({ records, onClose }) {
                     <tbody className="text-[11.5px] divide-y divide-white/[0.03]">
                       {calculatedRecords.map(r => (
                         <tr key={r.id} className="hover:bg-white/[0.01] transition-colors">
-                          <td className="py-2.5 px-4 text-white font-semibold truncate max-w-[150px]">{r.name}</td>
+                          <td className="py-2.5 px-4 text-white font-semibold truncate max-w-[150px]">{r.displayName || r.name}</td>
                           <td className="py-2.5 px-3 text-slate-400 truncate max-w-[180px]">{r.categoryName}</td>
                           <td className="py-2.5 px-3 text-center font-mono text-slate-300">
                             {r.result.bps?.totalPekerja ? `👥 ${r.result.bps.totalPekerja}` : '-'}

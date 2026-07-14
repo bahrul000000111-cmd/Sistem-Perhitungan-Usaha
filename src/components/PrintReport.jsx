@@ -63,7 +63,7 @@ export default function PrintReport({ records }) {
             <div key={record.id} className="mb-6 border border-gray-200 rounded p-4" style={{ pageBreakInside: 'avoid' }}>
               <div className="flex justify-between items-start mb-3">
                 <div>
-                  <h3 className="font-bold text-[14px] text-gray-900">{idx + 1}. {record.name}</h3>
+                  <h3 className="font-bold text-[14px] text-gray-900">{idx + 1}. {record.displayName || record.name}</h3>
                   <p className="text-[11px] text-gray-500">{category?.name} · {formatDate(record.updatedAt)}</p>
                   
                   {/* BPS metadata profile in print layout */}

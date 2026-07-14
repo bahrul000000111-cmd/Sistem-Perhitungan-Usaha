@@ -176,7 +176,10 @@ body {
   padding: 5px 12px;
   border-radius: 8px;
   font-size: 12px;
-  white-space: nowrap;
+  white-space: pre-line;
+  text-align: center;
+  max-width: 280px;
+  min-width: 180px;
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.2s, transform 0.2s;

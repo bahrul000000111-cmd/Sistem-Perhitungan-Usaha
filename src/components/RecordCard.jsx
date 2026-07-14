@@ -145,7 +145,7 @@ function FormulaDropdown({ value, options, onChange }) {
 export default function RecordCard({ record, allRecords, onUpdate, onDelete, onDuplicate }) {
   const [expanded,    setExpanded]    = useState(true);
   const [editingName, setEditingName] = useState(false);
-  const [draftName,   setDraftName]   = useState(record.name);
+  const [draftName,   setDraftName]   = useState(record.displayName || record.name);
 
   const category    = CATEGORIES.find(c => c.id === record.categoryId);
   const gradClass   = ICON_COLORS[category?.color] || ICON_COLORS.indigo;
@@ -169,12 +169,12 @@ export default function RecordCard({ record, allRecords, onUpdate, onDelete, onD
 
   const saveName = () => {
     const trimmed = draftName.trim();
-    if (trimmed) onUpdate(record.id, { name: trimmed });
+    if (trimmed) onUpdate(record.id, { name: trimmed, isCustomName: true });
     setEditingName(false);
   };
 
   const cancelName = () => {
-    setDraftName(record.name);
+    setDraftName(record.displayName || record.name);
     setEditingName(false);
   };
 
@@ -219,9 +219,19 @@ export default function RecordCard({ record, allRecords, onUpdate, onDelete, onD
       {/* ── Card header ───────────────────────────────────────────────────── */}
       <div className="flex items-center gap-3 px-4 py-3 border-b border-white/[0.06]">
 
-        {/* Category icon */}
-        <div className={`w-8 h-8 rounded-xl bg-gradient-to-br ${gradClass} flex items-center justify-center shrink-0 shadow-lg`}>
-          <Store size={14} className="text-white" />
+        {/* Category icon with premium tooltip */}
+        <div 
+          className="relative group shrink-0"
+          aria-label={`Usaha: ${record.displayName || record.name}, mekanisme kalkulasi: ${category?.mechLabel || 'Kalkulasi generik'}`}
+        >
+          <div className={`w-8 h-8 rounded-xl bg-gradient-to-br ${gradClass} flex items-center justify-center shadow-lg cursor-help`}>
+            <Store size={14} className="text-white" />
+          </div>
+          {/* Tooltip Popup */}
+          <div className="pointer-events-none absolute bottom-[calc(100%+8px)] left-1/2 -translate-x-1/2 scale-95 opacity-0 group-hover:scale-100 group-hover:opacity-100 transition-all duration-200 bg-surface-800 border border-white/[0.1] text-slate-200 px-3.5 py-2 rounded-xl text-center z-50 min-w-[200px] max-w-[280px] shadow-2xl flex flex-col gap-0.5">
+            <span className="text-[11.5px] font-bold text-slate-100 block">{record.displayName || record.name}</span>
+            <span className="text-[10px] text-slate-500 font-medium block">Mekanisme: {category?.mechLabel || 'Kalkulasi generik'}</span>
+          </div>
         </div>
 
         {/* Name (editable) + badges */}
@@ -242,10 +252,10 @@ export default function RecordCard({ record, allRecords, onUpdate, onDelete, onD
             </div>
           ) : (
             <div className="flex items-center gap-2">
-              <p className="text-[13px] font-semibold text-slate-100 truncate">{record.name}</p>
+              <p className="text-[13px] font-semibold text-slate-100 truncate">{record.displayName || record.name}</p>
               <button
                 id={`btn-rename-${record.id}`}
-                onClick={() => { setDraftName(record.name); setEditingName(true); }}
+                onClick={() => { setDraftName(record.displayName || record.name); setEditingName(true); }}
                 className="text-slate-600 hover:text-slate-300 transition-colors shrink-0"
                 aria-label="Ubah nama"
               >
@@ -264,12 +274,19 @@ export default function RecordCard({ record, allRecords, onUpdate, onDelete, onD
 
             {/* Category/sub-sector badge (Addendum #4) */}
             {badge && (
-              <span
-                className="tooltip text-[9.5px] font-semibold px-1.5 py-0.5 rounded-md bg-slate-500/10 border border-slate-500/20 text-slate-400 flex items-center gap-0.5 select-none cursor-default"
-                data-tip={category ? `Formula: ${category.name}` : 'Kalkulasi generik'}
+              <div 
+                className="relative group shrink-0"
+                aria-label={`Usaha: ${record.displayName || record.name}, mekanisme kalkulasi: ${category?.mechLabel || 'Kalkulasi generik'}`}
               >
-                {badge.label}
-              </span>
+                <span className="text-[9.5px] font-semibold px-1.5 py-0.5 rounded-md bg-slate-500/10 border border-slate-500/20 text-slate-400 flex items-center gap-0.5 select-none cursor-help">
+                  {badge.label}
+                </span>
+                {/* Tooltip Popup */}
+                <div className="pointer-events-none absolute bottom-[calc(100%+8px)] left-1/2 -translate-x-1/2 scale-95 opacity-0 group-hover:scale-100 group-hover:opacity-100 transition-all duration-200 bg-surface-800 border border-white/[0.1] text-slate-200 px-3.5 py-2 rounded-xl text-center z-50 min-w-[200px] max-w-[280px] shadow-2xl flex flex-col gap-0.5">
+                  <span className="text-[11.5px] font-bold text-slate-100 block">{record.displayName || record.name}</span>
+                  <span className="text-[10px] text-slate-500 font-medium block">Mekanisme: {category?.mechLabel || 'Kalkulasi generik'}</span>
+                </div>
+              </div>
             )}
 
             {/* Generic notice badge */}

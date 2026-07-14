@@ -36,21 +36,73 @@ export default function App() {
 
   // ── Derived Data ──────────────────────────────────────────────────────────
 
-  /** Filter records by active category and search query */
+  /** Enriched records with dynamic displayName logic (Addendum #6) */
+  const enrichedRecords = useMemo(() => {
+    // Sort ascending by creation time to compute numbering sequence
+    const sorted = [...records].sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+    const groupCounters = {};
+    const displayNames = {};
+
+    sorted.forEach(r => {
+      if (r.isCustomName) {
+        displayNames[r.id] = r.name;
+      } else {
+        const groupKey = r.inputs?._groupKey || r.categoryId;
+        let label = 'Kategori';
+
+        if (SUB_SECTOR_MAP.has(groupKey)) {
+          label = SUB_SECTOR_MAP.get(groupKey).subSectorName;
+        } else if (SECTOR_MAP.has(groupKey)) {
+          label = SECTOR_MAP.get(groupKey).sectorName;
+        } else {
+          const cat = CATEGORIES.find(c => c.id === r.categoryId);
+          if (cat) {
+            if (cat.subSectorId && SUB_SECTOR_MAP.has(cat.subSectorId)) {
+              label = SUB_SECTOR_MAP.get(cat.subSectorId).subSectorName;
+            } else if (cat.sectorId && SECTOR_MAP.has(cat.sectorId)) {
+              label = SECTOR_MAP.get(cat.sectorId).sectorName;
+            }
+          }
+        }
+
+        const baseName = `Usaha ${label} Baru`;
+        groupCounters[groupKey] = (groupCounters[groupKey] || 0) + 1;
+        const count = groupCounters[groupKey];
+        displayNames[r.id] = count === 1 ? baseName : `${baseName} (${count})`;
+      }
+    });
+
+    return records.map(r => ({
+      ...r,
+      displayName: displayNames[r.id] || r.name
+    }));
+  }, [records]);
+
+  /** Filter records by active category and search query (using displayName) */
   const filteredRecords = useMemo(() => {
-    return records.filter(r => {
+    return enrichedRecords.filter(r => {
       const matchCat = activeCategory ? r.categoryId === activeCategory : true;
       const matchSearch = searchQuery.trim()
-        ? r.name.toLowerCase().includes(searchQuery.toLowerCase())
+        ? r.displayName.toLowerCase().includes(searchQuery.toLowerCase())
         : true;
       return matchCat && matchSearch;
     });
-  }, [records, activeCategory, searchQuery]);
+  }, [enrichedRecords, activeCategory, searchQuery]);
 
   const activeCategory_obj = useMemo(
     () => CATEGORIES.find(c => c.id === activeCategory),
     [activeCategory]
   );
+
+  const activeCategoryDisplayName = useMemo(() => {
+    if (!activeCategory) return '';
+    const catRecords = enrichedRecords.filter(r => r.categoryId === activeCategory);
+    if (catRecords.length > 0) {
+      const oldest = [...catRecords].sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt))[0];
+      return oldest.displayName;
+    }
+    return activeCategory_obj ? activeCategory_obj.mechLabel || activeCategory_obj.name.replace(/^KBLI \d+ - /, '') : '';
+  }, [activeCategory, enrichedRecords, activeCategory_obj]);
 
   // Breadcrumb enrichment: resolve sector & sub-sector for active category
   const activeSector = useMemo(() => {
@@ -98,8 +150,8 @@ export default function App() {
   }, []);
 
   const deleteTargetRecord = useMemo(
-    () => records.find(r => r.id === deleteTarget),
-    [records, deleteTarget]
+    () => enrichedRecords.find(r => r.id === deleteTarget),
+    [enrichedRecords, deleteTarget]
   );
 
   // ── Render ────────────────────────────────────────────────────────────────
@@ -121,7 +173,7 @@ export default function App() {
 
         {/* ① Dashboard KPI strip */}
         <section aria-label="Ringkasan Dashboard">
-          <DashboardStats records={records} />
+          <DashboardStats records={enrichedRecords} />
         </section>
 
         {/* ② Category navigation + content area */}
@@ -132,7 +184,7 @@ export default function App() {
             <CategorySidebar
               activeCategory={activeCategory}
               onSelect={(id) => setActiveCategory(prev => prev === id ? null : id)}
-              records={records}
+              records={enrichedRecords}
               variant="sidebar"
               onAddRequest={() => setShowAddModal(true)}
             />
@@ -146,7 +198,7 @@ export default function App() {
               <CategorySidebar
                 activeCategory={activeCategory}
                 onSelect={(id) => setActiveCategory(prev => prev === id ? null : id)}
-                records={records}
+                records={enrichedRecords}
                 variant="tabs"
                 onAddRequest={() => setShowAddModal(true)}
               />
@@ -174,7 +226,7 @@ export default function App() {
                 {activeCategory_obj && (
                   <>
                     <ChevronRight size={12} className="text-slate-600" />
-                    <span className="text-[12px] text-indigo-400 font-medium">{activeCategory_obj.name}</span>
+                    <span className="text-[12px] text-indigo-400 font-medium">{activeCategoryDisplayName}</span>
                   </>
                 )}
               </div>
@@ -252,7 +304,7 @@ export default function App() {
                   <RecordCard
                     key={record.id}
                     record={record}
-                    allRecords={records}
+                    allRecords={enrichedRecords}
                     onUpdate={handleUpdateRecord}
                     onDelete={handleDeleteRequest}
                     onDuplicate={duplicateRecord}
@@ -282,7 +334,7 @@ export default function App() {
 
       {deleteTarget && deleteTargetRecord && (
         <DeleteConfirmModal
-          recordName={deleteTargetRecord.name}
+          recordName={deleteTargetRecord.displayName || deleteTargetRecord.name}
           onConfirm={handleDeleteConfirm}
           onCancel={() => setDeleteTarget(null)}
         />
@@ -298,13 +350,13 @@ export default function App() {
 
       {showLaporanModal && (
         <LaporanModal
-          records={records}
+          records={enrichedRecords}
           onClose={() => setShowLaporanModal(false)}
         />
       )}
 
       {/* ── Print Report (hidden, shown on print) ── */}
-      <PrintReport records={records} />
+      <PrintReport records={enrichedRecords} />
     </div>
   );
 }
