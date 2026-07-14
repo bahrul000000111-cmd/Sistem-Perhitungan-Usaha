@@ -13,7 +13,7 @@
  *
  * Mobile: collapses to grouped <optgroup> dropdown (unchanged behaviour).
  */
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import {
   Store, UtensilsCrossed, Sprout, TreePalm,
   Package, Gem, Flame, Fish,
