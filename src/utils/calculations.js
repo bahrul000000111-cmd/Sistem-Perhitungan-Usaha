@@ -37,12 +37,13 @@ export const CATEGORIES = [
     name: 'KBLI 47112 - Toko Kelontong / Kios Campuran',
     icon: 'Store',
     color: 'indigo',
-    // description: concise, without redundant "Kategori X ·" prefix (sector shown by group header in UI)
     description: 'Perdagangan Eceran Kelontong & Kebutuhan Sehari-hari',
-    // kbliSection: preserved for tooltip / reference cross-linking to BPS documentation
     kbliSection: 'G',
-    // sectorId / subSectorId: display-only taxonomy — NOT read by any computeFn
     sectorId: 'perdagangan',
+    // ── Mechanism metadata (Addendum #5) ────────────────────────────────
+    mechGroup: 'M1',
+    mechLabel: 'Pendapatan Harian/Berkala × Koefisien Margin',
+    mechSubtext: 'Cocok untuk usaha dagang dengan omzet harian & margin keuntungan relatif tetap — mis. warung, kios, toko, pedagang pasar, dan sejenisnya.',
     fields: [
       { key: 'pemasukan_harian', label: 'Pendapatan Kotor Harian', placeholder: '500000', suffix: '/hari' }
     ],
@@ -56,6 +57,9 @@ export const CATEGORIES = [
     description: 'Penyediaan Akomodasi & Makan Minum',
     kbliSection: 'I',
     sectorId: 'akomodasi-makan-minum',
+    mechGroup: 'M1',
+    mechLabel: 'Pendapatan Harian/Berkala × Koefisien Margin (Kuliner)',
+    mechSubtext: 'Cocok untuk usaha makan-minum dengan omzet harian & koefisien pendapatan lebih tinggi — mis. warung makan, café, katering, usaha jajanan, dan sejenisnya.',
     fields: [
       { key: 'pemasukan_harian', label: 'Pendapatan Kotor Harian', placeholder: '1000000', suffix: '/hari' }
     ],
@@ -70,6 +74,9 @@ export const CATEGORIES = [
     kbliSection: 'A',
     sectorId: 'pertanian-kehutanan-perikanan',
     subSectorId: 'perkebunan',
+    mechGroup: 'M2',
+    mechLabel: 'Input Pendapatan Langsung (Tahunan)',
+    mechSubtext: 'Cocok bila Anda sudah tahu total pendapatan tahunan usaha secara langsung — mis. kebun campuran, tanaman tahunan lain, usaha dengan pencatatan tahunan sederhana, dan sejenisnya.',
     fields: [
       { key: 'total_pendapatan_tahunan', label: 'Total Pendapatan Tahunan', placeholder: '12000000', suffix: '/tahun' }
     ],
@@ -84,11 +91,14 @@ export const CATEGORIES = [
     kbliSection: 'A',
     sectorId: 'pertanian-kehutanan-perikanan',
     subSectorId: 'perkebunan',
+    mechGroup: 'M3',
+    mechLabel: 'Volume Panen × Harga Satuan (per Pohon/Tanaman)',
+    mechSubtext: 'Cocok untuk usaha dengan jumlah pohon/tanaman tertentu & hasil panen berkala — mis. kelapa, buah-buahan, tanaman keras lain, dan sejenisnya.',
+    hasDualMode: true,
     fields: [
-      { key: 'jumlah_pohon', label: 'Jumlah Pohon Kelapa', placeholder: '30', suffix: 'pohon', defaultValue: 30 }
+      { key: 'jumlah_pohon', label: 'Jumlah Pohon / Tanaman', placeholder: '30', suffix: 'pohon', defaultValue: 30 }
     ],
-    note: 'Harga: 25 buah/pohon × Rp 2.000 · 4 panen/tahun · Pengeluaran 30%',
-    hasDualMode: true
+    note: 'Harga: 25 buah/pohon × Rp 2.000 · 4 panen/tahun · Pengeluaran 30%'
   },
   {
     id: 'industri_kopra',
@@ -98,11 +108,14 @@ export const CATEGORIES = [
     description: 'Industri Pengolahan Hasil Kelapa (Kopra)',
     kbliSection: 'C',
     sectorId: 'industri-pengolahan',
+    mechGroup: 'M3',
+    mechLabel: 'Volume/Berat Produksi × Harga Satuan (per Siklus Produksi)',
+    mechSubtext: 'Cocok untuk usaha pengolahan dengan hasil produksi terukur berat/volume per siklus — mis. hasil olahan pertanian, produk olahan rumahan, pengolahan bahan mentah, dan sejenisnya.',
+    hasDualMode: true,
     fields: [
-      { key: 'berat_kopra', label: 'Berat Kopra Per Panen (Kg)', placeholder: '400', suffix: 'kg', defaultValue: 400 }
+      { key: 'berat_kopra', label: 'Berat Hasil Produksi Per Siklus (Kg)', placeholder: '400', suffix: 'kg', defaultValue: 400 }
     ],
-    note: 'Harga: (berat ÷ 5) × Rp 15.000 · 4 panen/tahun · Pengeluaran 30%',
-    hasDualMode: true
+    note: 'Harga: (berat ÷ 5) × Rp 15.000 · 4 siklus/tahun · Pengeluaran 30%'
   },
   {
     id: 'tempurung',
@@ -112,8 +125,11 @@ export const CATEGORIES = [
     description: 'Perdagangan Besar Bahan Sisa & Hasil Sampingan',
     kbliSection: 'G',
     sectorId: 'perdagangan',
+    mechGroup: 'M3-batch',
+    mechLabel: 'Volume/Berat Barang × Harga Satuan (per Batch/Pengiriman)',
+    mechSubtext: 'Cocok untuk usaha dagang barang curah/sisa produksi yang dijual per batch atau pengiriman — mis. hasil sampingan, bahan sisa industri, komoditas curah, dan sejenisnya.',
     fields: [
-      { key: 'berat_tempurung', label: 'Berat Tempurung (Kg)', placeholder: '90', suffix: 'kg', defaultValue: 90 }
+      { key: 'berat_tempurung', label: 'Berat Barang per Batch (Kg)', placeholder: '90', suffix: 'kg', defaultValue: 90 }
     ],
     note: 'Harga: (berat ÷ 10) × Rp 5.000 · Pengeluaran 10%'
   },
@@ -125,11 +141,14 @@ export const CATEGORIES = [
     description: 'Industri Pengolahan — Nilai Tambah dari Tempurung Kelapa',
     kbliSection: 'C',
     sectorId: 'industri-pengolahan',
+    mechGroup: 'M3-batch+',
+    mechLabel: 'Volume/Berat Bahan Baku × Harga Satuan + Nilai Tambah Pengolahan (per Batch)',
+    mechSubtext: 'Cocok untuk usaha pengolahan lanjutan yang menambah nilai dari bahan baku per batch — mis. produk olahan turunan, bahan jadi dari bahan mentah, dan sejenisnya.',
     fields: [
-      { key: 'berat_tempurung', label: 'Berat Tempurung Dasar (Kg)', placeholder: '90', suffix: 'kg', defaultValue: 90 },
+      { key: 'berat_tempurung', label: 'Berat Bahan Baku per Batch (Kg)', placeholder: '90', suffix: 'kg', defaultValue: 90 },
       { key: 'link_tempurung', label: 'Gunakan Nilai Tempurung Kategori 6', type: 'boolean', defaultValue: false }
     ],
-    note: 'Nilai Harian = Nilai Box Tempurung + Rp 13.500 · Pengeluaran 10%'
+    note: 'Nilai Batch = Nilai Bahan Baku + Nilai Tambah Tetap · Pengeluaran 10%'
   },
   {
     id: 'nelayan_tangkap',
@@ -140,6 +159,9 @@ export const CATEGORIES = [
     kbliSection: 'A',
     sectorId: 'pertanian-kehutanan-perikanan',
     subSectorId: 'perikanan',
+    mechGroup: 'M1-kuantitas',
+    mechLabel: 'Kuantitas Tangkapan × Harga Satuan × Koefisien (Harian)',
+    mechSubtext: 'Cocok untuk usaha berbasis volume tangkapan/panen harian dengan harga satuan per unit — mis. usaha perikanan, pengumpul hasil alam harian, dan sejenisnya.',
     fields: [
       { key: 'satuan_kg', label: 'Satuan Tangkapan (Kg)', placeholder: '1', suffix: 'kg/hari', defaultValue: 1 },
       { key: 'pemasukan_harian', label: 'Nilai Per Satuan (Rp)', placeholder: '150000', suffix: '/satuan' }

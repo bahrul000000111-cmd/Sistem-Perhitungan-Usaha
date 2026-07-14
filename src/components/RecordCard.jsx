@@ -75,10 +75,70 @@ function resolveFormulaOptions(record) {
     const cat = CATEGORIES.find(c => c.id === id);
     return {
       value: id,
-      label: cat ? cat.name.replace(/^KBLI \d+ - /, '') : id,
+      label: cat ? cat.mechLabel || cat.name.replace(/^KBLI \d+ - /, '') : id,
+      subtext: cat ? cat.mechSubtext : null,
       fullName: cat?.name || id,
     };
   });
+}
+
+// ── Custom Dropdown for rich option titles + subtexts (Addendum #5) ──────────
+function FormulaDropdown({ value, options, onChange }) {
+  const [isOpen, setIsOpen] = useState(false);
+  const selectedOpt = options.find(opt => opt.value === value) || options[0];
+
+  return (
+    <div className="relative flex-1">
+      {/* Trigger Button */}
+      <button
+        type="button"
+        onClick={() => setIsOpen(!isOpen)}
+        className="w-full flex items-center justify-between rounded-xl border border-white/[0.08] bg-surface-700 text-slate-200 text-[11.5px] font-semibold px-3 py-2 outline-none hover:border-indigo-500/30 focus:border-indigo-500/50 transition-all text-left"
+      >
+        <span className="truncate">{selectedOpt.label}</span>
+        <ChevronDown size={14} className={`text-slate-400 shrink-0 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+      </button>
+
+      {/* Overlay Backdrop to close on click outside */}
+      {isOpen && (
+        <div 
+          className="fixed inset-0 z-15" 
+          onClick={() => setIsOpen(false)}
+        />
+      )}
+
+      {/* Dropdown Menu */}
+      {isOpen && (
+        <div className="absolute right-0 left-0 mt-1.5 z-20 rounded-xl border border-white/[0.1] bg-surface-800/95 backdrop-blur-md shadow-2xl overflow-hidden py-1 max-h-[300px] overflow-y-auto">
+          {options.map(opt => {
+            const isSelected = opt.value === value;
+            return (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() => {
+                  onChange(opt.value);
+                  setIsOpen(false);
+                }}
+                className={`w-full text-left px-3.5 py-2.5 hover:bg-surface-700/60 transition-colors flex flex-col gap-0.5 border-b border-white/[0.03] last:border-b-0 ${
+                  isSelected ? 'bg-indigo-500/10' : ''
+                }`}
+              >
+                <span className={`text-[12px] font-bold ${isSelected ? 'text-indigo-300' : 'text-slate-200'}`}>
+                  {opt.label}
+                </span>
+                {opt.subtext && (
+                  <span className="text-[10px] leading-normal text-slate-500 font-medium">
+                    {opt.subtext}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
 }
 
 // ── Main component ────────────────────────────────────────────────────────────
@@ -271,19 +331,17 @@ export default function RecordCard({ record, allRecords, onUpdate, onDelete, onD
       {/* ── "Jenis Kalkulasi" dropdown (multi-formula categories) ─────────── */}
       {expanded && formulaOptions && (
         <div className="px-4 py-2.5 border-b border-white/[0.04] flex items-center gap-2 bg-surface-800/20">
-          <span className="text-[11px] font-medium text-slate-500 shrink-0">Jenis Kalkulasi:</span>
-          <select
-            id={`select-formula-${record.id}`}
+          <div className="flex items-center gap-1.5 shrink-0 select-none">
+            <span className="text-[11px] font-semibold text-slate-400">Jenis Kalkulasi:</span>
+            <div className="tooltip cursor-pointer text-slate-500 hover:text-slate-300" data-tip="Pilih pola perhitungan berdasarkan cara usaha Anda memperoleh pendapatan, bukan berdasarkan jenis barang/komoditas tertentu.">
+              <Info size={11} />
+            </div>
+          </div>
+          <FormulaDropdown
             value={record.categoryId}
-            onChange={e => handleFormulaChange(e.target.value)}
-            className="flex-1 rounded-lg border border-white/[0.08] bg-surface-700 text-slate-200 text-[11.5px] px-2.5 py-1.5 outline-none focus:border-indigo-500/40 transition-colors cursor-pointer"
-          >
-            {formulaOptions.map(opt => (
-              <option key={opt.value} value={opt.value} className="bg-surface-800">
-                {opt.label}
-              </option>
-            ))}
-          </select>
+            options={formulaOptions}
+            onChange={handleFormulaChange}
+          />
         </div>
       )}
 
