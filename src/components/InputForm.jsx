@@ -198,6 +198,10 @@ export default function InputForm({ categoryId, inputs, onInputChange, records }
   const rawDays = inputs.custom_days;
   const displayDays = (rawDays !== undefined && rawDays !== '') ? rawDays : 30;
 
+  // Normalize use_detail_pengeluaran toggle — same logic as calculateRecord
+  const rawToggle = inputs.use_detail_pengeluaran;
+  const isDetailPengeluaranActive = rawToggle === true || rawToggle === 1 || rawToggle === 'true';
+
   return (
     <div className="flex flex-col gap-4">
       {/* ── Main Inputs ── */}
@@ -290,7 +294,7 @@ export default function InputForm({ categoryId, inputs, onInputChange, records }
         )}
 
         {/* Expense Modifier (Hidden if detail expense override is active) */}
-        {!inputs.use_detail_pengeluaran ? (
+        {!isDetailPengeluaranActive ? (
           <PercentSlider
             id="input-custom-exp-pct"
             label="Persentase Pengeluaran (%)"
@@ -475,7 +479,7 @@ export default function InputForm({ categoryId, inputs, onInputChange, records }
                 <label className="relative inline-flex items-center cursor-pointer select-none">
                   <input
                     type="checkbox"
-                    checked={Boolean(inputs.use_detail_pengeluaran)}
+                    checked={isDetailPengeluaranActive}
                     onChange={e => onInputChange('use_detail_pengeluaran', e.target.checked)}
                     className="sr-only peer"
                   />
@@ -484,16 +488,29 @@ export default function InputForm({ categoryId, inputs, onInputChange, records }
                 </label>
               </div>
 
-              {Boolean(inputs.use_detail_pengeluaran) && (
+              {isDetailPengeluaranActive && (
                 <div className="space-y-3.5 pt-1 pl-2 border-l border-indigo-500/20 fade-in-up">
-                  <CurrencyInput
-                    id="biaya-upah"
-                    label="Upah, Gaji &amp; Jaminan Sosial (26a)"
-                    value={inputs.biaya_upah || ''}
-                    onChange={val => onInputChange('biaya_upah', val)}
-                    placeholder="0"
-                    tooltip="Upah pokok, bonus, natura makan/perumahan, iuran BPJS."
-                  />
+                  {/* 26a — Upah, with hint jika pekerja > 0 tapi biaya_upah = 0 */}
+                  <div className="flex flex-col gap-1.5">
+                    <CurrencyInput
+                      id="biaya-upah"
+                      label="Upah, Gaji &amp; Jaminan Sosial (26a)"
+                      value={inputs.biaya_upah || ''}
+                      onChange={val => onInputChange('biaya_upah', val)}
+                      placeholder="0"
+                      tooltip="Upah pokok, bonus, natura makan/perumahan, iuran BPJS."
+                    />
+                    {/* Hint jika pekerja terisi tapi upah kosong */}
+                    {((parseInt(inputs.pekerja_l) || 0) + (parseInt(inputs.pekerja_p) || 0)) > 0
+                      && !(parseFloat(inputs.biaya_upah) > 0) && (
+                      <div className="flex items-start gap-1.5 text-[10.5px] text-amber-400 bg-amber-500/8 border border-amber-500/15 rounded-lg px-2.5 py-1.5 leading-relaxed">
+                        <span className="shrink-0 mt-0.5">⚠️</span>
+                        <span>
+                          Usaha ini memiliki {(parseInt(inputs.pekerja_l) || 0) + (parseInt(inputs.pekerja_p) || 0)} pekerja — pastikan komponen upah/gaji sudah dimasukkan di sini jika relevan.
+                        </span>
+                      </div>
+                    )}
+                  </div>
                   <CurrencyInput
                     id="biaya-produksi"
                     label="Biaya Bahan / Produksi (26b)"
@@ -502,14 +519,15 @@ export default function InputForm({ categoryId, inputs, onInputChange, records }
                     placeholder="0"
                     tooltip="Bahan baku, BBM produksi, bahan penolong habis pakai."
                   />
-                  {['kios_campuran', 'tempurung'].includes(categoryId) && (
+                  {/* 26c — HPP hanya untuk kategori perdagangan */}
+                  {['kios_campuran', 'tempurung', 'arang_tempurung'].includes(categoryId) && (
                     <CurrencyInput
                       id="biaya-hpp"
                       label="Biaya Barang untuk Dijual / HPP (26c)"
                       value={inputs.biaya_hpp || ''}
                       onChange={val => onInputChange('biaya_hpp', val)}
                       placeholder="0"
-                      tooltip="Khusus perdagangan: Nilai barang yang dibeli untuk dijual kembali."
+                      tooltip="Khusus perdagangan: Nilai barang yang dibeli untuk dijual kembali (HPP)."
                     />
                   )}
                   <CurrencyInput
@@ -528,6 +546,23 @@ export default function InputForm({ categoryId, inputs, onInputChange, records }
                     placeholder="0"
                     tooltip="Bunga pinjaman, donasi, kerugian revaluasi aset, pajak ijin usaha."
                   />
+                  {/* Live 26f total summary */}
+                  {(() => {
+                    const total26f =
+                      (parseFloat(inputs.biaya_upah)            || 0) +
+                      (parseFloat(inputs.biaya_produksi)        || 0) +
+                      (parseFloat(inputs.biaya_hpp)             || 0) +
+                      (parseFloat(inputs.biaya_operasional)     || 0) +
+                      (parseFloat(inputs.biaya_non_operasional) || 0);
+                    return total26f > 0 ? (
+                      <div className="flex items-center justify-between px-3 py-2 bg-indigo-500/10 border border-indigo-500/20 rounded-xl">
+                        <span className="text-[11px] font-bold text-indigo-300 uppercase tracking-wider">Total 26f</span>
+                        <span className="text-[12.5px] font-bold text-indigo-200 font-mono tabular-nums">
+                          {new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(total26f)}
+                        </span>
+                      </div>
+                    ) : null;
+                  })()}
                 </div>
               )}
             </div>
@@ -538,18 +573,32 @@ export default function InputForm({ categoryId, inputs, onInputChange, records }
       {/* ── Formula Footer Note ── */}
       <div className="text-[11px] text-slate-500 bg-surface-800/50 border border-white/[0.04] rounded-xl px-3 py-2.5 leading-relaxed font-sans">
         <span className="text-slate-400 font-semibold">Formula: </span>
-        {hasDailyModifier
+        {isDetailPengeluaranActive
           ? (() => {
-              const days = (inputs.custom_days !== undefined && inputs.custom_days !== '') ? inputs.custom_days : 30;
-              const revPct = (inputs.custom_rev_pct !== undefined && inputs.custom_rev_pct !== '')
-                ? inputs.custom_rev_pct
-                : (categoryId === 'kuliner_rumah_makan' ? 60 : 10);
-              const expPct = (inputs.custom_exp_pct !== undefined && inputs.custom_exp_pct !== '')
-                ? inputs.custom_exp_pct
-                : (categoryId === 'kuliner_rumah_makan' ? 40 : 30);
-              return `Pemasukan × ${days} Hari × 12 Bulan × ${revPct}% koefisien · Pengeluaran ${expPct}%`;
+              // When rincian mode is active, show live 26f total
+              const total26f =
+                (parseFloat(inputs.biaya_upah)            || 0) +
+                (parseFloat(inputs.biaya_produksi)        || 0) +
+                (parseFloat(inputs.biaya_hpp)             || 0) +
+                (parseFloat(inputs.biaya_operasional)     || 0) +
+                (parseFloat(inputs.biaya_non_operasional) || 0);
+              const pendapatan = hasDailyModifier
+                ? (() => {
+                    const days   = (inputs.custom_days    !== undefined && inputs.custom_days    !== '') ? inputs.custom_days    : 30;
+                    const revPct = (inputs.custom_rev_pct !== undefined && inputs.custom_rev_pct !== '') ? inputs.custom_rev_pct : (categoryId === 'kuliner_rumah_makan' ? 60 : 10);
+                    return `Pemasukan × ${days} Hari × 12 Bulan × ${revPct}% koefisien`;
+                  })()
+                : category.note.split('·')[0].trim();
+              return `${pendapatan} · Pengeluaran: Rincian Manual (26f) = Rp${total26f.toLocaleString('id-ID')}`;
             })()
-          : category.note
+          : hasDailyModifier
+            ? (() => {
+                const days   = (inputs.custom_days    !== undefined && inputs.custom_days    !== '') ? inputs.custom_days    : 30;
+                const revPct = (inputs.custom_rev_pct !== undefined && inputs.custom_rev_pct !== '') ? inputs.custom_rev_pct : (categoryId === 'kuliner_rumah_makan' ? 60 : 10);
+                const expPct = (inputs.custom_exp_pct !== undefined && inputs.custom_exp_pct !== '') ? inputs.custom_exp_pct : (categoryId === 'kuliner_rumah_makan' ? 40 : 30);
+                return `Pemasukan × ${days} Hari × 12 Bulan × ${revPct}% koefisien · Pengeluaran ${expPct}%`;
+              })()
+            : category.note
         }
       </div>
     </div>

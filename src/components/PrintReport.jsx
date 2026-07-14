@@ -139,7 +139,7 @@ export default function PrintReport({ records }) {
                         <td className="border border-gray-200 px-3 py-1.5 text-right font-mono">{formatRupiah(parseFloat(record.inputs.biaya_non_operasional) || 0)}</td>
                       </tr>
                       <tr className="bg-red-50/50">
-                        <td className="border border-gray-200 px-3 py-1.5 text-red-700 font-semibold">Total Pengeluaran BPS (26f)</td>
+                        <td className="border border-gray-200 px-3 py-1.5 text-red-700 font-semibold">Total Pengeluaran Tahunan (Dengan Rincian Manual)</td>
                         <td className="border border-gray-200 px-3 py-1.5 text-right font-mono font-semibold text-red-900">{formatRupiah(result.totalPengeluaranTahunan)}</td>
                       </tr>
                     </>

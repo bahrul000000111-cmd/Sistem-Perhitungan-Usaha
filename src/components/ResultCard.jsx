@@ -64,8 +64,9 @@ export default function ResultCard({ result, hasDualMode = false }) {
   const isLoss = totalHasilUsaha < 0;
 
   // Calculate equivalent expense % if detail override is active
-  const setaraExpPct = (bps && bps.isDetailPengeluaranActive && corePendapatanTahunan > 0)
-    ? (totalPengeluaranTahunan / corePendapatanTahunan) * 100
+  // Basis: totalPendapatanTahunan (sudah termasuk 27b) sesuai spesifikasi addendum
+  const setaraExpPct = (bps && bps.isDetailPengeluaranActive && totalPendapatanTahunan > 0)
+    ? (totalPengeluaranTahunan / totalPendapatanTahunan) * 100
     : null;
 
   return (
@@ -130,12 +131,14 @@ export default function ResultCard({ result, hasDualMode = false }) {
 
             {/* Total Expense with detail override footnote */}
             <ResultRow
-              label={bps && bps.isDetailPengeluaranActive ? 'Total Pengeluaran BPS (26f)' : 'Total Pengeluaran (Tahunan)'}
+              label={bps && bps.isDetailPengeluaranActive
+                ? 'Total Pengeluaran Tahunan (Dengan Rincian Manual)'
+                : 'Total Pengeluaran (Tahunan)'}
               value={totalPengeluaranTahunan}
               variant="expense"
               subtext={
                 setaraExpPct !== null
-                  ? `Setara dengan ~${setaraExpPct.toFixed(1)}% pengeluaran`
+                  ? `Setara dengan ${setaraExpPct.toFixed(1)}% dari Total Pendapatan`
                   : null
               }
             />
@@ -230,13 +233,18 @@ export default function ResultCard({ result, hasDualMode = false }) {
       )}
 
       {/* Meta notes */}
-      {meta && (meta.koefisien || meta.faktorPengeluaran || meta.catatan) && (
+      {meta && (meta.koefisien || meta.faktorPengeluaran || meta.catatan || (bps && bps.isDetailPengeluaranActive) || (bps && bps.onlinePct > 0)) && (
         <div className="px-4 py-2.5 border-t border-white/[0.05] flex flex-wrap gap-3 text-[10px] text-slate-500">
           {meta.koefisien && !bps?.isDetailPengeluaranActive && (
             <span>Koefisien: <strong className="text-slate-400">{meta.koefisien}</strong></span>
           )}
           {meta.faktorPengeluaran && !bps?.isDetailPengeluaranActive && (
             <span>Pengeluaran: <strong className="text-slate-400">{meta.faktorPengeluaran}</strong></span>
+          )}
+          {bps && bps.isDetailPengeluaranActive && (
+            <span className="flex items-center gap-1 text-amber-400">
+              <strong>Pengeluaran:</strong> Rincian Manual (26f) aktif
+            </span>
           )}
           {meta.catatan && <span className="italic">{meta.catatan}</span>}
           {bps && bps.onlinePct > 0 && (

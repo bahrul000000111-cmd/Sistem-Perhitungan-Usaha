@@ -465,16 +465,18 @@ export function calculateRecord(record, allRecords = []) {
   const totalPendapatanAll = totalPendapatanCore + pendapatanLainnya;
 
   // Pengeluaran Detail Override
+  // Guard: use_detail_pengeluaran can be boolean (runtime) or string (edge case) — normalize it
   let totalPengeluaran = result.totalPengeluaranTahunan;
-  const isDetailPengeluaranActive = Boolean(inputs.use_detail_pengeluaran);
+  const rawToggle = inputs.use_detail_pengeluaran;
+  const isDetailPengeluaranActive = rawToggle === true || rawToggle === 1 || rawToggle === 'true';
   
   let totalPengeluaranDetail = 0;
   if (isDetailPengeluaranActive) {
-    const upah = parseFloat(inputs.biaya_upah) || 0;
-    const prod = parseFloat(inputs.biaya_produksi) || 0;
-    const hpp = parseFloat(inputs.biaya_hpp) || 0;
-    const oper = parseFloat(inputs.biaya_operasional) || 0;
-    const nonOper = parseFloat(inputs.biaya_non_operasional) || 0;
+    const upah    = parseFloat(inputs.biaya_upah)           || 0;
+    const prod    = parseFloat(inputs.biaya_produksi)       || 0;
+    const hpp     = parseFloat(inputs.biaya_hpp)            || 0;
+    const oper    = parseFloat(inputs.biaya_operasional)    || 0;
+    const nonOper = parseFloat(inputs.biaya_non_operasional)|| 0;
     totalPengeluaranDetail = upah + prod + hpp + oper + nonOper;
     totalPengeluaran = totalPengeluaranDetail;
   }
