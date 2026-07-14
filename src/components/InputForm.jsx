@@ -7,7 +7,7 @@
 import { useState } from 'react';
 import { AlertCircle, Link2, Link2Off, Info, ChevronDown, ChevronUp, Users, Calendar, DollarSign, Globe, Building2 } from 'lucide-react';
 import { formatRupiah } from '../utils/formatters';
-import { CATEGORIES } from '../utils/calculations';
+import { CATEGORIES, getConversionFormula, convertToAnnual } from '../utils/calculations';
 
 /**
  * Reusable currency input with live Rp preview and tooltip support.
@@ -171,6 +171,108 @@ function BooleanField({ field, value, onChange }) {
       {value && (
         <div className="text-[11px] text-indigo-300 bg-indigo-500/10 border border-indigo-500/20 rounded-lg px-3 py-2 leading-relaxed">
           Nilai Box Tempurung akan diambil dari kategori Tempurung Kelapa secara otomatis
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * ExpenseField — CurrencyInput with a frequency selector (Harian/Mingguan/Bulanan/Tahunan).
+ * Shows a real-time helper text "= Rp X /tahun (rumus)" whenever frequency ≠ 'tahunan'.
+ * Backward compatible: missing frequency key defaults to 'tahunan'.
+ */
+const FREQ_OPTIONS = [
+  { key: 'tahunan',  label: 'per Tahun', short: '/thn' },
+  { key: 'bulanan',  label: 'per Bulan', short: '/bln' },
+  { key: 'mingguan', label: 'per Minggu', short: '/mgg' },
+  { key: 'harian',   label: 'per Hari',  short: '/hr'  }
+];
+
+function ExpenseField({ id, label, value, freq, daysPerMonth, onValueChange, onFreqChange, tooltip, showHpp }) {
+  const [focused, setFocused] = useState(false);
+  const numVal  = parseFloat(value) || 0;
+  const freqKey = freq || 'tahunan';
+  const annualVal = convertToAnnual(numVal, freqKey, daysPerMonth);
+  const formula   = getConversionFormula(numVal, freqKey, daysPerMonth);
+  const isDailyHint = freqKey === 'harian';
+
+  return (
+    <div className="flex flex-col gap-1.5">
+      <div className="flex items-center gap-1.5">
+        <label htmlFor={id} className="text-[12.5px] font-semibold text-slate-300 flex-1">
+          {label}
+        </label>
+        {tooltip && (
+          <div className="tooltip cursor-pointer text-slate-500 hover:text-slate-300" data-tip={tooltip}>
+            <Info size={13} />
+          </div>
+        )}
+      </div>
+
+      {/* Input row: Rp input + frequency selector side-by-side */}
+      <div className="flex gap-2 items-stretch">
+        {/* Currency input */}
+        <div className="relative flex-1">
+          <div className="absolute left-3 top-1/2 -translate-y-1/2 text-[12.5px] text-slate-400 font-mono select-none">
+            Rp
+          </div>
+          <input
+            id={id}
+            type="number"
+            inputMode="numeric"
+            min="0"
+            value={value}
+            placeholder="0"
+            onFocus={() => setFocused(true)}
+            onBlur={() => setFocused(false)}
+            onChange={e => {
+              const raw = e.target.value.replace(/[^0-9.]/g, '');
+              onValueChange(raw);
+            }}
+            className="w-full rounded-xl border border-white/[0.08] bg-surface-700 text-slate-100 text-[13px] font-mono py-2.5 pl-9 pr-3 transition-all placeholder:text-slate-600 hover:border-white/[0.12] focus:border-indigo-500/50 outline-none"
+          />
+        </div>
+
+        {/* Frequency selector */}
+        <div className="relative shrink-0">
+          <select
+            id={`${id}-freq`}
+            value={freqKey}
+            onChange={e => onFreqChange(e.target.value)}
+            className="h-full rounded-xl border border-white/[0.08] bg-surface-700 text-[11.5px] font-semibold text-indigo-300 px-2.5 pr-7 appearance-none cursor-pointer outline-none hover:border-indigo-500/30 focus:border-indigo-500/50 transition-all"
+            style={{ minWidth: '90px' }}
+          >
+            {FREQ_OPTIONS.map(opt => (
+              <option key={opt.key} value={opt.key}>{opt.label}</option>
+            ))}
+          </select>
+          {/* Dropdown chevron overlay */}
+          <div className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2">
+            <svg width="10" height="6" viewBox="0 0 10 6" fill="none">
+              <path d="M1 1l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-indigo-400"/>
+            </svg>
+          </div>
+        </div>
+      </div>
+
+      {/* Conversion helper text — only shown when frequency ≠ tahunan */}
+      {freqKey !== 'tahunan' && (
+        <div className="flex items-center gap-1.5 pl-1">
+          <span className="text-[10.5px] font-semibold text-emerald-300 font-mono tabular-nums">
+            = {formatRupiah(annualVal)} /tahun
+          </span>
+          {formula && (
+            <span className="text-[9.5px] text-slate-500">({formula})</span>
+          )}
+          {isDailyHint && (
+            <span
+              className="tooltip text-slate-600 hover:text-slate-400 cursor-pointer"
+              data-tip={`Menggunakan ${daysPerMonth} hari kerja/bulan dari parameter form. Ubah slider Hari Kerja di atas untuk menyesuaikan.`}
+            >
+              <Info size={10} />
+            </span>
+          )}
         </div>
       )}
     </div>
@@ -492,12 +594,14 @@ export default function InputForm({ categoryId, inputs, onInputChange, records }
                 <div className="space-y-3.5 pt-1 pl-2 border-l border-indigo-500/20 fade-in-up">
                   {/* 26a — Upah, with hint jika pekerja > 0 tapi biaya_upah = 0 */}
                   <div className="flex flex-col gap-1.5">
-                    <CurrencyInput
+                    <ExpenseField
                       id="biaya-upah"
                       label="Upah, Gaji &amp; Jaminan Sosial (26a)"
                       value={inputs.biaya_upah || ''}
-                      onChange={val => onInputChange('biaya_upah', val)}
-                      placeholder="0"
+                      freq={inputs.biaya_upah_freq}
+                      daysPerMonth={Number(displayDays)}
+                      onValueChange={val => onInputChange('biaya_upah', val)}
+                      onFreqChange={freq => onInputChange('biaya_upah_freq', freq)}
                       tooltip="Upah pokok, bonus, natura makan/perumahan, iuran BPJS."
                     />
                     {/* Hint jika pekerja terisi tapi upah kosong */}
@@ -511,52 +615,66 @@ export default function InputForm({ categoryId, inputs, onInputChange, records }
                       </div>
                     )}
                   </div>
-                  <CurrencyInput
+
+                  <ExpenseField
                     id="biaya-produksi"
                     label="Biaya Bahan / Produksi (26b)"
                     value={inputs.biaya_produksi || ''}
-                    onChange={val => onInputChange('biaya_produksi', val)}
-                    placeholder="0"
+                    freq={inputs.biaya_produksi_freq}
+                    daysPerMonth={Number(displayDays)}
+                    onValueChange={val => onInputChange('biaya_produksi', val)}
+                    onFreqChange={freq => onInputChange('biaya_produksi_freq', freq)}
                     tooltip="Bahan baku, BBM produksi, bahan penolong habis pakai."
                   />
+
                   {/* 26c — HPP hanya untuk kategori perdagangan */}
                   {['kios_campuran', 'tempurung', 'arang_tempurung'].includes(categoryId) && (
-                    <CurrencyInput
+                    <ExpenseField
                       id="biaya-hpp"
                       label="Biaya Barang untuk Dijual / HPP (26c)"
                       value={inputs.biaya_hpp || ''}
-                      onChange={val => onInputChange('biaya_hpp', val)}
-                      placeholder="0"
+                      freq={inputs.biaya_hpp_freq}
+                      daysPerMonth={Number(displayDays)}
+                      onValueChange={val => onInputChange('biaya_hpp', val)}
+                      onFreqChange={freq => onInputChange('biaya_hpp_freq', freq)}
                       tooltip="Khusus perdagangan: Nilai barang yang dibeli untuk dijual kembali (HPP)."
                     />
                   )}
-                  <CurrencyInput
+
+                  <ExpenseField
                     id="biaya-operasional"
                     label="Biaya Operasional (26d)"
                     value={inputs.biaya_operasional || ''}
-                    onChange={val => onInputChange('biaya_operasional', val)}
-                    placeholder="0"
+                    freq={inputs.biaya_operasional_freq}
+                    daysPerMonth={Number(displayDays)}
+                    onValueChange={val => onInputChange('biaya_operasional', val)}
+                    onFreqChange={freq => onInputChange('biaya_operasional_freq', freq)}
                     tooltip="Listrik, air, internet/pulsa, sewa tempat, jasa keuangan, transisi hijau."
                   />
-                  <CurrencyInput
+
+                  <ExpenseField
                     id="biaya-non-operasional"
                     label="Biaya Non-Operasional (26e)"
                     value={inputs.biaya_non_operasional || ''}
-                    onChange={val => onInputChange('biaya_non_operasional', val)}
-                    placeholder="0"
+                    freq={inputs.biaya_non_operasional_freq}
+                    daysPerMonth={Number(displayDays)}
+                    onValueChange={val => onInputChange('biaya_non_operasional', val)}
+                    onFreqChange={freq => onInputChange('biaya_non_operasional_freq', freq)}
                     tooltip="Bunga pinjaman, donasi, kerugian revaluasi aset, pajak ijin usaha."
                   />
-                  {/* Live 26f total summary */}
+
+                  {/* Live 26f total summary — shows annualized totals */}
                   {(() => {
+                    const dm = Number(displayDays);
                     const total26f =
-                      (parseFloat(inputs.biaya_upah)            || 0) +
-                      (parseFloat(inputs.biaya_produksi)        || 0) +
-                      (parseFloat(inputs.biaya_hpp)             || 0) +
-                      (parseFloat(inputs.biaya_operasional)     || 0) +
-                      (parseFloat(inputs.biaya_non_operasional) || 0);
+                      convertToAnnual(parseFloat(inputs.biaya_upah)            || 0, inputs.biaya_upah_freq,           dm) +
+                      convertToAnnual(parseFloat(inputs.biaya_produksi)        || 0, inputs.biaya_produksi_freq,       dm) +
+                      convertToAnnual(parseFloat(inputs.biaya_hpp)             || 0, inputs.biaya_hpp_freq,            dm) +
+                      convertToAnnual(parseFloat(inputs.biaya_operasional)     || 0, inputs.biaya_operasional_freq,    dm) +
+                      convertToAnnual(parseFloat(inputs.biaya_non_operasional) || 0, inputs.biaya_non_operasional_freq, dm);
                     return total26f > 0 ? (
                       <div className="flex items-center justify-between px-3 py-2 bg-indigo-500/10 border border-indigo-500/20 rounded-xl">
-                        <span className="text-[11px] font-bold text-indigo-300 uppercase tracking-wider">Total 26f</span>
+                        <span className="text-[11px] font-bold text-indigo-300 uppercase tracking-wider">Total 26f /tahun</span>
                         <span className="text-[12.5px] font-bold text-indigo-200 font-mono tabular-nums">
                           {new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(total26f)}
                         </span>

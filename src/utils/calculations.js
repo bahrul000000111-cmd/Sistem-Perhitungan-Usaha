@@ -130,6 +130,46 @@ function getDays(inputs) {
   return Math.min(31, Math.max(1, parsed));
 }
 
+/**
+ * Convert an expense value to its annual equivalent based on frequency.
+ * Frequency keys: 'tahunan' | 'bulanan' | 'mingguan' | 'harian'
+ * Missing/unknown frequency defaults to 'tahunan' (×1) for backward compatibility.
+ *
+ * @param {number} value          - Raw numeric value as entered by user
+ * @param {string} frequency      - Frequency key (defaults to 'tahunan')
+ * @param {number} daysPerMonth   - Active working days/month from getDays()
+ * @returns {number}              - Annualized value
+ */
+export function convertToAnnual(value, frequency, daysPerMonth = 30) {
+  const freq = frequency || 'tahunan';
+  switch (freq) {
+    case 'harian':   return value * daysPerMonth * 12;
+    case 'mingguan': return value * 52;
+    case 'bulanan':  return value * 12;
+    case 'tahunan':
+    default:         return value;
+  }
+}
+
+/**
+ * Returns a human-readable conversion formula string for display.
+ * Returns null when frequency is 'tahunan' (no conversion needed).
+ *
+ * @param {number} value
+ * @param {string} frequency
+ * @param {number} daysPerMonth
+ * @returns {string|null}
+ */
+export function getConversionFormula(value, frequency, daysPerMonth = 30) {
+  const freq = frequency || 'tahunan';
+  switch (freq) {
+    case 'harian':   return `${value.toLocaleString('id-ID')} × ${daysPerMonth} hari × 12 bulan`;
+    case 'mingguan': return `${value.toLocaleString('id-ID')} × 52 minggu`;
+    case 'bulanan':  return `${value.toLocaleString('id-ID')} × 12 bulan`;
+    default:         return null;
+  }
+}
+
 // ═══════════════════════════════════════════════════════════
 // CALCULATION ENGINE — Each category returns a standardized result object
 // ═══════════════════════════════════════════════════════════
@@ -472,11 +512,14 @@ export function calculateRecord(record, allRecords = []) {
   
   let totalPengeluaranDetail = 0;
   if (isDetailPengeluaranActive) {
-    const upah    = parseFloat(inputs.biaya_upah)           || 0;
-    const prod    = parseFloat(inputs.biaya_produksi)       || 0;
-    const hpp     = parseFloat(inputs.biaya_hpp)            || 0;
-    const oper    = parseFloat(inputs.biaya_operasional)    || 0;
-    const nonOper = parseFloat(inputs.biaya_non_operasional)|| 0;
+    // getDays reads custom_days from inputs (same as income side), fallback 30
+    const daysPerMonth = getDays(inputs);
+
+    const upah    = convertToAnnual(parseFloat(inputs.biaya_upah)            || 0, inputs.biaya_upah_freq,           daysPerMonth);
+    const prod    = convertToAnnual(parseFloat(inputs.biaya_produksi)        || 0, inputs.biaya_produksi_freq,       daysPerMonth);
+    const hpp     = convertToAnnual(parseFloat(inputs.biaya_hpp)             || 0, inputs.biaya_hpp_freq,            daysPerMonth);
+    const oper    = convertToAnnual(parseFloat(inputs.biaya_operasional)     || 0, inputs.biaya_operasional_freq,    daysPerMonth);
+    const nonOper = convertToAnnual(parseFloat(inputs.biaya_non_operasional) || 0, inputs.biaya_non_operasional_freq, daysPerMonth);
     totalPengeluaranDetail = upah + prod + hpp + oper + nonOper;
     totalPengeluaran = totalPengeluaranDetail;
   }
