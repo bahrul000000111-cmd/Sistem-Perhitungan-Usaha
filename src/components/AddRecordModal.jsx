@@ -1,8 +1,14 @@
 /**
  * AddRecordModal.jsx
  * Modal for creating a new business record.
- * Step 1: Pick category — displayed as 2-level grouped cards (Sector → Sub-sector → KBLI).
- *         Live search collapses grouping into a flat filtered list.
+ *
+ * Step 1: Pick category.
+ *   • Grouped view: Sector → (Sub-sector if applicable) → KBLI cards.
+ *   • Empty sub-sectors are HIDDEN in this modal (unlike sidebar which shows them).
+ *     Rationale: modal is for SELECTING an available formula — if no KBLI exists
+ *     for a sub-sector, there is nothing to select.
+ *   • Live search: flattens all groups into a single results list while query is active.
+ *
  * Step 2: Name the business record.
  */
 import { useState, useMemo } from 'react';
@@ -42,11 +48,13 @@ const COLOR_ICON = {
   rose:    'text-rose-400',   blue:   'text-blue-400',
 };
 
-// ── Individual category card ──────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// Individual KBLI category card (style unchanged from original)
+// ─────────────────────────────────────────────────────────────────────────────
 function CategoryCard({ cat, onSelect }) {
   const Icon    = CATEGORY_ICON_MAP[cat.icon] || Store;
-  const bgClass = COLOR_BG[cat.color]   || COLOR_BG.indigo;
-  const icClass = COLOR_ICON[cat.color] || COLOR_ICON.indigo;
+  const bgClass = COLOR_BG[cat.color]         || COLOR_BG.indigo;
+  const icClass = COLOR_ICON[cat.color]       || COLOR_ICON.indigo;
 
   return (
     <button
@@ -66,22 +74,12 @@ function CategoryCard({ cat, onSelect }) {
   );
 }
 
-// ── Sub-sector block inside a sector ─────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// Sub-sector block (only rendered when it has ≥1 KBLI — empty ones are hidden)
+// ─────────────────────────────────────────────────────────────────────────────
 function SubSectorBlock({ subSector, cats, onSelect }) {
-  if (cats.length === 0) {
-    // Empty placeholder — shown but not interactive
-    return (
-      <div className="mb-2">
-        <p className="text-[10.5px] font-medium text-slate-600 uppercase tracking-wider px-1 mb-1.5 flex items-center gap-1">
-          <ChevronRight size={10} className="text-slate-700" />
-          {subSector.subSectorName}
-        </p>
-        <p className="text-[11px] italic text-slate-600 px-2 py-2 rounded-lg border border-dashed border-slate-700/50">
-          Kategori usaha untuk sub-sektor ini belum tersedia — hubungi admin untuk penambahan.
-        </p>
-      </div>
-    );
-  }
+  // Empty sub-sectors are completely hidden in the modal
+  if (cats.length === 0) return null;
 
   return (
     <div className="mb-2">
@@ -98,16 +96,22 @@ function SubSectorBlock({ subSector, cats, onSelect }) {
   );
 }
 
-// ── Sector block ──────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// Sector block
+// - For sectors WITHOUT sub-sectors: renders KBLI cards directly.
+// - For "Pertanian" (with sub-sectors): renders only non-empty sub-sector blocks.
+// - If a sector has no available KBLI at all, the entire block is hidden.
+// ─────────────────────────────────────────────────────────────────────────────
 function SectorBlock({ sector, cats, onSelect }) {
-  if (cats.length === 0 && !sector.subSectors) return null; // skip empty flat sectors
-
   const SectorIcon = SECTOR_ICON_MAP[sector.icon] || Leaf;
+
+  // If no KBLI in this sector at all, skip rendering (nothing to select)
+  if (cats.length === 0) return null;
 
   return (
     <div className="mb-4">
-      {/* Sector header separator */}
-      <div className="flex items-center gap-2 mb-2">
+      {/* Sector header — non-clickable separator */}
+      <div className="flex items-center gap-2 mb-2.5">
         <div className="flex items-center gap-1.5 shrink-0">
           <SectorIcon size={13} className="text-slate-500" />
           <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">
@@ -119,7 +123,7 @@ function SectorBlock({ sector, cats, onSelect }) {
       </div>
 
       {sector.subSectors ? (
-        // Render sub-sector groups
+        // Pertanian: render filled sub-sector blocks only
         <div className="pl-1">
           {sector.subSectors.map(ss => {
             const ssCats = cats.filter(c => c.subSectorId === ss.subSectorId);
@@ -134,7 +138,7 @@ function SectorBlock({ sector, cats, onSelect }) {
           })}
         </div>
       ) : (
-        // Flat cards (sectors without sub-sectors)
+        // Flat sectors: render cards directly
         <div className="flex flex-col gap-1.5">
           {cats.map(cat => (
             <CategoryCard key={cat.id} cat={cat} onSelect={onSelect} />
@@ -145,22 +149,23 @@ function SectorBlock({ sector, cats, onSelect }) {
   );
 }
 
-// ── Main modal ────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// Main modal
+// ─────────────────────────────────────────────────────────────────────────────
 export default function AddRecordModal({ onConfirm, onClose }) {
   const [selectedCategory, setSelectedCategory] = useState(null);
-  const [name, setName] = useState('');
-  const [step, setStep] = useState(1); // 1: pick category, 2: name it
+  const [name, setName]   = useState('');
+  const [step, setStep]   = useState(1); // 1 = pick category, 2 = name it
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Filtered categories (for search mode)
+  // Search mode: filtered flat list; null = show grouped view
   const filteredCategories = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
-    if (!q) return null; // null = show grouped view
-    return CATEGORIES.filter(
-      c =>
-        c.name.toLowerCase().includes(q) ||
-        c.description.toLowerCase().includes(q) ||
-        c.id.toLowerCase().includes(q)
+    if (!q) return null;
+    return CATEGORIES.filter(c =>
+      c.name.toLowerCase().includes(q) ||
+      c.description.toLowerCase().includes(q) ||
+      c.id.toLowerCase().includes(q)
     );
   }, [searchQuery]);
 
@@ -184,7 +189,7 @@ export default function AddRecordModal({ onConfirm, onClose }) {
     <div className="modal-overlay" role="dialog" aria-modal="true" aria-label="Tambah Usaha Baru">
       <div className="glass rounded-xl border border-white/[0.1] w-full max-w-md max-h-[90vh] flex flex-col overflow-hidden scale-in mx-4">
 
-        {/* Header */}
+        {/* ── Modal header ─────────────────────────────────────────── */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-white/[0.07] shrink-0">
           <div>
             <h2 className="text-[15px] font-bold text-white">Tambah Usaha Baru</h2>
@@ -201,7 +206,7 @@ export default function AddRecordModal({ onConfirm, onClose }) {
           </button>
         </div>
 
-        {/* Step 1: Category selection */}
+        {/* ── Step 1: Category selection ───────────────────────────── */}
         {step === 1 && (
           <>
             {/* Search bar */}
@@ -214,12 +219,13 @@ export default function AddRecordModal({ onConfirm, onClose }) {
                   placeholder="Cari kategori usaha..."
                   value={searchQuery}
                   onChange={e => setSearchQuery(e.target.value)}
-                  className="w-full pl-8 pr-3 py-2 text-[12px] rounded-xl bg-surface-700/80 border border-white/[0.07] text-slate-200 placeholder:text-slate-600 focus:border-indigo-500/50 focus:outline-none transition-colors"
+                  className="w-full pl-8 pr-8 py-2 text-[12px] rounded-xl bg-surface-700/80 border border-white/[0.07] text-slate-200 placeholder:text-slate-600 focus:border-indigo-500/50 focus:outline-none transition-colors"
                 />
                 {searchQuery && (
                   <button
                     onClick={() => setSearchQuery('')}
                     className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 transition-colors"
+                    aria-label="Hapus pencarian"
                   >
                     <X size={12} />
                   </button>
@@ -230,7 +236,7 @@ export default function AddRecordModal({ onConfirm, onClose }) {
             {/* Category list */}
             <div className="p-4 overflow-y-auto flex-1 scrollbar-none" style={{ scrollbarWidth: 'none' }}>
               {filteredCategories !== null ? (
-                // Search mode: flat list
+                /* Search mode: flat list */
                 filteredCategories.length > 0 ? (
                   <div className="flex flex-col gap-1.5">
                     {filteredCategories.map(cat => (
@@ -238,14 +244,14 @@ export default function AddRecordModal({ onConfirm, onClose }) {
                     ))}
                   </div>
                 ) : (
-                  <div className="flex flex-col items-center justify-center py-8 text-center">
-                    <Search size={24} className="text-slate-600 mb-2" />
+                  <div className="flex flex-col items-center justify-center py-10 text-center gap-2">
+                    <Search size={24} className="text-slate-600" />
                     <p className="text-[13px] text-slate-500">Tidak ada kategori yang cocok</p>
-                    <p className="text-[11px] text-slate-600 mt-1">dengan &ldquo;{searchQuery}&rdquo;</p>
+                    <p className="text-[11px] text-slate-600">dengan &ldquo;{searchQuery}&rdquo;</p>
                   </div>
                 )
               ) : (
-                // Grouped mode: sector → (sub-sector) → categories
+                /* Grouped mode: Sector → (Sub-sector) → KBLI cards */
                 SECTOR_TAXONOMY.map(sector => {
                   const sectorCats = CATEGORIES.filter(c => c.sectorId === sector.sectorId);
                   return (
@@ -262,7 +268,7 @@ export default function AddRecordModal({ onConfirm, onClose }) {
           </>
         )}
 
-        {/* Step 2: Name the record */}
+        {/* ── Step 2: Name the record ──────────────────────────────── */}
         {step === 2 && selectedCategory && (
           <div className="p-5 flex flex-col gap-4 overflow-y-auto flex-1">
             <div>

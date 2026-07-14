@@ -1,36 +1,36 @@
 /**
  * CategorySidebar.jsx
  * Navigation sidebar with 2-level grouped category hierarchy:
- *   Tingkat 1 → Sector (collapsible, with aggregated record badge)
- *   Tingkat 2 → Sub-sector (collapsible inside Pertanian sector, empty placeholders shown)
- *   Tingkat 3 → Individual KBLI category item
+ *   Tingkat 1 → Sector     (collapsible, aggregated badge)
+ *   Tingkat 2 → Sub-sector (collapsible; empty sub-sectors still shown with CTA)
+ *   Tingkat 3 → KBLI item  (individual category button)
  *
- * Mobile: collapses to a dropdown selector (unchanged behaviour).
- * Collapse/expand state persisted in localStorage per sectorId/subSectorId.
+ * Collapse/expand state persisted per key in localStorage.
+ * Default state rules:
+ *   • Sectors WITH records → expanded by default
+ *   • Sectors WITHOUT records but with KBLI definitions → collapsed by default
+ *   • Empty sub-sectors (no KBLI defined) → collapsed, clickable, shows empty state + CTA
+ *
+ * Mobile: collapses to grouped <optgroup> dropdown (unchanged behaviour).
  */
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import {
   Store, UtensilsCrossed, Sprout, TreePalm,
   Package, Gem, Flame, Fish,
   Leaf, ShoppingCart, Factory, Utensils,
-  ChevronDown, ChevronRight,
+  ChevronDown, ChevronRight, Plus,
 } from 'lucide-react';
 import { CATEGORIES } from '../utils/calculations';
 import { SECTOR_TAXONOMY } from '../utils/sectorTaxonomy';
 
 // ── Icon maps ──────────────────────────────────────────────────────────────────
-
-// Per-KBLI category icons (unchanged from original)
 const CATEGORY_ICON_MAP = {
   Store, UtensilsCrossed, Sprout, TreePalm,
   Package, Gem, Flame, Fish,
-  Shell: Gem, // Shell not available in this Lucide version
+  Shell: Gem,
 };
 
-// Per-sector icons (Lucide components mapped by sectorTaxonomy icon names)
-const SECTOR_ICON_MAP = {
-  Leaf, ShoppingCart, Factory, Utensils,
-};
+const SECTOR_ICON_MAP = { Leaf, ShoppingCart, Factory, Utensils };
 
 // ── Color variants per KBLI category (unchanged) ────────────────────────────
 const COLOR_VARIANTS = {
@@ -44,7 +44,7 @@ const COLOR_VARIANTS = {
   blue:   { dot: 'bg-blue-400',    tag: 'text-blue-300   bg-blue-500/10'    },
 };
 
-// ── Persistence helpers ───────────────────────────────────────────────────────
+// ── localStorage persistence ───────────────────────────────────────────────────
 const LS_KEY = 'umk_sidebar_collapse';
 
 function loadCollapseState() {
@@ -62,32 +62,33 @@ function saveCollapseState(state) {
   } catch { /* quota exceeded — silently ignore */ }
 }
 
-// ── Sub-component: Individual KBLI category button ───────────────────────────
-function CategoryItem({ cat, isActive, count, onSelect, indent = 0 }) {
-  const Icon = CATEGORY_ICON_MAP[cat.icon] || Store;
-  const colors = COLOR_VARIANTS[cat.color] || COLOR_VARIANTS.indigo;
-  const paddingLeft = indent === 1 ? 'pl-5' : indent === 2 ? 'pl-9' : 'pl-2';
+// ─────────────────────────────────────────────────────────────────────────────
+// Sub-component: Individual KBLI category button (Tingkat 3)
+// ─────────────────────────────────────────────────────────────────────────────
+function CategoryItem({ cat, isActive, count, onSelect }) {
+  const Icon   = CATEGORY_ICON_MAP[cat.icon] || Store;
+  const colors = COLOR_VARIANTS[cat.color]   || COLOR_VARIANTS.indigo;
 
   return (
     <button
-      key={cat.id}
       id={`nav-${cat.id}`}
       onClick={() => onSelect(cat.id)}
-      className={`nav-item w-full text-left ${paddingLeft} ${isActive ? 'active' : ''}`}
+      // 44px min-height via py-2 to meet touch-target requirement
+      className={`nav-item w-full text-left pl-9 py-2 ${isActive ? 'active' : ''}`}
     >
       <div className={`w-6 h-6 rounded-lg flex items-center justify-center shrink-0 ${
         isActive ? 'bg-indigo-500/20' : 'bg-surface-600/50'
       }`}>
         <Icon size={13} className={isActive ? 'text-indigo-400' : 'text-slate-400'} />
       </div>
-      <span className="flex-1 truncate text-[12px] flex items-center gap-1.5">
+      <span className="flex-1 truncate text-[11.5px] flex items-center gap-1.5">
         <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${
           count > 0 ? 'bg-emerald-400 shadow-sm shadow-emerald-400/50' : 'bg-slate-600'
         }`} />
         {cat.name}
       </span>
       {count > 0 && (
-        <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${colors.tag}`}>
+        <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full shrink-0 ${colors.tag}`}>
           {count}
         </span>
       )}
@@ -95,13 +96,22 @@ function CategoryItem({ cat, isActive, count, onSelect, indent = 0 }) {
   );
 }
 
-// ── Sub-component: Sub-sector group (Tingkat 2) ───────────────────────────────
-function SubSectorGroup({ subSector, categories, countMap, activeCategory, onSelect, collapseState, onToggle }) {
-  const subCats = categories.filter(c => c.subSectorId === subSector.subSectorId);
-  const totalCount = subCats.reduce((sum, c) => sum + (countMap[c.id] || 0), 0);
-  const isEmpty = subCats.length === 0;
+// ─────────────────────────────────────────────────────────────────────────────
+// Sub-component: Sub-sector group (Tingkat 2) — always shown, even when empty
+// ─────────────────────────────────────────────────────────────────────────────
+function SubSectorGroup({
+  subSector, categories, countMap, activeCategory, onSelect,
+  collapseState, onToggle, onAddRequest,
+}) {
+  // KBLI items that belong to this sub-sector
+  const subCats       = categories.filter(c => c.subSectorId === subSector.subSectorId);
+  const totalCount    = subCats.reduce((sum, c) => sum + (countMap[c.id] || 0), 0);
+  const hasKbliDefs   = subCats.length > 0;   // true if any KBLI is defined for this sub-sector
+  const isEmpty       = !hasKbliDefs;           // no KBLI registered yet
 
-  // Default: expanded if has active data, collapsed if empty
+  // Default expand logic:
+  //   • has active records → expanded
+  //   • empty sub-sector  → collapsed (clickable, shows CTA when opened)
   const defaultExpanded = totalCount > 0;
   const stateKey = `ss_${subSector.subSectorId}`;
   const isExpanded = collapseState[stateKey] !== undefined
@@ -110,82 +120,102 @@ function SubSectorGroup({ subSector, categories, countMap, activeCategory, onSel
 
   return (
     <div className="flex flex-col">
-      {/* Sub-sector header */}
+      {/* Sub-sector header — clickable even when empty */}
       <button
-        onClick={() => !isEmpty && onToggle(stateKey, !isExpanded)}
-        disabled={isEmpty}
-        className={`flex items-center gap-1.5 px-2 py-1 rounded-lg w-full text-left transition-colors group ${
+        id={`nav-subsector-${subSector.subSectorId}`}
+        onClick={() => onToggle(stateKey, !isExpanded)}
+        // min 44px touch target via py-2
+        className={`flex items-center gap-1.5 px-2 py-2 rounded-lg w-full text-left transition-colors group ${
           isEmpty
-            ? 'cursor-default opacity-50'
-            : 'hover:bg-surface-700/40 cursor-pointer'
+            ? 'opacity-50 hover:opacity-70'
+            : 'hover:bg-surface-700/40'
         }`}
-        aria-expanded={isEmpty ? undefined : isExpanded}
+        aria-expanded={isExpanded}
       >
         {/* Chevron */}
-        <span className="text-slate-600 shrink-0">
-          {isEmpty ? (
-            <ChevronRight size={11} />
-          ) : isExpanded ? (
-            <ChevronDown size={11} className="text-slate-400" />
-          ) : (
-            <ChevronRight size={11} className="text-slate-400" />
-          )}
+        <span className="shrink-0">
+          {isExpanded
+            ? <ChevronDown  size={11} className={isEmpty ? 'text-slate-600' : 'text-slate-400'} />
+            : <ChevronRight size={11} className={isEmpty ? 'text-slate-600' : 'text-slate-400'} />
+          }
         </span>
 
+        {/* Label */}
         <span className={`flex-1 truncate text-[11px] font-medium ${
-          isEmpty ? 'text-slate-600' : 'text-slate-400 group-hover:text-slate-300'
+          isEmpty
+            ? 'text-slate-600 group-hover:text-slate-500'
+            : 'text-slate-400 group-hover:text-slate-300'
         }`}>
           {subSector.subSectorName}
-          {isEmpty && (
-            <span className="ml-1 text-[10px] italic font-normal text-slate-600">
-              (Belum tersedia)
-            </span>
-          )}
         </span>
 
-        {/* Aggregated badge */}
-        {totalCount > 0 && (
-          <span className="text-[10px] font-bold px-1 py-0.5 rounded-full text-emerald-300 bg-emerald-500/10 shrink-0">
-            {totalCount}
-          </span>
-        )}
+        {/* Badge — "0" for empty, count for filled */}
+        <span className={`text-[10px] font-bold px-1 py-0.5 rounded-full shrink-0 ${
+          totalCount > 0
+            ? 'text-emerald-300 bg-emerald-500/10'
+            : 'text-slate-600 bg-slate-700/30'
+        }`}>
+          {totalCount}
+        </span>
       </button>
 
-      {/* Sub-sector items */}
-      {!isEmpty && isExpanded && (
-        <div className="flex flex-col gap-0.5 mt-0.5">
-          {subCats.map(cat => (
-            <CategoryItem
-              key={cat.id}
-              cat={cat}
-              isActive={activeCategory === cat.id}
-              count={countMap[cat.id] || 0}
-              onSelect={onSelect}
-              indent={2}
-            />
-          ))}
+      {/* Expanded body */}
+      {isExpanded && (
+        <div className="flex flex-col gap-0.5 mb-0.5">
+          {isEmpty ? (
+            // Empty state: informational CTA
+            <div className="pl-8 pr-2 py-2 flex flex-col gap-1.5">
+              <p className="text-[10.5px] text-slate-600 leading-relaxed">
+                Belum ada usaha di sub-sektor ini.
+              </p>
+              <button
+                id={`btn-add-${subSector.subSectorId}`}
+                onClick={() => onAddRequest()}
+                className="flex items-center gap-1 text-[10.5px] text-slate-500 hover:text-indigo-400 transition-colors group/add"
+                title="Kategori usaha untuk sub-sektor ini belum tersedia — hubungi admin untuk penambahan"
+              >
+                <Plus size={10} className="group-hover/add:text-indigo-400" />
+                <span>Tambah Usaha</span>
+              </button>
+            </div>
+          ) : (
+            // KBLI items
+            subCats.map(cat => (
+              <CategoryItem
+                key={cat.id}
+                cat={cat}
+                isActive={activeCategory === cat.id}
+                count={countMap[cat.id] || 0}
+                onSelect={onSelect}
+              />
+            ))
+          )}
         </div>
       )}
     </div>
   );
 }
 
-// ── Sub-component: Sector group (Tingkat 1) ────────────────────────────────
-function SectorGroup({ sector, categories, countMap, activeCategory, onSelect, collapseState, onToggle }) {
+// ─────────────────────────────────────────────────────────────────────────────
+// Sub-component: Sector group (Tingkat 1)
+// ─────────────────────────────────────────────────────────────────────────────
+function SectorGroup({
+  sector, categories, countMap, activeCategory, onSelect,
+  collapseState, onToggle, onAddRequest,
+}) {
   const SectorIcon = SECTOR_ICON_MAP[sector.icon] || Leaf;
 
-  // Categories directly belonging to this sector (for sectors without sub-sectors)
-  const directCats = categories.filter(
-    c => c.sectorId === sector.sectorId && !c.subSectorId
-  );
+  // All KBLI that belong to this sector
+  const sectorCats  = categories.filter(c => c.sectorId === sector.sectorId);
+  // For flat sectors (no subSectors): direct items only
+  const directCats  = sectorCats.filter(c => !c.subSectorId);
+  // Total record count for this sector (for aggregated badge)
+  const totalCount  = sectorCats.reduce((sum, c) => sum + (countMap[c.id] || 0), 0);
 
-  // Aggregate count across all categories in this sector
-  const sectorCats = categories.filter(c => c.sectorId === sector.sectorId);
-  const totalCount = sectorCats.reduce((sum, c) => sum + (countMap[c.id] || 0), 0);
-  const hasContent = sectorCats.length > 0;
-
-  // Default: expanded if sector has active data; collapsed otherwise
-  const defaultExpanded = totalCount > 0 || hasContent;
+  // Default expand:
+  //   • has records → expanded
+  //   • no records but has KBLI definitions → collapsed
+  const defaultExpanded = totalCount > 0;
   const stateKey = `sec_${sector.sectorId}`;
   const isExpanded = collapseState[stateKey] !== undefined
     ? collapseState[stateKey]
@@ -200,24 +230,21 @@ function SectorGroup({ sector, categories, countMap, activeCategory, onSelect, c
         className="flex items-center gap-2 px-2 py-1.5 rounded-xl w-full text-left hover:bg-surface-700/40 transition-colors group"
         aria-expanded={isExpanded}
       >
-        {/* Sector icon */}
         <div className="w-5 h-5 rounded-md bg-surface-600/60 flex items-center justify-center shrink-0">
           <SectorIcon size={11} className="text-slate-400" />
         </div>
 
-        {/* Label */}
         <span className="flex-1 truncate text-[11.5px] font-semibold text-slate-300 group-hover:text-slate-100 transition-colors">
           {sector.sectorName}
         </span>
 
-        {/* Aggregated count badge */}
+        {/* Aggregated badge */}
         {totalCount > 0 && (
           <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full text-slate-300 bg-slate-500/20 shrink-0">
             {totalCount}
           </span>
         )}
 
-        {/* Expand/collapse chevron */}
         <span className="text-slate-500 group-hover:text-slate-400 transition-colors shrink-0">
           {isExpanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
         </span>
@@ -227,21 +254,22 @@ function SectorGroup({ sector, categories, countMap, activeCategory, onSelect, c
       {isExpanded && (
         <div className="flex flex-col gap-0.5 ml-1 pl-2 border-l border-white/[0.05]">
           {sector.subSectors ? (
-            // Tingkat 2: grouped by sub-sector
+            // Tingkat 2: sub-sector groups
             sector.subSectors.map(ss => (
               <SubSectorGroup
                 key={ss.subSectorId}
                 subSector={ss}
-                categories={categories.filter(c => c.sectorId === sector.sectorId)}
+                categories={sectorCats}
                 countMap={countMap}
                 activeCategory={activeCategory}
                 onSelect={onSelect}
                 collapseState={collapseState}
                 onToggle={onToggle}
+                onAddRequest={onAddRequest}
               />
             ))
           ) : (
-            // Flat list for sectors without sub-sectors
+            // Flat KBLI list (Perdagangan, Industri, Akomodasi)
             directCats.map(cat => (
               <CategoryItem
                 key={cat.id}
@@ -249,7 +277,6 @@ function SectorGroup({ sector, categories, countMap, activeCategory, onSelect, c
                 isActive={activeCategory === cat.id}
                 count={countMap[cat.id] || 0}
                 onSelect={onSelect}
-                indent={1}
               />
             ))
           )}
@@ -259,9 +286,11 @@ function SectorGroup({ sector, categories, countMap, activeCategory, onSelect, c
   );
 }
 
-// ── Main export ───────────────────────────────────────────────────────────────
-export default function CategorySidebar({ activeCategory, onSelect, records, variant }) {
-  // Build count map: categoryId → number of records
+// ─────────────────────────────────────────────────────────────────────────────
+// Main export
+// ─────────────────────────────────────────────────────────────────────────────
+export default function CategorySidebar({ activeCategory, onSelect, records, variant, onAddRequest }) {
+  // countMap: categoryId → number of records
   const countMap = {};
   records.forEach(r => { countMap[r.categoryId] = (countMap[r.categoryId] || 0) + 1; });
 
@@ -276,7 +305,12 @@ export default function CategorySidebar({ activeCategory, onSelect, records, var
     });
   }, []);
 
-  // ── Sidebar variant (desktop) ──────────────────────────────────────────────
+  // Safe add-request callback (open modal)
+  const handleAddRequest = useCallback(() => {
+    if (typeof onAddRequest === 'function') onAddRequest();
+  }, [onAddRequest]);
+
+  // ── Sidebar variant (desktop) ────────────────────────────────────────────
   const SidebarContent = () => (
     <>
       <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider px-2 mb-2">
@@ -284,7 +318,7 @@ export default function CategorySidebar({ activeCategory, onSelect, records, var
       </p>
 
       <div className="flex flex-col gap-1">
-        {/* "Semua" / clear filter button */}
+        {/* "Semua" clear-filter button */}
         <button
           id="nav-all"
           onClick={() => onSelect(null)}
@@ -295,7 +329,7 @@ export default function CategorySidebar({ activeCategory, onSelect, records, var
           }`}>
             <Store size={13} className={activeCategory === null ? 'text-indigo-400' : 'text-slate-400'} />
           </div>
-          <span className="flex-1 truncate text-[12.5px] text-slate-300">Semua Kategori</span>
+          <span className="flex-1 truncate text-[12px] text-slate-300">Semua Kategori</span>
           {records.length > 0 && (
             <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full text-slate-300 bg-slate-500/15">
               {records.length}
@@ -317,16 +351,17 @@ export default function CategorySidebar({ activeCategory, onSelect, records, var
             onSelect={onSelect}
             collapseState={collapseState}
             onToggle={handleToggle}
+            onAddRequest={handleAddRequest}
           />
         ))}
       </div>
     </>
   );
 
-  // ── Tab/mobile variant ─────────────────────────────────────────────────────
+  // ── Tab/mobile variant ───────────────────────────────────────────────────
   const TabItems = () => (
     <div className="flex flex-col gap-2 w-full">
-      {/* Dropdown selector (mobile screens only) */}
+      {/* Grouped dropdown (mobile) */}
       <div className="block md:hidden w-full">
         <select
           id="mobile-category-select"
@@ -352,9 +387,9 @@ export default function CategorySidebar({ activeCategory, onSelect, records, var
         <div className="w-full overflow-x-auto pb-1.5 scrollbar-none" style={{ scrollbarWidth: 'none' }}>
           <div className="flex gap-2 min-w-max px-1">
             {CATEGORIES.map((cat) => {
-              const Icon = CATEGORY_ICON_MAP[cat.icon] || Store;
-              const colors = COLOR_VARIANTS[cat.color] || COLOR_VARIANTS.indigo;
-              const count = countMap[cat.id] || 0;
+              const Icon   = CATEGORY_ICON_MAP[cat.icon] || Store;
+              const colors = COLOR_VARIANTS[cat.color]   || COLOR_VARIANTS.indigo;
+              const count  = countMap[cat.id] || 0;
               const isActive = activeCategory === cat.id;
               return (
                 <button
@@ -382,13 +417,12 @@ export default function CategorySidebar({ activeCategory, onSelect, records, var
             })}
           </div>
         </div>
-        {/* Transparent fading mask overlay */}
         <div className="absolute right-0 top-0 bottom-1.5 w-12 bg-gradient-to-l from-surface-900 to-transparent pointer-events-none" />
       </div>
     </div>
   );
 
-  // ── Render by variant ───────────────────────────────────────────────────────
+  // ── Render by variant ────────────────────────────────────────────────────
   if (variant === 'sidebar') {
     return (
       <div className="glass rounded-2xl border border-white/[0.06] p-3 w-64 flex flex-col gap-1">
@@ -401,7 +435,7 @@ export default function CategorySidebar({ activeCategory, onSelect, records, var
     return <TabItems />;
   }
 
-  // Fallback: both (legacy usage)
+  // Fallback (legacy)
   return (
     <>
       <aside className="no-print hidden md:flex flex-col gap-1 w-64 shrink-0">

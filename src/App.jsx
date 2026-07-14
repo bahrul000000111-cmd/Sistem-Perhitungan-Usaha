@@ -130,6 +130,7 @@ export default function App() {
               onSelect={(id) => setActiveCategory(prev => prev === id ? null : id)}
               records={records}
               variant="sidebar"
+              onAddRequest={() => setShowAddModal(true)}
             />
           </aside>
 
@@ -143,6 +144,7 @@ export default function App() {
                 onSelect={(id) => setActiveCategory(prev => prev === id ? null : id)}
                 records={records}
                 variant="tabs"
+                onAddRequest={() => setShowAddModal(true)}
               />
             </div>
 
