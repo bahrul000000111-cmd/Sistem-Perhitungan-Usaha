@@ -1,21 +1,30 @@
 /**
  * AddRecordModal.jsx
  * Modal for creating a new business record.
- * Allows selecting a category and naming the business instance.
+ * Step 1: Pick category — displayed as 2-level grouped cards (Sector → Sub-sector → KBLI).
+ *         Live search collapses grouping into a flat filtered list.
+ * Step 2: Name the business record.
  */
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import {
   X, Plus, Store, UtensilsCrossed, Sprout, TreePalm,
-  Package, Gem, Flame, Fish, ChevronRight
+  Package, Gem, Flame, Fish,
+  Leaf, ShoppingCart, Factory, Utensils,
+  ChevronRight, Search,
 } from 'lucide-react';
 import { CATEGORIES } from '../utils/calculations';
+import { SECTOR_TAXONOMY } from '../utils/sectorTaxonomy';
 
-const ICON_MAP = {
+// ── Icon maps ─────────────────────────────────────────────────────────────────
+const CATEGORY_ICON_MAP = {
   Store, UtensilsCrossed, Sprout, TreePalm,
   Package, Gem, Flame, Fish,
-  Shell: Gem
+  Shell: Gem,
 };
 
+const SECTOR_ICON_MAP = { Leaf, ShoppingCart, Factory, Utensils };
+
+// ── Color maps (unchanged per-KBLI styling) ───────────────────────────────────
 const COLOR_BG = {
   indigo:  'bg-indigo-500/15 border-indigo-500/25 hover:bg-indigo-500/25',
   amber:   'bg-amber-500/15  border-amber-500/25  hover:bg-amber-500/25',
@@ -24,23 +33,140 @@ const COLOR_BG = {
   orange:  'bg-orange-500/15 border-orange-500/25 hover:bg-orange-500/25',
   brown:   'bg-amber-800/15  border-amber-800/25  hover:bg-amber-800/25',
   rose:    'bg-rose-500/15   border-rose-500/25   hover:bg-rose-500/25',
-  blue:    'bg-blue-500/15   border-blue-500/25   hover:bg-blue-500/25'
+  blue:    'bg-blue-500/15   border-blue-500/25   hover:bg-blue-500/25',
 };
 
 const COLOR_ICON = {
-  indigo:  'text-indigo-400', amber: 'text-amber-400', emerald: 'text-emerald-400',
-  cyan:    'text-cyan-400',   orange: 'text-orange-400', brown: 'text-amber-700',
-  rose:    'text-rose-400',   blue:  'text-blue-400'
+  indigo:  'text-indigo-400', amber:  'text-amber-400',  emerald: 'text-emerald-400',
+  cyan:    'text-cyan-400',   orange: 'text-orange-400', brown:   'text-amber-700',
+  rose:    'text-rose-400',   blue:   'text-blue-400',
 };
 
+// ── Individual category card ──────────────────────────────────────────────────
+function CategoryCard({ cat, onSelect }) {
+  const Icon    = CATEGORY_ICON_MAP[cat.icon] || Store;
+  const bgClass = COLOR_BG[cat.color]   || COLOR_BG.indigo;
+  const icClass = COLOR_ICON[cat.color] || COLOR_ICON.indigo;
+
+  return (
+    <button
+      id={`select-cat-${cat.id}`}
+      onClick={() => onSelect(cat)}
+      className={`flex items-center gap-3 p-3 rounded-xl border text-left transition-all ${bgClass}`}
+    >
+      <div className="w-9 h-9 rounded-xl bg-surface-800/50 flex items-center justify-center shrink-0">
+        <Icon size={17} className={icClass} />
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="text-[13px] font-semibold text-slate-200">{cat.name}</p>
+        <p className="text-[11px] text-slate-500 truncate">{cat.description}</p>
+      </div>
+      <ChevronRight size={14} className="text-slate-500 shrink-0" />
+    </button>
+  );
+}
+
+// ── Sub-sector block inside a sector ─────────────────────────────────────────
+function SubSectorBlock({ subSector, cats, onSelect }) {
+  if (cats.length === 0) {
+    // Empty placeholder — shown but not interactive
+    return (
+      <div className="mb-2">
+        <p className="text-[10.5px] font-medium text-slate-600 uppercase tracking-wider px-1 mb-1.5 flex items-center gap-1">
+          <ChevronRight size={10} className="text-slate-700" />
+          {subSector.subSectorName}
+        </p>
+        <p className="text-[11px] italic text-slate-600 px-2 py-2 rounded-lg border border-dashed border-slate-700/50">
+          Kategori usaha untuk sub-sektor ini belum tersedia — hubungi admin untuk penambahan.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="mb-2">
+      <p className="text-[10.5px] font-medium text-slate-500 uppercase tracking-wider px-1 mb-1.5 flex items-center gap-1">
+        <ChevronRight size={10} className="text-slate-500" />
+        {subSector.subSectorName}
+      </p>
+      <div className="flex flex-col gap-1.5">
+        {cats.map(cat => (
+          <CategoryCard key={cat.id} cat={cat} onSelect={onSelect} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ── Sector block ──────────────────────────────────────────────────────────────
+function SectorBlock({ sector, cats, onSelect }) {
+  if (cats.length === 0 && !sector.subSectors) return null; // skip empty flat sectors
+
+  const SectorIcon = SECTOR_ICON_MAP[sector.icon] || Leaf;
+
+  return (
+    <div className="mb-4">
+      {/* Sector header separator */}
+      <div className="flex items-center gap-2 mb-2">
+        <div className="flex items-center gap-1.5 shrink-0">
+          <SectorIcon size={13} className="text-slate-500" />
+          <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">
+            {sector.sectorName}
+          </p>
+        </div>
+        <div className="flex-1 h-px bg-white/[0.06]" />
+        <span className="text-[10px] text-slate-600 shrink-0">Kat. {sector.sectorLetter}</span>
+      </div>
+
+      {sector.subSectors ? (
+        // Render sub-sector groups
+        <div className="pl-1">
+          {sector.subSectors.map(ss => {
+            const ssCats = cats.filter(c => c.subSectorId === ss.subSectorId);
+            return (
+              <SubSectorBlock
+                key={ss.subSectorId}
+                subSector={ss}
+                cats={ssCats}
+                onSelect={onSelect}
+              />
+            );
+          })}
+        </div>
+      ) : (
+        // Flat cards (sectors without sub-sectors)
+        <div className="flex flex-col gap-1.5">
+          {cats.map(cat => (
+            <CategoryCard key={cat.id} cat={cat} onSelect={onSelect} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Main modal ────────────────────────────────────────────────────────────────
 export default function AddRecordModal({ onConfirm, onClose }) {
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [name, setName] = useState('');
   const [step, setStep] = useState(1); // 1: pick category, 2: name it
+  const [searchQuery, setSearchQuery] = useState('');
+
+  // Filtered categories (for search mode)
+  const filteredCategories = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return null; // null = show grouped view
+    return CATEGORIES.filter(
+      c =>
+        c.name.toLowerCase().includes(q) ||
+        c.description.toLowerCase().includes(q) ||
+        c.id.toLowerCase().includes(q)
+    );
+  }, [searchQuery]);
 
   const handleSelectCategory = (cat) => {
     setSelectedCategory(cat);
-    setName(cat.name); // pre-fill with category name
+    setName(cat.name);
     setStep(2);
   };
 
@@ -58,7 +184,7 @@ export default function AddRecordModal({ onConfirm, onClose }) {
     <div className="modal-overlay" role="dialog" aria-modal="true" aria-label="Tambah Usaha Baru">
       <div className="glass rounded-xl border border-white/[0.1] w-full max-w-md max-h-[90vh] flex flex-col overflow-hidden scale-in mx-4">
 
-        {/* Header (sticky at the top) */}
+        {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-white/[0.07] shrink-0">
           <div>
             <h2 className="text-[15px] font-bold text-white">Tambah Usaha Baru</h2>
@@ -75,33 +201,65 @@ export default function AddRecordModal({ onConfirm, onClose }) {
           </button>
         </div>
 
-        {/* Step 1: Category selection (scrollable) */}
+        {/* Step 1: Category selection */}
         {step === 1 && (
-          <div className="p-4 grid grid-cols-1 gap-2 overflow-y-auto flex-1 scrollbar-none" style={{ scrollbarWidth: 'none' }}>
-            {CATEGORIES.map((cat) => {
-              const Icon = ICON_MAP[cat.icon] || Store;
-              const bgClass = COLOR_BG[cat.color] || COLOR_BG.indigo;
-              const iconClass = COLOR_ICON[cat.color] || COLOR_ICON.indigo;
+          <>
+            {/* Search bar */}
+            <div className="px-4 pt-3 pb-2 shrink-0 border-b border-white/[0.05]">
+              <div className="relative">
+                <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" />
+                <input
+                  id="modal-category-search"
+                  type="text"
+                  placeholder="Cari kategori usaha..."
+                  value={searchQuery}
+                  onChange={e => setSearchQuery(e.target.value)}
+                  className="w-full pl-8 pr-3 py-2 text-[12px] rounded-xl bg-surface-700/80 border border-white/[0.07] text-slate-200 placeholder:text-slate-600 focus:border-indigo-500/50 focus:outline-none transition-colors"
+                />
+                {searchQuery && (
+                  <button
+                    onClick={() => setSearchQuery('')}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 transition-colors"
+                  >
+                    <X size={12} />
+                  </button>
+                )}
+              </div>
+            </div>
 
-              return (
-                <button
-                  key={cat.id}
-                  id={`select-cat-${cat.id}`}
-                  onClick={() => handleSelectCategory(cat)}
-                  className={`flex items-center gap-3 p-3 rounded-xl border text-left transition-all ${bgClass}`}
-                >
-                  <div className={`w-9 h-9 rounded-xl bg-surface-800/50 flex items-center justify-center shrink-0`}>
-                    <Icon size={17} className={iconClass} />
+            {/* Category list */}
+            <div className="p-4 overflow-y-auto flex-1 scrollbar-none" style={{ scrollbarWidth: 'none' }}>
+              {filteredCategories !== null ? (
+                // Search mode: flat list
+                filteredCategories.length > 0 ? (
+                  <div className="flex flex-col gap-1.5">
+                    {filteredCategories.map(cat => (
+                      <CategoryCard key={cat.id} cat={cat} onSelect={handleSelectCategory} />
+                    ))}
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-[13px] font-semibold text-slate-200">{cat.name}</p>
-                    <p className="text-[11px] text-slate-500 truncate">{cat.description}</p>
+                ) : (
+                  <div className="flex flex-col items-center justify-center py-8 text-center">
+                    <Search size={24} className="text-slate-600 mb-2" />
+                    <p className="text-[13px] text-slate-500">Tidak ada kategori yang cocok</p>
+                    <p className="text-[11px] text-slate-600 mt-1">dengan &ldquo;{searchQuery}&rdquo;</p>
                   </div>
-                  <ChevronRight size={14} className="text-slate-500 shrink-0" />
-                </button>
-              );
-            })}
-          </div>
+                )
+              ) : (
+                // Grouped mode: sector → (sub-sector) → categories
+                SECTOR_TAXONOMY.map(sector => {
+                  const sectorCats = CATEGORIES.filter(c => c.sectorId === sector.sectorId);
+                  return (
+                    <SectorBlock
+                      key={sector.sectorId}
+                      sector={sector}
+                      cats={sectorCats}
+                      onSelect={handleSelectCategory}
+                    />
+                  );
+                })
+              )}
+            </div>
+          </>
         )}
 
         {/* Step 2: Name the record */}
@@ -122,7 +280,7 @@ export default function AddRecordModal({ onConfirm, onClose }) {
                 autoFocus
               />
               <p className="text-[11px] text-slate-500 mt-1.5">
-                Beri nama spesifik, mis: "Warung Pak Budi" atau "Kios Berkah"
+                Beri nama spesifik, mis: &ldquo;Warung Pak Budi&rdquo; atau &ldquo;Kios Berkah&rdquo;
               </p>
             </div>
 

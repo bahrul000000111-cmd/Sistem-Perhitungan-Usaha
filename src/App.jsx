@@ -20,6 +20,7 @@ import PrintReport     from './components/PrintReport';
 import LaporanModal    from './components/LaporanModal';
 import { useUMKStore } from './hooks/useUMKStore';
 import { CATEGORIES }  from './utils/calculations';
+import { SECTOR_MAP, SUB_SECTOR_MAP } from './utils/sectorTaxonomy';
 
 // ── Main App ─────────────────────────────────────────────────────────────────
 export default function App() {
@@ -50,6 +51,17 @@ export default function App() {
     () => CATEGORIES.find(c => c.id === activeCategory),
     [activeCategory]
   );
+
+  // Breadcrumb enrichment: resolve sector & sub-sector for active category
+  const activeSector = useMemo(() => {
+    if (!activeCategory_obj?.sectorId) return null;
+    return SECTOR_MAP.get(activeCategory_obj.sectorId) || null;
+  }, [activeCategory_obj]);
+
+  const activeSubSector = useMemo(() => {
+    if (!activeCategory_obj?.subSectorId) return null;
+    return SUB_SECTOR_MAP.get(activeCategory_obj.subSectorId) || null;
+  }, [activeCategory_obj]);
 
   // ── Handlers ──────────────────────────────────────────────────────────────
 
@@ -137,10 +149,22 @@ export default function App() {
             {/* ── Toolbar ── */}
             <div className="no-print glass rounded-2xl border border-white/[0.06] px-4 py-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 w-full">
 
-              {/* Page title / breadcrumb */}
-              <div className="flex items-center gap-2">
+              {/* Page title / breadcrumb — enriched with sector & sub-sector hierarchy */}
+              <div className="flex items-center gap-1.5 flex-wrap">
                 <LayoutDashboard size={14} className="text-slate-500" />
                 <span className="text-[12px] text-slate-500">Semua Usaha</span>
+                {activeSector && (
+                  <>
+                    <ChevronRight size={12} className="text-slate-600" />
+                    <span className="text-[12px] text-slate-400">{activeSector.sectorName}</span>
+                  </>
+                )}
+                {activeSubSector && (
+                  <>
+                    <ChevronRight size={12} className="text-slate-600" />
+                    <span className="text-[12px] text-slate-400">{activeSubSector.subSectorName}</span>
+                  </>
+                )}
                 {activeCategory_obj && (
                   <>
                     <ChevronRight size={12} className="text-slate-600" />

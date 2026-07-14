@@ -15,7 +15,12 @@ export const CATEGORIES = [
     name: 'KBLI 47112 - Toko Kelontong / Kios Campuran',
     icon: 'Store',
     color: 'indigo',
-    description: 'Kategori G · Perdagangan Eceran Kelontong & Kebutuhan Sehari-hari',
+    // description: concise, without redundant "Kategori X ·" prefix (sector shown by group header in UI)
+    description: 'Perdagangan Eceran Kelontong & Kebutuhan Sehari-hari',
+    // kbliSection: preserved for tooltip / reference cross-linking to BPS documentation
+    kbliSection: 'G',
+    // sectorId / subSectorId: display-only taxonomy — NOT read by any computeFn
+    sectorId: 'perdagangan',
     fields: [
       { key: 'pemasukan_harian', label: 'Pendapatan Kotor Harian', placeholder: '500000', suffix: '/hari' }
     ],
@@ -26,7 +31,9 @@ export const CATEGORIES = [
     name: 'KBLI 56101 - Restoran dan Rumah Makan',
     icon: 'UtensilsCrossed',
     color: 'amber',
-    description: 'Kategori I · Penyediaan Akomodasi & Makan Minum',
+    description: 'Penyediaan Akomodasi & Makan Minum',
+    kbliSection: 'I',
+    sectorId: 'akomodasi-makan-minum',
     fields: [
       { key: 'pemasukan_harian', label: 'Pendapatan Kotor Harian', placeholder: '1000000', suffix: '/hari' }
     ],
@@ -37,7 +44,10 @@ export const CATEGORIES = [
     name: 'KBLI 01200 - Perkebunan Tanaman Tahunan',
     icon: 'Sprout',
     color: 'emerald',
-    description: 'Kategori A · Pertanian, Kehutanan dan Perikanan',
+    description: 'Perkebunan Tanaman Tahunan (input pendapatan langsung)',
+    kbliSection: 'A',
+    sectorId: 'pertanian-kehutanan-perikanan',
+    subSectorId: 'perkebunan',
     fields: [
       { key: 'total_pendapatan_tahunan', label: 'Total Pendapatan Tahunan', placeholder: '12000000', suffix: '/tahun' }
     ],
@@ -48,7 +58,10 @@ export const CATEGORIES = [
     name: 'KBLI 01262 - Perkebunan Buah Kelapa',
     icon: 'TreePalm',
     color: 'cyan',
-    description: 'Kategori A · Pertanian, Kehutanan dan Perikanan · Panen 4×/tahun',
+    description: 'Perkebunan Buah Kelapa · Panen 4×/tahun',
+    kbliSection: 'A',
+    sectorId: 'pertanian-kehutanan-perikanan',
+    subSectorId: 'perkebunan',
     fields: [
       { key: 'jumlah_pohon', label: 'Jumlah Pohon Kelapa', placeholder: '30', suffix: 'pohon', defaultValue: 30 }
     ],
@@ -60,7 +73,9 @@ export const CATEGORIES = [
     name: 'KBLI 10411 - Industri Pengolahan Kopra',
     icon: 'Package',
     color: 'orange',
-    description: 'Kategori C · Industri Pengolahan Hasil Kelapa',
+    description: 'Industri Pengolahan Hasil Kelapa (Kopra)',
+    kbliSection: 'C',
+    sectorId: 'industri-pengolahan',
     fields: [
       { key: 'berat_kopra', label: 'Berat Kopra Per Panen (Kg)', placeholder: '400', suffix: 'kg', defaultValue: 400 }
     ],
@@ -72,7 +87,9 @@ export const CATEGORIES = [
     name: 'KBLI 46696 - Perdagangan Hasil Sampingan (Tempurung)',
     icon: 'Shell',
     color: 'brown',
-    description: 'Kategori G · Perdagangan Besar Bahan Sisa & Hasil Sampingan',
+    description: 'Perdagangan Besar Bahan Sisa & Hasil Sampingan',
+    kbliSection: 'G',
+    sectorId: 'perdagangan',
     fields: [
       { key: 'berat_tempurung', label: 'Berat Tempurung (Kg)', placeholder: '90', suffix: 'kg', defaultValue: 90 }
     ],
@@ -83,7 +100,9 @@ export const CATEGORIES = [
     name: 'KBLI 20114 - Industri Arang Tempurung Kelapa',
     icon: 'Flame',
     color: 'rose',
-    description: 'Kategori C · Industri Pengolahan — Nilai Tambah dari Tempurung',
+    description: 'Industri Pengolahan — Nilai Tambah dari Tempurung Kelapa',
+    kbliSection: 'C',
+    sectorId: 'industri-pengolahan',
     fields: [
       { key: 'berat_tempurung', label: 'Berat Tempurung Dasar (Kg)', placeholder: '90', suffix: 'kg', defaultValue: 90 },
       { key: 'link_tempurung', label: 'Gunakan Nilai Tempurung Kategori 6', type: 'boolean', defaultValue: false }
@@ -95,7 +114,10 @@ export const CATEGORIES = [
     name: 'KBLI 03111 - Penangkapan Ikan di Laut',
     icon: 'Fish',
     color: 'blue',
-    description: 'Kategori A · Pertanian, Kehutanan dan Perikanan — Tangkap Harian',
+    description: 'Perikanan Tangkap Laut — Harian',
+    kbliSection: 'A',
+    sectorId: 'pertanian-kehutanan-perikanan',
+    subSectorId: 'perikanan',
     fields: [
       { key: 'satuan_kg', label: 'Satuan Tangkapan (Kg)', placeholder: '1', suffix: 'kg/hari', defaultValue: 1 },
       { key: 'pemasukan_harian', label: 'Nilai Per Satuan (Rp)', placeholder: '150000', suffix: '/satuan' }
