@@ -288,13 +288,14 @@ export default function InputForm({ categoryId, inputs, onInputChange, records }
   const tempurungRecords = records.filter(r => r.categoryId === 'tempurung');
 
   // Determine modifiers config
-  const hasDailyModifier = ['kios_campuran', 'kuliner_rumah_makan', 'nelayan_tangkap'].includes(categoryId);
+  const hasDailyModifier = ['kios_campuran', 'kuliner_rumah_makan', 'nelayan_tangkap', 'generik_harian'].includes(categoryId);
   const hasRevenueModifier = hasDailyModifier;
 
   let defaultRevPct = 10;
   let defaultExpPct = 30;
-  if (categoryId === 'kios_campuran')       { defaultRevPct = 10;  defaultExpPct = 30; }
-  else if (categoryId === 'kuliner_rumah_makan') { defaultRevPct = 60; defaultExpPct = 40; }
+  if (categoryId === 'kios_campuran')           { defaultRevPct = 10;  defaultExpPct = 30; }
+  else if (categoryId === 'kuliner_rumah_makan') { defaultRevPct = 60;  defaultExpPct = 40; }
+  else if (categoryId === 'generik_harian')      { defaultRevPct = 20;  defaultExpPct = 30; }  // neutral generic defaults
   else if (categoryId === 'tempurung' || categoryId === 'arang_tempurung') { defaultExpPct = 10; }
 
   const rawDays = inputs.custom_days;
@@ -627,7 +628,7 @@ export default function InputForm({ categoryId, inputs, onInputChange, records }
                     tooltip="Bahan baku, BBM produksi, bahan penolong habis pakai."
                   />
 
-                  {/* 26c — HPP hanya untuk kategori perdagangan */}
+                  {/* 26c — HPP hanya untuk kategori perdagangan (bukan generik) */}
                   {['kios_campuran', 'tempurung', 'arang_tempurung'].includes(categoryId) && (
                     <ExpenseField
                       id="biaya-hpp"

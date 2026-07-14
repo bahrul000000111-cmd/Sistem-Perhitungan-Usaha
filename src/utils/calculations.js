@@ -9,6 +9,28 @@
 // CATEGORY DEFINITIONS (metadata & config)
 // ═══════════════════════════════════════════════════════════
 
+/**
+ * FORMULA_GROUPS — maps sector/sub-sector slugs to an ORDERED list of categoryIds.
+ * Used by Addendum #4 modal & RecordCard "Jenis Kalkulasi" dropdown.
+ * First entry = default formula for that group.
+ * PURE DISPLAY METADATA — not read by any computeFn.
+ */
+export const FORMULA_GROUPS = {
+  // Sub-sectors of Pertanian with multiple formulas:
+  'perkebunan':          ['perkebunan_tahunan', 'kelapa_per3bulan'],
+  // Flat sectors with multiple formulas:
+  'perdagangan':         ['kios_campuran', 'tempurung'],
+  'industri-pengolahan': ['industri_kopra', 'arang_tempurung'],
+  // Sub-sectors / sectors with exactly 1 formula (auto-assign, no dropdown needed):
+  'perikanan':                  ['nelayan_tangkap'],
+  'akomodasi-makan-minum':      ['kuliner_rumah_makan'],
+  // Empty sub-sectors → Generic Template:
+  'peternakan':  ['generik_harian'],
+  'hortikultura':['generik_harian'],
+  'pangan':      ['generik_harian'],
+  'kehutanan':   ['generik_harian'],
+};
+
 export const CATEGORIES = [
   {
     id: 'kios_campuran',
@@ -123,6 +145,27 @@ export const CATEGORIES = [
       { key: 'pemasukan_harian', label: 'Nilai Per Satuan (Rp)', placeholder: '150000', suffix: '/satuan' }
     ],
     note: 'Koefisien normatif 10% · Faktor pengeluaran 30% · Setiap hari'
+  },
+  {
+    // ── Generic Template ────────────────────────────────────────────────────
+    // Used for sub-sectors with no registered KBLI formula yet.
+    // Pattern mirrors kios_campuran (daily income × coefficient × days × 12 − expense%).
+    // Default coefficient: 20% (neutral/generic vs sector-calibrated 10%/60%/10%).
+    // IMPORTANT: This entry is intentionally NOT assigned to any sectorId/subSectorId
+    // in the taxonomy — the sector context is preserved in record.subSectorGroupKey instead.
+    id: 'generik_harian',
+    name: 'Kalkulasi Generik Harian',
+    icon: 'BarChart2',
+    color: 'slate',
+    description: 'Template fleksibel — sesuaikan koefisien sesuai jenis usaha Anda',
+    kbliSection: null,
+    sectorId: null,
+    subSectorId: null,
+    isGeneric: true,
+    fields: [
+      { key: 'pemasukan_harian', label: 'Pendapatan Kotor (per periode)', placeholder: '500000', suffix: '/periode' }
+    ],
+    note: 'Menggunakan kalkulasi generik — sesuaikan koefisien sesuai jenis usaha Anda'
   }
 ];
 
@@ -454,6 +497,34 @@ export function calcNelayan(inputs = {}) {
   };
 }
 
+/**
+ * Category 9 (Generic): Kalkulasi Generik Harian
+ * Reuses kiosCampuran pattern with neutral defaults: Rev = 20% | Exp = 30% | Days = 30.
+ * Used for sub-sectors without a registered BPS normative formula.
+ * The "pendapatan harian" field supports the frequency selector from Addendum #2.
+ */
+export function calcGeneric(inputs = {}) {
+  const ph = parseFloat(inputs.pemasukan_harian) || 0;
+  const revPct = getRevPct(inputs, 20);   // neutral default (vs. 10% Kios, 60% Kuliner)
+  const expPct = getExpPct(inputs, 30);
+  const days = getDays(inputs);
+
+  const totalPendapatan = ph * days * 12 * (revPct / 100);
+  const totalPengeluaran = totalPendapatan * (expPct / 100);
+  const totalHasilUsaha = totalPendapatan - totalPengeluaran;
+  const pendapatanPerBulan = totalHasilUsaha / 12;
+
+  return {
+    totalPendapatanTahunan: totalPendapatan,
+    totalPengeluaranTahunan: totalPengeluaran,
+    totalHasilUsaha,
+    pendapatanPerBulan,
+    perPanen: null,
+    setahun: null,
+    meta: { koefisien: `${revPct}%`, faktorPengeluaran: `${expPct}%`, hariKerja: days, pemasukan_harian: ph, isGeneric: true }
+  };
+}
+
 // ═══════════════════════════════════════════════════════════
 // DISPATCHER — route to the correct calculator by category ID
 // ═══════════════════════════════════════════════════════════
@@ -502,6 +573,9 @@ export function calculateRecord(record, allRecords = []) {
     }
     case 'nelayan_tangkap':
       result = calcNelayan(inputs);
+      break;
+    case 'generik_harian':
+      result = calcGeneric(inputs);
       break;
     default:
       result = {

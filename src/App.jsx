@@ -67,6 +67,10 @@ export default function App() {
 
   const handleAddConfirm = useCallback((categoryId, name, defaultInputs) => {
     addRecord(categoryId, name, defaultInputs);
+    // Auto-navigate to the new record's category in the sidebar
+    // so the user sees their new card immediately.
+    setActiveCategory(categoryId !== 'generik_harian' ? categoryId : null);
+    setSearchQuery('');
   }, [addRecord]);
 
   const handleUpdateRecord = useCallback((id, updates) => {
