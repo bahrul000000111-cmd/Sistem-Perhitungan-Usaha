@@ -56,7 +56,12 @@ export default function CategorySidebar({ activeCategory, onSelect, records, var
             }`}>
               <Icon size={13} className={isActive ? 'text-indigo-400' : 'text-slate-400'} />
             </div>
-            <span className="flex-1 truncate text-[12.5px]">{cat.name}</span>
+            <span className="flex-1 truncate text-[12.5px] flex items-center gap-1.5">
+              <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${
+                count > 0 ? 'bg-emerald-400 shadow-sm shadow-emerald-400/50' : 'bg-slate-600'
+              }`} />
+              {cat.name}
+            </span>
             {count > 0 && (
               <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${colors.tag}`}>
                 {count}
@@ -107,6 +112,9 @@ export default function CategorySidebar({ activeCategory, onSelect, records, var
                       : 'bg-surface-800 text-slate-400 border-white/[0.05] hover:text-slate-200'
                   }`}
                 >
+                  <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${
+                    count > 0 ? 'bg-emerald-400 shadow-sm shadow-emerald-400/50' : 'bg-slate-600'
+                  }`} />
                   <Icon size={12} />
                   <span>{cat.name}</span>
                   {count > 0 && (

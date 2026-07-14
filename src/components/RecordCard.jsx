@@ -102,9 +102,24 @@ export default function RecordCard({ record, allRecords, onUpdate, onDelete, onD
               </button>
             </div>
           )}
-          <div className="flex items-center gap-1 mt-0.5">
-            <Clock size={9} className="text-slate-600" />
-            <p className="text-[10px] text-slate-600">{formatDate(record.updatedAt)}</p>
+          <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+            <div className="flex items-center gap-1 shrink-0">
+              <Clock size={9} className="text-slate-600" />
+              <p className="text-[10px] text-slate-600">{formatDate(record.updatedAt)}</p>
+            </div>
+            {result.bps && result.bps.totalPekerja > 0 && (
+              <span
+                className="tooltip text-[9.5px] font-semibold px-1.5 py-0.5 rounded-md bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 flex items-center gap-1 select-none cursor-pointer"
+                data-tip={`Pekerja L: ${result.bps.pekerjaL} | P: ${result.bps.pekerjaP}`}
+              >
+                👥 {result.bps.totalPekerja} Pekerja
+              </span>
+            )}
+            {result.bps && result.bps.tahunMulai && (
+              <span className="text-[9.5px] font-semibold px-1.5 py-0.5 rounded-md bg-cyan-500/10 border border-cyan-500/20 text-cyan-300 flex items-center gap-1 select-none">
+                📅 Sejak {result.bps.tahunMulai}
+              </span>
+            )}
           </div>
         </div>
 

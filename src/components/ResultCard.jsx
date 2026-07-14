@@ -2,13 +2,13 @@
  * ResultCard.jsx
  * Displays calculated financial results for a single record.
  * Shows revenue, expense, net profit, and monthly income.
- * For dual-mode categories (kelapa, kopra), shows per-panen & setahun breakdown.
+ * Supports BPS SE2026-L details (pendapatan lainnya, detail pengeluaran).
  */
-import { TrendingUp, TrendingDown, DollarSign, ChevronDown, ChevronUp, Info } from 'lucide-react';
+import { TrendingUp, TrendingDown, DollarSign, ChevronDown, ChevronUp, Info, AlertTriangle } from 'lucide-react';
 import { useState } from 'react';
 import { formatRupiah } from '../utils/formatters';
 
-function ResultRow({ label, value, variant = 'default', indent = false }) {
+function ResultRow({ label, value, variant = 'default', indent = false, subtext = null }) {
   const variants = {
     revenue: 'result-row-revenue',
     expense: 'result-row-expense',
@@ -28,9 +28,10 @@ function ResultRow({ label, value, variant = 'default', indent = false }) {
   return (
     <tr className={`${variants[variant]} border-b border-white/[0.04]`}>
       <td className={`py-2.5 pr-4 text-[12px] text-slate-400 ${indent ? 'pl-6' : 'pl-3'}`}>
-        {label}
+        <div>{label}</div>
+        {subtext && <div className="text-[10px] text-slate-500 mt-0.5 font-sans font-normal">{subtext}</div>}
       </td>
-      <td className={`py-2.5 pl-2 pr-3 text-right text-[13px] font-semibold font-mono ${valueColors[variant]}`}>
+      <td className={`py-2.5 pl-2 pr-3 text-right text-[13px] font-semibold font-mono tabular-nums ${valueColors[variant]}`}>
         {formatRupiah(value)}
       </td>
     </tr>
@@ -42,12 +43,30 @@ export default function ResultCard({ result, hasDualMode = false }) {
 
   if (!result) return null;
 
-  const { totalPendapatanTahunan, totalPengeluaranTahunan, totalHasilUsaha, pendapatanPerBulan, perPanen, setahun, meta } = result;
+  const {
+    totalPendapatanTahunan,
+    totalPengeluaranTahunan,
+    totalHasilUsaha,
+    pendapatanPerBulan,
+    perPanen,
+    setahun,
+    meta,
+    bps,
+    corePendapatanTahunan,
+    corePengeluaranTahunan
+  } = result;
 
   // Visual profit ratio
   const profitRatio = totalPendapatanTahunan > 0
     ? (totalHasilUsaha / totalPendapatanTahunan) * 100
     : 0;
+
+  const isLoss = totalHasilUsaha < 0;
+
+  // Calculate equivalent expense % if detail override is active
+  const setaraExpPct = (bps && bps.isDetailPengeluaranActive && corePendapatanTahunan > 0)
+    ? (totalPengeluaranTahunan / corePendapatanTahunan) * 100
+    : null;
 
   return (
     <div className="glass rounded-xl border border-white/[0.07] overflow-hidden">
@@ -61,11 +80,17 @@ export default function ResultCard({ result, hasDualMode = false }) {
           <div className="flex items-center gap-1.5">
             <div className="h-1.5 w-20 bg-surface-600 rounded-full overflow-hidden">
               <div
-                className="h-full bg-gradient-to-r from-emerald-500 to-emerald-400 rounded-full progress-fill"
-                style={{ width: `${Math.min(100, profitRatio)}%` }}
+                className={`h-full rounded-full progress-fill ${
+                  isLoss
+                    ? 'bg-rose-500'
+                    : 'bg-gradient-to-r from-emerald-500 to-emerald-400'
+                }`}
+                style={{ width: `${Math.min(100, Math.max(0, profitRatio))}%` }}
               />
             </div>
-            <span className="text-[11px] text-emerald-400 font-mono">{profitRatio.toFixed(1)}%</span>
+            <span className={`text-[11px] font-mono ${isLoss ? 'text-rose-400 animate-pulse' : 'text-emerald-400'}`}>
+              {profitRatio.toFixed(1)}%
+            </span>
           </div>
         </div>
       </div>
@@ -74,13 +99,73 @@ export default function ResultCard({ result, hasDualMode = false }) {
       <div className="px-1">
         <table className="w-full">
           <tbody>
-            <ResultRow label="Total Pendapatan (Tahunan)" value={totalPendapatanTahunan} variant="revenue" />
-            <ResultRow label="Total Pengeluaran (Tahunan)" value={totalPengeluaranTahunan} variant="expense" />
-            <ResultRow label="Total Hasil Usaha Bersih" value={totalHasilUsaha} variant="profit" />
-            <ResultRow label="Pendapatan Per Bulan" value={pendapatanPerBulan} variant="monthly" />
+            {/* If Pendapatan Lainnya is active, display core & other revenue */}
+            {bps && bps.pendapatanLainnya > 0 ? (
+              <>
+                <ResultRow
+                  label="Pendapatan Usaha Utama (27a)"
+                  value={corePendapatanTahunan}
+                  variant="default"
+                  indent
+                />
+                <ResultRow
+                  label="Pendapatan Lainnya (27b)"
+                  value={bps.pendapatanLainnya}
+                  variant="default"
+                  indent
+                />
+                <ResultRow
+                  label="Total Pendapatan / Produksi (27c)"
+                  value={totalPendapatanTahunan}
+                  variant="revenue"
+                />
+              </>
+            ) : (
+              <ResultRow
+                label="Total Pendapatan (Tahunan)"
+                value={totalPendapatanTahunan}
+                variant="revenue"
+              />
+            )}
+
+            {/* Total Expense with detail override footnote */}
+            <ResultRow
+              label={bps && bps.isDetailPengeluaranActive ? 'Total Pengeluaran BPS (26f)' : 'Total Pengeluaran (Tahunan)'}
+              value={totalPengeluaranTahunan}
+              variant="expense"
+              subtext={
+                setaraExpPct !== null
+                  ? `Setara dengan ~${setaraExpPct.toFixed(1)}% pengeluaran`
+                  : null
+              }
+            />
+
+            {/* Total Net Profit */}
+            <ResultRow
+              label="Total Hasil Usaha Bersih"
+              value={totalHasilUsaha}
+              variant="profit"
+            />
+
+            {/* Monthly Net Profit */}
+            <ResultRow
+              label="Pendapatan Per Bulan"
+              value={pendapatanPerBulan}
+              variant="monthly"
+            />
           </tbody>
         </table>
       </div>
+
+      {/* Loss/Warning Guardrail */}
+      {isLoss && (
+        <div className="mx-3 my-2 px-3 py-2 bg-rose-500/10 border border-rose-500/20 text-rose-300 text-[11px] rounded-xl flex items-start gap-2">
+          <AlertTriangle size={14} className="text-rose-400 shrink-0 mt-0.5" />
+          <span>
+            <strong>Perhatian:</strong> Pengeluaran melebihi total pendapatan. Sensus Ekonomi menyarankan verifikasi ulang data pengeluaran Anda.
+          </span>
+        </div>
+      )}
 
       {/* Quick metrics pills */}
       <div className="px-3 py-2 flex flex-wrap gap-2">
@@ -103,7 +188,7 @@ export default function ResultCard({ result, hasDualMode = false }) {
         <div className="border-t border-white/[0.06]">
           <button
             onClick={() => setShowDetails(v => !v)}
-            className="w-full flex items-center justify-between px-4 py-2.5 text-[11px] text-slate-400 hover:text-slate-200 hover:bg-white/[0.02] transition-colors"
+            className="w-full flex items-center justify-between px-4 py-2.5 text-[11px] text-slate-400 hover:text-slate-200 hover:bg-white/[0.02] transition-colors outline-none"
           >
             <span className="flex items-center gap-1.5">
               <Info size={11} />
@@ -147,9 +232,16 @@ export default function ResultCard({ result, hasDualMode = false }) {
       {/* Meta notes */}
       {meta && (meta.koefisien || meta.faktorPengeluaran || meta.catatan) && (
         <div className="px-4 py-2.5 border-t border-white/[0.05] flex flex-wrap gap-3 text-[10px] text-slate-500">
-          {meta.koefisien && <span>Koefisien: <strong className="text-slate-400">{meta.koefisien}</strong></span>}
-          {meta.faktorPengeluaran && <span>Pengeluaran: <strong className="text-slate-400">{meta.faktorPengeluaran}</strong></span>}
+          {meta.koefisien && !bps?.isDetailPengeluaranActive && (
+            <span>Koefisien: <strong className="text-slate-400">{meta.koefisien}</strong></span>
+          )}
+          {meta.faktorPengeluaran && !bps?.isDetailPengeluaranActive && (
+            <span>Pengeluaran: <strong className="text-slate-400">{meta.faktorPengeluaran}</strong></span>
+          )}
           {meta.catatan && <span className="italic">{meta.catatan}</span>}
+          {bps && bps.onlinePct > 0 && (
+            <span>Online: <strong className="text-cyan-400 font-mono">{bps.onlinePct}%</strong></span>
+          )}
         </div>
       )}
     </div>

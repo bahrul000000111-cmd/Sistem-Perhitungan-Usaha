@@ -17,6 +17,7 @@ import AddRecordModal  from './components/AddRecordModal';
 import DeleteConfirmModal from './components/DeleteConfirmModal';
 import ClearDataModal  from './components/ClearDataModal';
 import PrintReport     from './components/PrintReport';
+import LaporanModal    from './components/LaporanModal';
 import { useUMKStore } from './hooks/useUMKStore';
 import { CATEGORIES }  from './utils/calculations';
 
@@ -29,6 +30,7 @@ export default function App() {
   const [showAddModal,   setShowAddModal]      = useState(false);
   const [deleteTarget,   setDeleteTarget]      = useState(null); // record id
   const [showClearModal, setShowClearModal]    = useState(false);
+  const [showLaporanModal, setShowLaporanModal] = useState(false);
   const [searchQuery,    setSearchQuery]       = useState('');
 
   // ── Derived Data ──────────────────────────────────────────────────────────
@@ -96,7 +98,7 @@ export default function App() {
       </div>
 
       {/* ── Sticky Header ── */}
-      <AppHeader onPrint={handlePrint} />
+      <AppHeader onPrint={() => setShowLaporanModal(true)} />
 
       {/* ── Main Content ── */}
       <main className="flex-1 w-full max-w-screen-2xl mx-auto px-3 sm:px-5 py-4 flex flex-col gap-4">
@@ -261,6 +263,13 @@ export default function App() {
           count={records.length}
           onConfirm={handleClearAll}
           onCancel={() => setShowClearModal(false)}
+        />
+      )}
+
+      {showLaporanModal && (
+        <LaporanModal
+          records={records}
+          onClose={() => setShowLaporanModal(false)}
         />
       )}
 

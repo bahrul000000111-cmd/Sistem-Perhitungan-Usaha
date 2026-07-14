@@ -404,20 +404,27 @@ export function calcNelayan(inputs = {}) {
  */
 export function calculateRecord(record, allRecords = []) {
   const { categoryId, inputs = {} } = record;
+  let result;
 
   switch (categoryId) {
     case 'kios_campuran':
-      return calcKiosCampuran(inputs);
+      result = calcKiosCampuran(inputs);
+      break;
     case 'kuliner_rumah_makan':
-      return calcKuliner(inputs);
+      result = calcKuliner(inputs);
+      break;
     case 'perkebunan_tahunan':
-      return calcPerkebunanTahunan(inputs);
+      result = calcPerkebunanTahunan(inputs);
+      break;
     case 'kelapa_per3bulan':
-      return calcKelapaPerTigaBulan(inputs);
+      result = calcKelapaPerTigaBulan(inputs);
+      break;
     case 'industri_kopra':
-      return calcKopra(inputs);
+      result = calcKopra(inputs);
+      break;
     case 'tempurung':
-      return calcTempurung(inputs);
+      result = calcTempurung(inputs);
+      break;
     case 'arang_tempurung': {
       // Find linked tempurung record's nilaiHarianBox if link_tempurung is true
       let linkedBox = null;
@@ -428,12 +435,14 @@ export function calculateRecord(record, allRecords = []) {
           linkedBox = tempResult.meta.nilaiHarianBox;
         }
       }
-      return calcArangTempurung(inputs, linkedBox);
+      result = calcArangTempurung(inputs, linkedBox);
+      break;
     }
     case 'nelayan_tangkap':
-      return calcNelayan(inputs);
+      result = calcNelayan(inputs);
+      break;
     default:
-      return {
+      result = {
         totalPendapatanTahunan: 0,
         totalPengeluaranTahunan: 0,
         totalHasilUsaha: 0,
@@ -443,6 +452,66 @@ export function calculateRecord(record, allRecords = []) {
         meta: {}
       };
   }
+
+  // ── Apply BPS SE2026-L Additive Layer ──
+  const pekerjaL = parseInt(inputs.pekerja_l) || 0;
+  const pekerjaP = parseInt(inputs.pekerja_p) || 0;
+  const totalPekerja = pekerjaL + pekerjaP;
+  const tahunMulai = inputs.tahun_mulai ? parseInt(inputs.tahun_mulai) : null;
+
+  // Pendapatan Lainnya
+  const pendapatanLainnya = parseFloat(inputs.pendapatan_lainnya) || 0;
+  const totalPendapatanCore = result.totalPendapatanTahunan;
+  const totalPendapatanAll = totalPendapatanCore + pendapatanLainnya;
+
+  // Pengeluaran Detail Override
+  let totalPengeluaran = result.totalPengeluaranTahunan;
+  const isDetailPengeluaranActive = Boolean(inputs.use_detail_pengeluaran);
+  
+  let totalPengeluaranDetail = 0;
+  if (isDetailPengeluaranActive) {
+    const upah = parseFloat(inputs.biaya_upah) || 0;
+    const prod = parseFloat(inputs.biaya_produksi) || 0;
+    const hpp = parseFloat(inputs.biaya_hpp) || 0;
+    const oper = parseFloat(inputs.biaya_operasional) || 0;
+    const nonOper = parseFloat(inputs.biaya_non_operasional) || 0;
+    totalPengeluaranDetail = upah + prod + hpp + oper + nonOper;
+    totalPengeluaran = totalPengeluaranDetail;
+  }
+
+  // Final Net Profit calculations
+  const totalHasilUsaha = totalPendapatanAll - totalPengeluaran;
+  const pendapatanPerBulan = totalHasilUsaha / 12;
+
+  // Aset
+  const asetTanahBangunan = parseFloat(inputs.aset_tanah_bangunan) || 0;
+  const asetLainnya = parseFloat(inputs.aset_lainnya) || 0;
+  const totalAset = asetTanahBangunan + asetLainnya;
+
+  return {
+    ...result,
+    totalPekerja,
+    bps: {
+      totalPekerja,
+      pekerjaL,
+      pekerjaP,
+      tahunMulai,
+      pendapatanLainnya,
+      isDetailPengeluaranActive,
+      totalPengeluaranDetail,
+      onlinePct: parseFloat(inputs.online_pct) || 0,
+      asetTanahBangunan,
+      asetLainnya,
+      totalAset
+    },
+    totalPendapatanTahunan: totalPendapatanAll,
+    totalPengeluaranTahunan: totalPengeluaran,
+    totalHasilUsaha,
+    pendapatanPerBulan,
+    // Original values for display
+    corePendapatanTahunan: totalPendapatanCore,
+    corePengeluaranTahunan: result.totalPengeluaranTahunan
+  };
 }
 
 /**
