@@ -8,7 +8,7 @@
  * Suite 3: Addendum #2 — Frequency selector conversions
  */
 
-import { calculateRecord, convertToAnnual, getConversionFormula, convertToDaily } from './src/utils/calculations.js';
+import { calculateRecord, convertToAnnual, getConversionFormula, convertToDaily, resolveWorkers } from './src/utils/calculations.js';
 
 let pass = 0;
 let fail = 0;
@@ -369,6 +369,133 @@ console.log('\n4.9 State preservation — kedua method tersimpan, kalkulasi guna
     ...inputsBothFilled, income_method: 'volume_harga'
   }}, []);
   assert('Kembali Opsi A: masih 7.200.000 (tidak ter-reset)', rABack.totalPendapatanTahunan, 7_200_000);
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// SUITE 5: Addendum #8 — Pekerja Dibayar / Tidak Dibayar + Wage Estimation
+// ─────────────────────────────────────────────────────────────────────────
+console.log('\n══ SUITE 5: Addendum #8 — Pekerja Dibayar / Tidak Dibayar ══\n');
+
+// 5.1 resolveWorkers() — new-format keys
+console.log('5.1 resolveWorkers() — new-format keys:');
+{
+  const w = resolveWorkers({
+    pekerja_dibayar_l: '3', pekerja_dibayar_p: '1',
+    pekerja_tidak_dibayar_l: '1', pekerja_tidak_dibayar_p: '0'
+  });
+  assert('dibayarL = 3', w.dibayarL, 3);
+  assert('dibayarP = 1', w.dibayarP, 1);
+  assert('tidakDibayarL = 1', w.tidakDibayarL, 1);
+  assert('tidakDibayarP = 0', w.tidakDibayarP, 0);
+  assert('totalDibayar = 4', w.totalDibayar, 4);
+  assert('totalTidakDibayar = 1', w.totalTidakDibayar, 1);
+  assert('pekerjaL = 4 (3+1)', w.pekerjaL, 4);
+  assert('pekerjaP = 1 (1+0)', w.pekerjaP, 1);
+  assert('total = 5', w.total, 5);
+}
+
+// 5.2 resolveWorkers() — backward compat (legacy pekerja_l/p → all dibayar)
+console.log('\n5.2 resolveWorkers() — backward compat (legacy keys):');
+{
+  const w = resolveWorkers({ pekerja_l: '2', pekerja_p: '1' });
+  assert('totalDibayar = 3 (all from legacy)', w.totalDibayar, 3);
+  assert('totalTidakDibayar = 0 (none in legacy)', w.totalTidakDibayar, 0);
+  assert('total = 3', w.total, 3);
+  assert('pekerjaL = 2', w.pekerjaL, 2);
+  assert('pekerjaP = 1', w.pekerjaP, 1);
+}
+
+// 5.3 resolveWorkers() — empty
+console.log('\n5.3 resolveWorkers() — empty inputs:');
+{
+  const w = resolveWorkers({});
+  assert('total = 0 (empty)', w.total, 0);
+  assert('totalDibayar = 0', w.totalDibayar, 0);
+  assert('totalTidakDibayar = 0', w.totalTidakDibayar, 0);
+}
+
+// 5.4 calculateRecord().bps — new keys: badge totalPekerja = 5
+console.log('\n5.4 calculateRecord bps.totalPekerja = Dibayar + TidakDibayar:');
+{
+  const r = calculateRecord({ id: 'a8-1', categoryId: 'kios_campuran', inputs: {
+    pemasukan_harian: '500000', custom_rev_pct: '10', custom_exp_pct: '30', custom_days: '30',
+    pekerja_dibayar_l: '3', pekerja_dibayar_p: '1',
+    pekerja_tidak_dibayar_l: '1', pekerja_tidak_dibayar_p: '0'
+  }}, []);
+  assert('bps.totalPekerja = 5', r.bps.totalPekerja, 5);
+  assert('bps.totalPekerjaDibayar = 4', r.bps.totalPekerjaDibayar, 4);
+  assert('bps.totalPekerjaTidakDibayar = 1', r.bps.totalPekerjaTidakDibayar, 1);
+  assert('bps.pekerjaL = 4', r.bps.pekerjaL, 4);
+  assert('bps.pekerjaP = 1', r.bps.pekerjaP, 1);
+  // Income calculation UNCHANGED by worker data
+  assert('Pendapatan Tahunan tidak berubah = 18.000.000', r.totalPendapatanTahunan, 18_000_000);
+}
+
+// 5.5 calculateRecord().bps — backward compat: legacy pekerja_l/p → totalPekerja same as before
+console.log('\n5.5 Backward compat — legacy pekerja_l=2, pekerja_p=1 → total=3:');
+{
+  const r = calculateRecord({ id: 'a8-2', categoryId: 'kios_campuran', inputs: {
+    pemasukan_harian: '500000', custom_rev_pct: '10', custom_exp_pct: '30', custom_days: '30',
+    pekerja_l: '2', pekerja_p: '1'   // legacy format
+  }}, []);
+  assert('bps.totalPekerja = 3 (legacy)', r.bps.totalPekerja, 3);
+  assert('bps.totalPekerjaDibayar = 3 (all legacy → dibayar)', r.bps.totalPekerjaDibayar, 3);
+  assert('bps.totalPekerjaTidakDibayar = 0 (none)', r.bps.totalPekerjaTidakDibayar, 0);
+  assert('Pendapatan Tahunan = 18.000.000', r.totalPendapatanTahunan, 18_000_000);
+}
+
+// 5.6 Wage estimation math: 4 pekerja dibayar × Rp1.500.000/bln × 12 = Rp72.000.000
+console.log('\n5.6 Estimasi upah: 4 × 1.500.000 × 12 = 72.000.000:');
+{
+  const totalDibayar = 4;
+  const rataUpah     = 1_500_000;
+  const estimasi     = totalDibayar * rataUpah * 12;
+  assert('Estimasi = 72.000.000', estimasi, 72_000_000);
+}
+
+// 5.7 Rincian Manual + Terapkan ke 26a simulation
+console.log('\n5.7 Terapkan ke 26a → 26f → seluruh turunan:');
+{
+  const r = calculateRecord({ id: 'a8-3', categoryId: 'nelayan_tangkap', inputs: {
+    satuan_kg: '1', pemasukan_harian: '150000',
+    custom_rev_pct: '10', custom_exp_pct: '30', custom_days: '30',
+    pekerja_dibayar_l: '3', pekerja_dibayar_p: '1',
+    rata_upah_per_pekerja: '1500000',
+    use_detail_pengeluaran: true,
+    biaya_upah: '72000000', biaya_upah_freq: 'tahunan',
+    biaya_produksi: '0', biaya_operasional: '0', biaya_non_operasional: '0'
+  }}, []);
+  // Pendapatan: 1 × 150k × 30 × 12 × 10% = 5.400.000
+  assert('Pendapatan Tahunan = 5.400.000', r.totalPendapatanTahunan, 5_400_000);
+  // 26f = 72.000.000
+  assert('26f = 72.000.000', r.totalPengeluaranTahunan, 72_000_000);
+  assert('Hasil Usaha Bersih = -66.600.000', r.totalHasilUsaha, -66_600_000);
+  assert('Pendapatan/Bulan = -5.550.000', r.pendapatanPerBulan, -5_550_000);
+}
+
+// 5.8 Manual override biaya_upah tidak otomatis direset oleh sistem
+console.log('\n5.8 Manual override biaya_upah = 80.000.000 tetap 80m (bukan 72m):');
+{
+  const r = calculateRecord({ id: 'a8-4', categoryId: 'nelayan_tangkap', inputs: {
+    satuan_kg: '1', pemasukan_harian: '150000',
+    custom_rev_pct: '10', custom_exp_pct: '30', custom_days: '30',
+    pekerja_dibayar_l: '4',
+    use_detail_pengeluaran: true,
+    biaya_upah: '80000000', biaya_upah_freq: 'tahunan'
+  }}, []);
+  assert('26a = 80.000.000 (manual, tidak berubah)', r.totalPengeluaranTahunan, 80_000_000);
+}
+
+// 5.9 Non-regresi: penambahan data pekerja tidak mengubah formula pendapatan
+console.log('\n5.9 Non-regresi: data pekerja tidak ubah formula pendapatan:');
+{
+  const base = { satuan_kg: '1', pemasukan_harian: '150000', custom_rev_pct: '10', custom_exp_pct: '30', custom_days: '30' };
+  const rBefore = calculateRecord({ id: 'a8-5a', categoryId: 'nelayan_tangkap', inputs: base }, []);
+  const rAfter  = calculateRecord({ id: 'a8-5b', categoryId: 'nelayan_tangkap', inputs: {
+    ...base, pekerja_dibayar_l: '5', pekerja_dibayar_p: '2', pekerja_tidak_dibayar_l: '1'
+  }}, []);
+  assert('Pendapatan Tahunan sebelum = sesudah', rBefore.totalPendapatanTahunan, rAfter.totalPendapatanTahunan);
+  assert('Pengeluaran sebelum = sesudah (normatif)', rBefore.totalPengeluaranTahunan, rAfter.totalPengeluaranTahunan);
 }
 
 // ─────────────────────────────────────────────────────────────────────────

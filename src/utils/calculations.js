@@ -218,6 +218,53 @@ function getDays(inputs) {
 }
 
 /**
+ * Resolve worker counts for BPS SE2026-L Rincian 24.
+ * Addendum #8: supports 4 separate fields (Dibayar L/P + Tidak Dibayar L/P).
+ * Backward compatible: if new keys are absent but legacy pekerja_l/pekerja_p exist,
+ * treats all legacy workers as "Dibayar" (safest assumption for existing data).
+ *
+ * @param {Object} inputs
+ * @returns {{ dibayarL, dibayarP, tidakDibayarL, tidakDibayarP,
+ *             totalDibayar, totalTidakDibayar, pekerjaL, pekerjaP, total }}
+ */
+export function resolveWorkers(inputs = {}) {
+  const hasNewKeys =
+    inputs.pekerja_dibayar_l       !== undefined ||
+    inputs.pekerja_dibayar_p       !== undefined ||
+    inputs.pekerja_tidak_dibayar_l !== undefined ||
+    inputs.pekerja_tidak_dibayar_p !== undefined;
+
+  if (hasNewKeys) {
+    const dibayarL       = parseInt(inputs.pekerja_dibayar_l)       || 0;
+    const dibayarP       = parseInt(inputs.pekerja_dibayar_p)       || 0;
+    const tidakDibayarL  = parseInt(inputs.pekerja_tidak_dibayar_l) || 0;
+    const tidakDibayarP  = parseInt(inputs.pekerja_tidak_dibayar_p) || 0;
+    const totalDibayar      = dibayarL + dibayarP;
+    const totalTidakDibayar = tidakDibayarL + tidakDibayarP;
+    return {
+      dibayarL, dibayarP, tidakDibayarL, tidakDibayarP,
+      totalDibayar, totalTidakDibayar,
+      pekerjaL: dibayarL + tidakDibayarL,
+      pekerjaP: dibayarP + tidakDibayarP,
+      total:    totalDibayar + totalTidakDibayar,
+    };
+  } else {
+    // Legacy format: treat all as dibayar (backward compat)
+    const dibayarL = parseInt(inputs.pekerja_l) || 0;
+    const dibayarP = parseInt(inputs.pekerja_p) || 0;
+    return {
+      dibayarL, dibayarP,
+      tidakDibayarL: 0, tidakDibayarP: 0,
+      totalDibayar:      dibayarL + dibayarP,
+      totalTidakDibayar: 0,
+      pekerjaL: dibayarL,
+      pekerjaP: dibayarP,
+      total:    dibayarL + dibayarP,
+    };
+  }
+}
+
+/**
  * Convert an expense value to its annual equivalent based on frequency.
  * Frequency keys: 'tahunan' | 'bulanan' | 'mingguan' | 'harian'
  * Missing/unknown frequency defaults to 'tahunan' (×1) for backward compatibility.
@@ -666,9 +713,8 @@ export function calculateRecord(record, allRecords = []) {
   }
 
   // ── Apply BPS SE2026-L Additive Layer ──
-  const pekerjaL = parseInt(inputs.pekerja_l) || 0;
-  const pekerjaP = parseInt(inputs.pekerja_p) || 0;
-  const totalPekerja = pekerjaL + pekerjaP;
+  // Addendum #8: resolve workers via backward-compatible helper
+  const workers  = resolveWorkers(inputs);
   const tahunMulai = inputs.tahun_mulai ? parseInt(inputs.tahun_mulai) : null;
 
   // Pendapatan Lainnya
@@ -681,7 +727,7 @@ export function calculateRecord(record, allRecords = []) {
   let totalPengeluaran = result.totalPengeluaranTahunan;
   const rawToggle = inputs.use_detail_pengeluaran;
   const isDetailPengeluaranActive = rawToggle === true || rawToggle === 1 || rawToggle === 'true';
-  
+
   let totalPengeluaranDetail = 0;
   if (isDetailPengeluaranActive) {
     // getDays reads custom_days from inputs (same as income side), fallback 30
@@ -707,11 +753,16 @@ export function calculateRecord(record, allRecords = []) {
 
   return {
     ...result,
-    totalPekerja,
+    totalPekerja: workers.total,
     bps: {
-      totalPekerja,
-      pekerjaL,
-      pekerjaP,
+      // Full worker breakdown (Addendum #8)
+      totalPekerja:      workers.total,
+      pekerjaL:          workers.pekerjaL,
+      pekerjaP:          workers.pekerjaP,
+      totalPekerjaDibayar:      workers.totalDibayar,
+      totalPekerjaTidakDibayar: workers.totalTidakDibayar,
+      pekerjaDibayarL:   workers.dibayarL,
+      pekerjaDibayarP:   workers.dibayarP,
       tahunMulai,
       pendapatanLainnya,
       isDetailPengeluaranActive,

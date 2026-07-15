@@ -653,51 +653,146 @@ export default function InputForm({ categoryId, inputs, onInputChange, records }
 
         {showBps && (
           <div className="mt-3 p-3.5 rounded-xl bg-surface-800/25 border border-white/[0.04] space-y-4 fade-in-up">
-            {/* Profil Usaha: Tahun Mulai & Pekerja */}
-            <div className="grid grid-cols-2 gap-3">
-              <div className="flex flex-col gap-1.5">
-                <label className="text-[11px] font-semibold text-slate-400 flex items-center gap-1.5">
-                  <Calendar size={12} />
-                  Tahun Mulai Operasi
-                </label>
-                <input
-                  type="number"
-                  placeholder="Contoh: 2020"
-                  min="1900"
-                  max="2026"
-                  value={inputs.tahun_mulai || ''}
-                  onChange={e => onInputChange('tahun_mulai', e.target.value.replace(/\D/g, ''))}
-                  className="w-full rounded-xl border border-white/[0.08] bg-surface-700 text-slate-100 text-[12px] font-mono py-2 px-3 outline-none"
-                />
-              </div>
-
-              <div className="flex flex-col gap-1.5">
-                <label className="text-[11px] font-semibold text-slate-400 flex items-center gap-1.5">
-                  <Users size={12} />
-                  Pekerja (L / P)
-                </label>
-                <div className="flex gap-2">
-                  <input
-                    type="number"
-                    placeholder="L"
-                    min="0"
-                    value={inputs.pekerja_l || ''}
-                    onChange={e => onInputChange('pekerja_l', e.target.value.replace(/\D/g, ''))}
-                    className="w-1/2 rounded-xl border border-white/[0.08] bg-surface-700 text-slate-100 text-[12px] font-mono py-2 text-center outline-none"
-                    title="Pekerja Laki-laki"
-                  />
-                  <input
-                    type="number"
-                    placeholder="P"
-                    min="0"
-                    value={inputs.pekerja_p || ''}
-                    onChange={e => onInputChange('pekerja_p', e.target.value.replace(/\D/g, ''))}
-                    className="w-1/2 rounded-xl border border-white/[0.08] bg-surface-700 text-slate-100 text-[12px] font-mono py-2 text-center outline-none"
-                    title="Pekerja Perempuan"
-                  />
-                </div>
-              </div>
+            {/* ── Profil Usaha: Tahun Mulai + Pekerja (Addendum #8) ── */}
+            {/* Tahun Mulai */}
+            <div className="flex flex-col gap-1.5">
+              <label className="text-[11px] font-semibold text-slate-400 flex items-center gap-1.5">
+                <Calendar size={12} />
+                Tahun Mulai Operasi
+              </label>
+              <input
+                type="number"
+                placeholder="Contoh: 2020"
+                min="1900"
+                max="2026"
+                value={inputs.tahun_mulai || ''}
+                onChange={e => onInputChange('tahun_mulai', e.target.value.replace(/\D/g, ''))}
+                className="w-full rounded-xl border border-white/[0.08] bg-surface-700 text-slate-100 text-[12px] font-mono py-2 px-3 outline-none"
+              />
             </div>
+
+            {/* Workers Section (Addendum #8) — generic/shared across all categories */}
+            {(() => {
+              // Derive values from new keys with backward compat (legacy pekerja_l/pekerja_p → Dibayar)
+              const hasNewKeys =
+                inputs.pekerja_dibayar_l       !== undefined ||
+                inputs.pekerja_dibayar_p       !== undefined ||
+                inputs.pekerja_tidak_dibayar_l !== undefined ||
+                inputs.pekerja_tidak_dibayar_p !== undefined;
+
+              const dibayarL      = parseInt(hasNewKeys ? inputs.pekerja_dibayar_l       : inputs.pekerja_l) || 0;
+              const dibayarP      = parseInt(hasNewKeys ? inputs.pekerja_dibayar_p       : inputs.pekerja_p) || 0;
+              const tidakDibayarL = parseInt(inputs.pekerja_tidak_dibayar_l) || 0;
+              const tidakDibayarP = parseInt(inputs.pekerja_tidak_dibayar_p) || 0;
+              const totalDibayar      = dibayarL + dibayarP;
+              const totalTidakDibayar = tidakDibayarL + tidakDibayarP;
+              const totalPekerja      = totalDibayar + totalTidakDibayar;
+
+              // Hint: usaha aktif tapi belum isi pekerja
+              const pendapatanAktif = (() => {
+                const ph = parseFloat(inputs.pemasukan_harian) || parseFloat(inputs.pemasukan_langsung)
+                  || parseFloat(inputs.total_pendapatan_tahunan) || parseFloat(inputs.satuan_kg);
+                return ph > 0;
+              })();
+
+              return (
+                <div className="flex flex-col gap-2.5">
+                  <div className="flex items-center gap-1.5">
+                    <Users size={12} className="text-slate-400" />
+                    <span className="text-[11px] font-semibold text-slate-400">Pekerja</span>
+                    <div
+                      className="tooltip cursor-pointer text-slate-500 hover:text-slate-300"
+                      data-tip="Pekerja dibayar = menerima upah/gaji/imbalan. Pekerja tidak dibayar = pekerja keluarga/sukarela yang membantu usaha tanpa upah tetap. (BPS SE2026-L Rincian 24)"
+                    >
+                      <Info size={11} />
+                    </div>
+                  </div>
+
+                  {/* Sub-grup: Dibayar */}
+                  <div className="space-y-1">
+                    <span className="text-[10.5px] font-semibold text-indigo-300/80">Pekerja Dibayar</span>
+                    <div className="flex gap-2 items-center">
+                      <input
+                        id="input-pekerja-dibayar-l"
+                        type="number" min="0" placeholder="L"
+                        value={hasNewKeys ? (inputs.pekerja_dibayar_l ?? '') : (inputs.pekerja_l ?? '')}
+                        onChange={e => {
+                          const v = e.target.value.replace(/\D/g, '');
+                          onInputChange('pekerja_dibayar_l', v);
+                          // Also clear legacy key if present to avoid ambiguity
+                          if (!hasNewKeys) onInputChange('pekerja_l', '');
+                        }}
+                        className="w-1/2 rounded-xl border border-white/[0.08] bg-surface-700 text-slate-100 text-[12px] font-mono py-1.5 text-center outline-none focus:border-indigo-500/50"
+                        title="Pekerja Dibayar Laki-laki"
+                      />
+                      <input
+                        id="input-pekerja-dibayar-p"
+                        type="number" min="0" placeholder="P"
+                        value={hasNewKeys ? (inputs.pekerja_dibayar_p ?? '') : (inputs.pekerja_p ?? '')}
+                        onChange={e => {
+                          const v = e.target.value.replace(/\D/g, '');
+                          onInputChange('pekerja_dibayar_p', v);
+                          if (!hasNewKeys) onInputChange('pekerja_p', '');
+                        }}
+                        className="w-1/2 rounded-xl border border-white/[0.08] bg-surface-700 text-slate-100 text-[12px] font-mono py-1.5 text-center outline-none focus:border-indigo-500/50"
+                        title="Pekerja Dibayar Perempuan"
+                      />
+                      <span className="text-[10px] text-indigo-300 font-mono shrink-0 min-w-[50px] text-right">
+                        {totalDibayar > 0 ? `= ${totalDibayar}` : ''}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Sub-grup: Tidak Dibayar */}
+                  <div className="space-y-1">
+                    <span className="text-[10.5px] font-semibold text-slate-400/70">Pekerja Tidak Dibayar</span>
+                    <div className="flex gap-2 items-center">
+                      <input
+                        id="input-pekerja-tidak-dibayar-l"
+                        type="number" min="0" placeholder="L"
+                        value={inputs.pekerja_tidak_dibayar_l ?? ''}
+                        onChange={e => onInputChange('pekerja_tidak_dibayar_l', e.target.value.replace(/\D/g, ''))}
+                        className="w-1/2 rounded-xl border border-white/[0.06] bg-surface-800/60 text-slate-300 text-[12px] font-mono py-1.5 text-center outline-none focus:border-indigo-500/40"
+                        title="Pekerja Tidak Dibayar Laki-laki"
+                      />
+                      <input
+                        id="input-pekerja-tidak-dibayar-p"
+                        type="number" min="0" placeholder="P"
+                        value={inputs.pekerja_tidak_dibayar_p ?? ''}
+                        onChange={e => onInputChange('pekerja_tidak_dibayar_p', e.target.value.replace(/\D/g, ''))}
+                        className="w-1/2 rounded-xl border border-white/[0.06] bg-surface-800/60 text-slate-300 text-[12px] font-mono py-1.5 text-center outline-none focus:border-indigo-500/40"
+                        title="Pekerja Tidak Dibayar Perempuan"
+                      />
+                      <span className="text-[10px] text-slate-500 font-mono shrink-0 min-w-[50px] text-right">
+                        {totalTidakDibayar > 0 ? `= ${totalTidakDibayar}` : ''}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Total summary bar */}
+                  {totalPekerja > 0 && (
+                    <div className="flex items-center justify-between px-2.5 py-1.5 bg-indigo-500/8 border border-indigo-500/15 rounded-lg">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Total Pekerja</span>
+                      <span className="text-[11px] font-bold text-indigo-300 font-mono">
+                        {totalPekerja}
+                        {totalDibayar > 0 && totalTidakDibayar > 0 && (
+                          <span className="text-[9px] text-slate-500 font-normal ml-1.5">
+                            ({totalDibayar} dibayar · {totalTidakDibayar} tidak dibayar)
+                          </span>
+                        )}
+                      </span>
+                    </div>
+                  )}
+
+                  {/* Hint: no workers but income exists */}
+                  {totalPekerja === 0 && pendapatanAktif && (
+                    <p className="text-[10px] text-slate-500 leading-relaxed">
+                      Belum ada pekerja tercatat — isi jika ada, atau biarkan 0 jika usaha dijalankan sendiri (self-employed).
+                    </p>
+                  )}
+                </div>
+              );
+            })()}
 
             {/* Pendapatan Lainnya & Online Sales */}
             <div className="space-y-3 pt-1">
@@ -776,7 +871,7 @@ export default function InputForm({ categoryId, inputs, onInputChange, records }
 
               {isDetailPengeluaranActive && (
                 <div className="space-y-3.5 pt-1 pl-2 border-l border-indigo-500/20 fade-in-up">
-                  {/* 26a — Upah, with hint jika pekerja > 0 tapi biaya_upah = 0 */}
+                  {/* 26a — Upah, with wage estimation widget (Addendum #8) and hint */}
                   <div className="flex flex-col gap-1.5">
                     <ExpenseField
                       id="biaya-upah"
@@ -788,16 +883,102 @@ export default function InputForm({ categoryId, inputs, onInputChange, records }
                       onFreqChange={freq => onInputChange('biaya_upah_freq', freq)}
                       tooltip="Upah pokok, bonus, natura makan/perumahan, iuran BPJS."
                     />
-                    {/* Hint jika pekerja terisi tapi upah kosong */}
-                    {((parseInt(inputs.pekerja_l) || 0) + (parseInt(inputs.pekerja_p) || 0)) > 0
-                      && !(parseFloat(inputs.biaya_upah) > 0) && (
-                      <div className="flex items-start gap-1.5 text-[10.5px] text-amber-400 bg-amber-500/8 border border-amber-500/15 rounded-lg px-2.5 py-1.5 leading-relaxed">
-                        <span className="shrink-0 mt-0.5">⚠️</span>
-                        <span>
-                          Usaha ini memiliki {(parseInt(inputs.pekerja_l) || 0) + (parseInt(inputs.pekerja_p) || 0)} pekerja — pastikan komponen upah/gaji sudah dimasukkan di sini jika relevan.
-                        </span>
-                      </div>
-                    )}
+
+                    {/* Wage estimation widget — shown when rincian active + pekerja dibayar > 0 */}
+                    {(() => {
+                      const hasNewKeys =
+                        inputs.pekerja_dibayar_l !== undefined ||
+                        inputs.pekerja_dibayar_p !== undefined ||
+                        inputs.pekerja_tidak_dibayar_l !== undefined ||
+                        inputs.pekerja_tidak_dibayar_p !== undefined;
+                      const dibayarL = parseInt(hasNewKeys ? inputs.pekerja_dibayar_l : inputs.pekerja_l) || 0;
+                      const dibayarP = parseInt(hasNewKeys ? inputs.pekerja_dibayar_p : inputs.pekerja_p) || 0;
+                      const totalDibayar = dibayarL + dibayarP;
+                      if (totalDibayar === 0) return null;
+
+                      const rataUpah = parseFloat(inputs.rata_upah_per_pekerja) || 0;
+                      const estimasiTahunan = totalDibayar * rataUpah * 12;
+
+                      // Compare estimate with current annualized 26a value
+                      const current26aRaw  = parseFloat(inputs.biaya_upah) || 0;
+                      const current26aFreq = inputs.biaya_upah_freq || 'tahunan';
+                      const current26aAnnual = convertToAnnual(current26aRaw, current26aFreq, Number(displayDays));
+                      const hasDiff = rataUpah > 0 && estimasiTahunan > 0 && Math.abs(current26aAnnual - estimasiTahunan) > 0.5;
+
+                      return (
+                        <div className="mt-1 pl-2 border-l border-indigo-500/20 space-y-2 fade-in-up">
+                          <div className="flex flex-col gap-1">
+                            <label htmlFor="input-rata-upah" className="text-[10.5px] font-semibold text-slate-400">
+                              Rata-rata Upah per Pekerja Dibayar (Rp/bulan)
+                              <span className="ml-1 text-slate-600 font-normal">— opsional, untuk estimasi 26a</span>
+                            </label>
+                            <div className="relative">
+                              <div className="absolute left-3 top-1/2 -translate-y-1/2 text-[11.5px] text-slate-400 font-mono select-none">Rp</div>
+                              <input
+                                id="input-rata-upah"
+                                type="number" inputMode="numeric" min="0"
+                                value={inputs.rata_upah_per_pekerja ?? ''}
+                                placeholder="1500000"
+                                onChange={e => onInputChange('rata_upah_per_pekerja', e.target.value.replace(/[^0-9.]/g, ''))}
+                                className="w-full rounded-xl border border-white/[0.06] bg-surface-800/60 text-slate-200 text-[12px] font-mono py-2 pl-9 pr-3 outline-none focus:border-indigo-500/40 transition-all placeholder:text-slate-700"
+                              />
+                            </div>
+                          </div>
+
+                          {rataUpah > 0 && (
+                            <div className="bg-indigo-500/8 border border-indigo-500/15 rounded-xl px-3 py-2 space-y-1.5">
+                              <p className="text-[10px] text-slate-400 leading-relaxed">
+                                ≈ Estimasi Total Upah, Gaji &amp; Jaminan Sosial Tahunan:
+                              </p>
+                              <p className="text-[11.5px] font-bold text-indigo-200 font-mono">
+                                {totalDibayar} pekerja × {formatRupiah(rataUpah)}/bln × 12 bln = <span className="text-emerald-300">{formatRupiah(estimasiTahunan)}</span>
+                              </p>
+                              {hasDiff && (
+                                <p className="text-[10px] text-amber-400/80 leading-relaxed">
+                                  Nilai 26a saat ini ({formatRupiah(current26aAnnual)}) berbeda dari estimasi — klik tombol di bawah jika ingin memperbarui.
+                                </p>
+                              )}
+                              <button
+                                id="btn-terapkan-26a"
+                                type="button"
+                                onClick={() => {
+                                  onInputChange('biaya_upah', String(estimasiTahunan));
+                                  onInputChange('biaya_upah_freq', 'tahunan');
+                                }}
+                                className="mt-0.5 w-full flex items-center justify-center gap-1.5 rounded-lg bg-indigo-500/20 hover:bg-indigo-500/30 border border-indigo-500/30 text-indigo-300 text-[11px] font-semibold py-1.5 transition-all"
+                              >
+                                <DollarSign size={11} />
+                                Terapkan ke Upah, Gaji &amp; Jaminan Sosial (26a)
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })()}
+
+                    {/* Hint jika ada pekerja tapi biaya_upah masih kosong */}
+                    {(() => {
+                      const hasNewKeys =
+                        inputs.pekerja_dibayar_l !== undefined ||
+                        inputs.pekerja_dibayar_p !== undefined ||
+                        inputs.pekerja_tidak_dibayar_l !== undefined ||
+                        inputs.pekerja_tidak_dibayar_p !== undefined;
+                      const dibayarL = parseInt(hasNewKeys ? inputs.pekerja_dibayar_l : inputs.pekerja_l) || 0;
+                      const dibayarP = parseInt(hasNewKeys ? inputs.pekerja_dibayar_p : inputs.pekerja_p) || 0;
+                      const totalDibayar = dibayarL + dibayarP;
+                      const totalAll = totalDibayar
+                        + (parseInt(inputs.pekerja_tidak_dibayar_l) || 0)
+                        + (parseInt(inputs.pekerja_tidak_dibayar_p) || 0);
+                      if (totalAll === 0 || parseFloat(inputs.biaya_upah) > 0) return null;
+                      return (
+                        <div className="flex items-start gap-1.5 text-[10.5px] text-amber-400 bg-amber-500/8 border border-amber-500/15 rounded-lg px-2.5 py-1.5 leading-relaxed">
+                          <span className="shrink-0 mt-0.5">⚠️</span>
+                          <span>
+                            Usaha ini memiliki {totalAll} pekerja — pastikan komponen upah/gaji sudah dimasukkan di sini jika relevan.
+                          </span>
+                        </div>
+                      );
+                    })()}
                   </div>
 
                   <ExpenseField

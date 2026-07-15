@@ -302,7 +302,11 @@ export default function RecordCard({ record, allRecords, onUpdate, onDelete, onD
             {result.bps && result.bps.totalPekerja > 0 && (
               <span
                 className="tooltip text-[9.5px] font-semibold px-1.5 py-0.5 rounded-md bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 flex items-center gap-1 select-none cursor-pointer"
-                data-tip={`Pekerja L: ${result.bps.pekerjaL} | P: ${result.bps.pekerjaP}`}
+                data-tip={[
+                  `L: ${result.bps.pekerjaL} | P: ${result.bps.pekerjaP}`,
+                  result.bps.totalPekerjaDibayar > 0 ? `Dibayar: ${result.bps.totalPekerjaDibayar}` : null,
+                  result.bps.totalPekerjaTidakDibayar > 0 ? `Tdk Dibayar: ${result.bps.totalPekerjaTidakDibayar}` : null,
+                ].filter(Boolean).join(' · ')}
               >
                 👥 {result.bps.totalPekerja} Pekerja
               </span>
