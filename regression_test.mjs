@@ -8,7 +8,7 @@
  * Suite 3: Addendum #2 — Frequency selector conversions
  */
 
-import { calculateRecord, convertToAnnual, getConversionFormula } from './src/utils/calculations.js';
+import { calculateRecord, convertToAnnual, getConversionFormula, convertToDaily } from './src/utils/calculations.js';
 
 let pass = 0;
 let fail = 0;
@@ -225,6 +225,151 @@ assertEqual('tahunan → null', getConversionFormula(500_000, 'tahunan', 30), nu
 assertEqual('bulanan formula', getConversionFormula(200_000, 'bulanan', 30), '200.000 × 12 bulan');
 assertEqual('mingguan formula', getConversionFormula(100_000, 'mingguan', 30), '100.000 × 52 minggu');
 assertEqual('harian formula 25 hari', getConversionFormula(50_000, 'harian', 25), '50.000 × 25 hari × 12 bulan');
+
+// ─────────────────────────────────────────────────────────────────────────
+// SUITE 4: Addendum #7 — Income Method Selector (Perikanan / nelayan_tangkap)
+// ─────────────────────────────────────────────────────────────────────────
+console.log('\n══ SUITE 4: Addendum #7 — Income Method Selector (Perikanan) ══\n');
+
+// 4.1 convertToDaily() unit tests
+console.log('4.1 convertToDaily() unit tests:');
+assert('harian → langsung (150k)', convertToDaily(150_000, 'harian', 30), 150_000);
+assert('mingguan ÷7 (1.050.000 ÷ 7)', convertToDaily(1_050_000, 'mingguan', 30), 150_000);
+assert('bulanan ÷30 (4.500.000 ÷ 30)', convertToDaily(4_500_000, 'bulanan', 30), 150_000);
+assert('tahunan ÷12÷30 (54.000.000 ÷12÷30)', convertToDaily(54_000_000, 'tahunan', 30), 150_000);
+assert('null freq → harian (÷1)', convertToDaily(300_000, null, 30), 300_000);
+assert('undefined freq → harian (÷1)', convertToDaily(300_000, undefined, 30), 300_000);
+
+// 4.2 Non-regresi Opsi A (default — tidak ada income_method di inputs)
+// satuan=1, pemasukan_harian=150000, koef=10%, hari=30
+// → totalPendapatan = 1 × 150000 × 30 × 12 × 10% = 5.400.000
+console.log('\n4.2 Non-regresi Opsi A (existing data tanpa income_method):');
+{
+  const r = calculateRecord({ id: 'a7-1', categoryId: 'nelayan_tangkap', inputs: {
+    satuan_kg: '1', pemasukan_harian: '150000',
+    custom_rev_pct: '10', custom_exp_pct: '30', custom_days: '30'
+    // income_method intentionally absent → should default to 'volume_harga'
+  }}, []);
+  assert('Pendapatan Tahunan = 5.400.000', r.totalPendapatanTahunan, 5_400_000);
+  assert('Pengeluaran Tahunan = 1.620.000', r.totalPengeluaranTahunan, 1_620_000);
+  assert('Hasil Usaha Bersih = 3.780.000', r.totalHasilUsaha, 3_780_000);
+  assertEqual('income_method meta = volume_harga', r.meta.income_method, 'volume_harga');
+}
+
+// 4.3 Opsi A explicit (income_method = 'volume_harga')
+// identik dengan 4.2 tapi income_method di-set eksplisit
+console.log('\n4.3 Opsi A explicit (income_method = volume_harga):');
+{
+  const r = calculateRecord({ id: 'a7-2', categoryId: 'nelayan_tangkap', inputs: {
+    income_method: 'volume_harga',
+    satuan_kg: '1', pemasukan_harian: '150000',
+    custom_rev_pct: '10', custom_exp_pct: '30', custom_days: '30'
+  }}, []);
+  assert('Pendapatan Tahunan = 5.400.000', r.totalPendapatanTahunan, 5_400_000);
+  assert('Hasil Usaha Bersih = 3.780.000', r.totalHasilUsaha, 3_780_000);
+}
+
+// 4.4 Opsi B — per Hari, harus identik dengan Opsi A secara matematis
+// pemasukan_langsung=150000 /hari, koef=10%, hari=30
+// basis harian = 150000, totalPendapatan = 150000 × 30 × 12 × 10% = 5.400.000
+console.log('\n4.4 Opsi B per Hari — harus SAMA dengan Opsi A:');
+{
+  const r = calculateRecord({ id: 'a7-3', categoryId: 'nelayan_tangkap', inputs: {
+    income_method: 'nilai_langsung',
+    pemasukan_langsung: '150000', pemasukan_langsung_freq: 'harian',
+    custom_rev_pct: '10', custom_exp_pct: '30', custom_days: '30'
+  }}, []);
+  assert('Pendapatan Tahunan = 5.400.000 (konsisten Opsi A)', r.totalPendapatanTahunan, 5_400_000);
+  assert('Pengeluaran Tahunan = 1.620.000', r.totalPengeluaranTahunan, 1_620_000);
+  assert('Hasil Usaha Bersih = 3.780.000', r.totalHasilUsaha, 3_780_000);
+  assertEqual('income_method meta = nilai_langsung', r.meta.income_method, 'nilai_langsung');
+}
+
+// 4.5 Opsi B — per Bulan, konversi bulanan → harian benar
+// pemasukan_langsung=4.500.000 /bulan, hari=30
+// basis harian = 4.500.000 ÷ 30 = 150.000/hari
+// totalPendapatan = 150000 × 30 × 12 × 10% = 5.400.000
+console.log('\n4.5 Opsi B per Bulan — konversi bulanan→harian:');
+{
+  const r = calculateRecord({ id: 'a7-4', categoryId: 'nelayan_tangkap', inputs: {
+    income_method: 'nilai_langsung',
+    pemasukan_langsung: '4500000', pemasukan_langsung_freq: 'bulanan',
+    custom_rev_pct: '10', custom_exp_pct: '30', custom_days: '30'
+  }}, []);
+  assert('Basis harian derived = 150.000', r.meta.pendapatanHarianDerived, 150_000);
+  assert('Pendapatan Tahunan = 5.400.000', r.totalPendapatanTahunan, 5_400_000);
+  assert('Hasil Usaha Bersih = 3.780.000', r.totalHasilUsaha, 3_780_000);
+}
+
+// 4.6 Opsi B — per Minggu
+// pemasukan_langsung=1.050.000 /minggu → harian = 1.050.000 ÷ 7 = 150.000
+console.log('\n4.6 Opsi B per Minggu — konversi mingguan→harian:');
+{
+  const r = calculateRecord({ id: 'a7-5', categoryId: 'nelayan_tangkap', inputs: {
+    income_method: 'nilai_langsung',
+    pemasukan_langsung: '1050000', pemasukan_langsung_freq: 'mingguan',
+    custom_rev_pct: '10', custom_exp_pct: '30', custom_days: '30'
+  }}, []);
+  assert('Basis harian derived ≈ 150.000', r.meta.pendapatanHarianDerived, 150_000);
+  assert('Pendapatan Tahunan = 5.400.000', r.totalPendapatanTahunan, 5_400_000);
+}
+
+// 4.7 Opsi B — per Tahun
+// pemasukan_langsung=54.000.000 /tahun → harian = 54.000.000 ÷ 12 ÷ 30 = 150.000
+console.log('\n4.7 Opsi B per Tahun — konversi tahunan→harian:');
+{
+  const r = calculateRecord({ id: 'a7-6', categoryId: 'nelayan_tangkap', inputs: {
+    income_method: 'nilai_langsung',
+    pemasukan_langsung: '54000000', pemasukan_langsung_freq: 'tahunan',
+    custom_rev_pct: '10', custom_exp_pct: '30', custom_days: '30'
+  }}, []);
+  assert('Basis harian derived = 150.000', r.meta.pendapatanHarianDerived, 150_000);
+  assert('Pendapatan Tahunan = 5.400.000', r.totalPendapatanTahunan, 5_400_000);
+}
+
+// 4.8 Backward compat — existing data (satuan_kg + pemasukan_harian) tidak berubah
+// Membuktikan record existing (tanpa income_method) tetap default ke Opsi A
+console.log('\n4.8 Backward compat — record lama (tanpa income_method) tetap Opsi A:');
+{
+  const r = calculateRecord({ id: 'a7-7', categoryId: 'nelayan_tangkap', inputs: {
+    satuan_kg: '2', pemasukan_harian: '100000',
+    custom_rev_pct: '10', custom_exp_pct: '30', custom_days: '30'
+    // Tidak ada income_method — harus default ke volume_harga
+  }}, []);
+  // 2 × 100000 × 30 × 12 × 10% = 7.200.000
+  assert('Pendapatan Tahunan = 7.200.000', r.totalPendapatanTahunan, 7_200_000);
+  assert('Hasil Usaha Bersih = 5.040.000', r.totalHasilUsaha, 5_040_000);
+  assertEqual('income_method meta = volume_harga', r.meta.income_method, 'volume_harga');
+}
+
+// 4.9 State preservation — both method inputs coexist in same record
+// User fills Opsi A, switches to Opsi B (both values in state), switches back → Opsi A still works
+console.log('\n4.9 State preservation — kedua method tersimpan, kalkulasi gunakan yang aktif:');
+{
+  const inputsBothFilled = {
+    // Opsi A fields
+    income_method: 'volume_harga',  // currently active = Opsi A
+    satuan_kg: '2', pemasukan_harian: '100000',
+    // Opsi B fields also present (preserved from earlier)
+    pemasukan_langsung: '250000', pemasukan_langsung_freq: 'harian',
+    custom_rev_pct: '10', custom_exp_pct: '30', custom_days: '30'
+  };
+  const rA = calculateRecord({ id: 'a7-8a', categoryId: 'nelayan_tangkap', inputs: inputsBothFilled }, []);
+  assert('Opsi A aktif: 2×100k×30×12×10% = 7.200.000', rA.totalPendapatanTahunan, 7_200_000);
+
+  // Now switch to Opsi B — same record inputs but method changed
+  const rB = calculateRecord({ id: 'a7-8b', categoryId: 'nelayan_tangkap', inputs: {
+    ...inputsBothFilled, income_method: 'nilai_langsung'
+  }}, []);
+  // 250000/hari × 30 × 12 × 10% = 9.000.000
+  assert('Opsi B aktif: 250k/hari→9.000.000', rB.totalPendapatanTahunan, 9_000_000);
+
+  // Switch back to Opsi A — Opsi A fields must still work
+  const rABack = calculateRecord({ id: 'a7-8c', categoryId: 'nelayan_tangkap', inputs: {
+    ...inputsBothFilled, income_method: 'volume_harga'
+  }}, []);
+  assert('Kembali Opsi A: masih 7.200.000 (tidak ter-reset)', rABack.totalPendapatanTahunan, 7_200_000);
+}
 
 // ─────────────────────────────────────────────────────────────────────────
 // Summary

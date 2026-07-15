@@ -239,6 +239,28 @@ export function convertToAnnual(value, frequency, daysPerMonth = 30) {
 }
 
 /**
+ * Convert an income value to its DAILY equivalent based on frequency.
+ * Used by Addendum #7 "Nilai Pendapatan Langsung" mode (Opsi B).
+ * Frequency keys: 'harian' | 'mingguan' | 'bulanan' | 'tahunan'
+ * Missing/unknown frequency defaults to 'harian' (×1) for that mode.
+ *
+ * @param {number} value          - Raw numeric value as entered by user
+ * @param {string} frequency      - Frequency key (defaults to 'harian')
+ * @param {number} daysPerMonth   - Active working days/month from getDays()
+ * @returns {number}              - Daily basis value
+ */
+export function convertToDaily(value, frequency, daysPerMonth = 30) {
+  const freq = frequency || 'harian';
+  switch (freq) {
+    case 'harian':   return value;                                  // already per day
+    case 'mingguan': return value / 7;                             // ÷ 7 days/week
+    case 'bulanan':  return value / daysPerMonth;                  // ÷ working days/month
+    case 'tahunan':  return value / 12 / daysPerMonth;             // ÷ 12 months ÷ working days
+    default:         return value;
+  }
+}
+
+/**
  * Returns a human-readable conversion formula string for display.
  * Returns null when frequency is 'tahunan' (no conversion needed).
  *
@@ -490,17 +512,48 @@ export function calcArangTempurung(inputs = {}, linkedNilaiHarianBox = null) {
 /**
  * Category 8: Nelayan Tangkap Ikan
  * Default: Rev = 10% | Exp = 30% | Days = 30
+ *
+ * Addendum #7: supports dual income-input method.
+ *   income_method = 'volume_harga'   (default / Opsi A) → satuan_kg × pemasukan_harian
+ *   income_method = 'nilai_langsung' (Opsi B)           → pemasukan_langsung converted to daily
+ * Backward compatible: missing income_method → 'volume_harga'.
  */
 export function calcNelayan(inputs = {}) {
-  const satuan = parseFloat(inputs.satuan_kg) || 0;
-  const ph = parseFloat(inputs.pemasukan_harian) || 0;
   const revPct = getRevPct(inputs, 10);
   const expPct = getExpPct(inputs, 30);
-  const days = getDays(inputs);
+  const days   = getDays(inputs);
 
-  const totalPendapatan = satuan * ph * days * 12 * (revPct / 100);
-  const totalPengeluaran = totalPendapatan * (expPct / 100);
-  const totalHasilUsaha = totalPendapatan - totalPengeluaran;
+  // ── Determine daily gross income based on chosen method ──
+  const method = inputs.income_method || 'volume_harga';
+  let pendapatanHarian;
+  let metaExtra = {};
+
+  if (method === 'nilai_langsung') {
+    // Opsi B — convert raw income to daily basis first
+    const rawIncome = parseFloat(inputs.pemasukan_langsung) || 0;
+    const freq      = inputs.pemasukan_langsung_freq || 'harian';
+    pendapatanHarian = convertToDaily(rawIncome, freq, days);
+    metaExtra = {
+      income_method: 'nilai_langsung',
+      pemasukan_langsung: rawIncome,
+      pemasukan_langsung_freq: freq,
+      pendapatanHarianDerived: pendapatanHarian,
+    };
+  } else {
+    // Opsi A — original formula: satuan_kg × nilai_per_satuan
+    const satuan = parseFloat(inputs.satuan_kg) || 0;
+    const ph     = parseFloat(inputs.pemasukan_harian) || 0;
+    pendapatanHarian = satuan * ph;
+    metaExtra = {
+      income_method: 'volume_harga',
+      satuan_kg: satuan,
+      pemasukan_harian: ph,
+    };
+  }
+
+  const totalPendapatan   = pendapatanHarian * days * 12 * (revPct / 100);
+  const totalPengeluaran  = totalPendapatan * (expPct / 100);
+  const totalHasilUsaha   = totalPendapatan - totalPengeluaran;
   const pendapatanPerBulan = totalHasilUsaha / 12;
 
   return {
@@ -511,9 +564,10 @@ export function calcNelayan(inputs = {}) {
     perPanen: null,
     setahun: null,
     meta: {
-      satuan_kg: satuan, pemasukan_harian: ph,
+      ...metaExtra,
       koefisien: `${revPct}%`, faktorPengeluaran: `${expPct}%`,
       hariKerja: days,
+      pendapatanHarian,
       catatan: 'Menangkap ikan setiap hari'
     }
   };

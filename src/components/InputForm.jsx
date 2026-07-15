@@ -7,7 +7,7 @@
 import { useState } from 'react';
 import { AlertCircle, Link2, Link2Off, Info, ChevronDown, ChevronUp, Users, Calendar, DollarSign, Globe, Building2 } from 'lucide-react';
 import { formatRupiah } from '../utils/formatters';
-import { CATEGORIES, getConversionFormula, convertToAnnual } from '../utils/calculations';
+import { CATEGORIES, getConversionFormula, convertToAnnual, convertToDaily } from '../utils/calculations';
 
 /**
  * Reusable currency input with live Rp preview and tooltip support.
@@ -189,6 +189,64 @@ const FREQ_OPTIONS = [
   { key: 'harian',   label: 'per Hari',  short: '/hr'  }
 ];
 
+// Frequency options for income-side (Addendum #7 Opsi B) — same keys, different order
+// (harian first since that is the natural default for Opsi B)
+const INCOME_FREQ_OPTIONS = [
+  { key: 'harian',   label: 'per Hari',   short: '/hr'  },
+  { key: 'mingguan', label: 'per Minggu', short: '/mgg' },
+  { key: 'bulanan',  label: 'per Bulan',  short: '/bln' },
+  { key: 'tahunan',  label: 'per Tahun',  short: '/thn' },
+];
+
+/**
+ * IncomeMethodSelector — generic segmented control for choosing between two income-input methods.
+ * Reusable via props config; currently wired for nelayan_tangkap but can be used in any M1 category.
+ *
+ * Props:
+ *   value         {string}   — current method key ('volume_harga' | 'nilai_langsung')
+ *   onChange      {Function} — (newMethodKey: string) => void
+ *   options       {Array}    — [{ key, label, icon? }] — exactly 2 options
+ *   tooltip       {string}   — info tooltip text
+ */
+function IncomeMethodSelector({ value, onChange, options, tooltip }) {
+  return (
+    <div className="flex flex-col gap-2 mb-1">
+      <div className="flex items-center gap-1.5">
+        <span className="text-[10px] font-bold text-indigo-400 uppercase tracking-wider">
+          Metode Input Pendapatan
+        </span>
+        {tooltip && (
+          <div className="tooltip cursor-pointer text-slate-500 hover:text-slate-300" data-tip={tooltip}>
+            <Info size={12} />
+          </div>
+        )}
+      </div>
+      <div className="flex rounded-xl border border-white/[0.08] overflow-hidden bg-surface-800/40" role="group">
+        {options.map((opt, idx) => {
+          const isActive = value === opt.key;
+          return (
+            <button
+              key={opt.key}
+              type="button"
+              id={`income-method-${opt.key}`}
+              onClick={() => onChange(opt.key)}
+              className={[
+                'flex-1 px-3 py-2 text-[11.5px] font-semibold transition-all text-center leading-tight',
+                idx === 0 ? '' : 'border-l border-white/[0.07]',
+                isActive
+                  ? 'bg-indigo-500/20 text-indigo-300 border-indigo-500/30'
+                  : 'text-slate-400 hover:text-slate-200 hover:bg-white/[0.03]'
+              ].join(' ')}
+            >
+              {opt.label}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 function ExpenseField({ id, label, value, freq, daysPerMonth, onValueChange, onFreqChange, tooltip, showHpp }) {
   const [focused, setFocused] = useState(false);
   const numVal  = parseFloat(value) || 0;
@@ -300,15 +358,137 @@ export default function InputForm({ categoryId, inputs, onInputChange, records }
 
   const rawDays = inputs.custom_days;
   const displayDays = (rawDays !== undefined && rawDays !== '') ? rawDays : 30;
+  const daysNum = Number(displayDays);
 
   // Normalize use_detail_pengeluaran toggle — same logic as calculateRecord
   const rawToggle = inputs.use_detail_pengeluaran;
   const isDetailPengeluaranActive = rawToggle === true || rawToggle === 1 || rawToggle === 'true';
 
+  // ── Addendum #7: Nelayan income method ────────────────────────────────────
+  const isNelayan = categoryId === 'nelayan_tangkap';
+  const incomeMethod = inputs.income_method || 'volume_harga';  // default = Opsi A
+
+  // Options config for IncomeMethodSelector (generic/reusable — just pass different options for other categories)
+  const NELAYAN_METHOD_OPTIONS = [
+    { key: 'volume_harga',   label: '● Volume × Harga Satuan' },
+    { key: 'nilai_langsung', label: 'Nilai Pendapatan Langsung' },
+  ];
+
+  // For Opsi B: live daily conversion preview
+  const opsiB_rawIncome = parseFloat(inputs.pemasukan_langsung) || 0;
+  const opsiB_freq      = inputs.pemasukan_langsung_freq || 'harian';
+  const opsiB_daily     = convertToDaily(opsiB_rawIncome, opsiB_freq, daysNum);
+  const opsiB_freqLabel = INCOME_FREQ_OPTIONS.find(o => o.key === opsiB_freq)?.label || 'per Hari';
+
   return (
     <div className="flex flex-col gap-4">
-      {/* ── Main Inputs ── */}
-      {category.fields.map((field) => {
+      {/* ── Income Method Selector (Addendum #7 — nelayan_tangkap only, component is generic) ── */}
+      {isNelayan && (
+        <>
+          <IncomeMethodSelector
+            value={incomeMethod}
+            onChange={v => onInputChange('income_method', v)}
+            options={NELAYAN_METHOD_OPTIONS}
+            tooltip="Pilih cara Anda mencatat pendapatan — per satuan hasil tangkapan, atau langsung total pendapatan."
+          />
+
+          {/* Opsi A fields: existing Volume × Harga (shown when method = volume_harga) */}
+          {incomeMethod === 'volume_harga' && (
+            <>
+              <UnitInput
+                id="input-satuan-kg"
+                label="Satuan Tangkapan (Kg)"
+                value={inputs.satuan_kg ?? 1}
+                onChange={v => onInputChange('satuan_kg', v)}
+                placeholder="1"
+                suffix="kg/hari"
+              />
+              <CurrencyInput
+                id="input-pemasukan-harian"
+                label="Nilai Per Satuan (Rp)"
+                value={inputs.pemasukan_harian ?? ''}
+                onChange={v => onInputChange('pemasukan_harian', v)}
+                placeholder="150000"
+                tooltip="Harga jual per kg hasil tangkapan."
+              />
+            </>
+          )}
+
+          {/* Opsi B fields: Nilai Pendapatan Langsung (shown when method = nilai_langsung) */}
+          {incomeMethod === 'nilai_langsung' && (
+            <div className="flex flex-col gap-2">
+              <div className="flex items-center gap-1.5">
+                <label htmlFor="input-pemasukan-langsung" className="text-[12.5px] font-semibold text-slate-300 flex-1">
+                  Pendapatan Kotor
+                </label>
+                <div className="tooltip cursor-pointer text-slate-500 hover:text-slate-300" data-tip="Masukkan total pendapatan kotor sesuai frekuensi pencatatan Anda (harian/mingguan/bulanan/tahunan).">
+                  <Info size={13} />
+                </div>
+              </div>
+
+              {/* Input row: Rp + frequency selector */}
+              <div className="flex gap-2 items-stretch">
+                <div className="relative flex-1">
+                  <div className="absolute left-3 top-1/2 -translate-y-1/2 text-[12.5px] text-slate-400 font-mono select-none">Rp</div>
+                  <input
+                    id="input-pemasukan-langsung"
+                    type="number"
+                    inputMode="numeric"
+                    min="0"
+                    value={inputs.pemasukan_langsung ?? ''}
+                    placeholder="300000"
+                    onChange={e => onInputChange('pemasukan_langsung', e.target.value.replace(/[^0-9.]/g, ''))}
+                    className="w-full rounded-xl border border-white/[0.08] bg-surface-700 text-slate-100 text-[13px] font-mono py-2.5 pl-9 pr-3 transition-all placeholder:text-slate-600 hover:border-white/[0.12] focus:border-indigo-500/50 outline-none"
+                  />
+                </div>
+
+                {/* Frequency selector */}
+                <div className="relative shrink-0">
+                  <select
+                    id="input-pemasukan-langsung-freq"
+                    value={opsiB_freq}
+                    onChange={e => onInputChange('pemasukan_langsung_freq', e.target.value)}
+                    className="h-full rounded-xl border border-white/[0.08] bg-surface-700 text-[11.5px] font-semibold text-indigo-300 px-2.5 pr-7 appearance-none cursor-pointer outline-none hover:border-indigo-500/30 focus:border-indigo-500/50 transition-all"
+                    style={{ minWidth: '90px' }}
+                  >
+                    {INCOME_FREQ_OPTIONS.map(opt => (
+                      <option key={opt.key} value={opt.key}>{opt.label}</option>
+                    ))}
+                  </select>
+                  <div className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2">
+                    <svg width="10" height="6" viewBox="0 0 10 6" fill="none">
+                      <path d="M1 1l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-indigo-400"/>
+                    </svg>
+                  </div>
+                </div>
+              </div>
+
+              {/* Conversion hint to daily basis */}
+              {opsiB_rawIncome > 0 && (
+                <div className="flex items-center gap-1.5 pl-1">
+                  <span className="text-[10.5px] font-semibold text-emerald-300 font-mono tabular-nums">
+                    ≈ {formatRupiah(opsiB_daily)} /hari
+                  </span>
+                  {opsiB_freq !== 'harian' && (
+                    <span className="text-[9.5px] text-slate-500">
+                      ({formatRupiah(opsiB_rawIncome)} {opsiB_freqLabel} ÷ konversi ke harian)
+                    </span>
+                  )}
+                  <span
+                    className="tooltip text-slate-600 hover:text-slate-400 cursor-pointer"
+                    data-tip={`Nilai ini dikonversi ke basis harian sebelum masuk ke rumus utama (× ${daysNum} hari × 12 bulan × koefisien%).`}
+                  >
+                    <Info size={10} />
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
+        </>
+      )}
+
+      {/* ── Main Inputs (non-nelayan, or never rendered for nelayan since fields above handle it) ── */}
+      {!isNelayan && category.fields.map((field) => {
         const val = inputs[field.key] ?? (field.defaultValue !== undefined ? field.defaultValue : '');
 
         if (field.type === 'boolean') {
@@ -347,7 +527,10 @@ export default function InputForm({ categoryId, inputs, onInputChange, records }
             suffix={field.suffix}
           />
         );
-      })}
+      })
+      }
+
+      {/* For nelayan, we also need the linked tempurung selector and arang_tempurung logic below - but nelayan never uses link_tempurung, so this guard is safe */}
 
       {/* Linked Tempurung Selector for arang_tempurung */}
       {categoryId === 'arang_tempurung' && Boolean(inputs.link_tempurung) && (
@@ -701,23 +884,36 @@ export default function InputForm({ categoryId, inputs, onInputChange, records }
                 (parseFloat(inputs.biaya_hpp)             || 0) +
                 (parseFloat(inputs.biaya_operasional)     || 0) +
                 (parseFloat(inputs.biaya_non_operasional) || 0);
-              const pendapatan = hasDailyModifier
-                ? (() => {
-                    const days   = (inputs.custom_days    !== undefined && inputs.custom_days    !== '') ? inputs.custom_days    : 30;
-                    const revPct = (inputs.custom_rev_pct !== undefined && inputs.custom_rev_pct !== '') ? inputs.custom_rev_pct : (categoryId === 'kuliner_rumah_makan' ? 60 : 10);
-                    return `Pemasukan × ${days} Hari × 12 Bulan × ${revPct}% koefisien`;
-                  })()
-                : category.note.split('·')[0].trim();
-              return `${pendapatan} · Pengeluaran: Rincian Manual (26f) = Rp${total26f.toLocaleString('id-ID')}`;
-            })()
-          : hasDailyModifier
-            ? (() => {
+              let pendapatan;
+              if (isNelayan && incomeMethod === 'nilai_langsung') {
+                const days   = (inputs.custom_days    !== undefined && inputs.custom_days    !== '') ? inputs.custom_days    : 30;
+                const revPct = (inputs.custom_rev_pct !== undefined && inputs.custom_rev_pct !== '') ? inputs.custom_rev_pct : 10;
+                pendapatan = `Pendapatan Langsung (basis harian) × ${days} Hari × 12 Bulan × ${revPct}% koefisien`;
+              } else if (hasDailyModifier) {
                 const days   = (inputs.custom_days    !== undefined && inputs.custom_days    !== '') ? inputs.custom_days    : 30;
                 const revPct = (inputs.custom_rev_pct !== undefined && inputs.custom_rev_pct !== '') ? inputs.custom_rev_pct : (categoryId === 'kuliner_rumah_makan' ? 60 : 10);
-                const expPct = (inputs.custom_exp_pct !== undefined && inputs.custom_exp_pct !== '') ? inputs.custom_exp_pct : (categoryId === 'kuliner_rumah_makan' ? 40 : 30);
-                return `Pemasukan × ${days} Hari × 12 Bulan × ${revPct}% koefisien · Pengeluaran ${expPct}%`;
+                pendapatan = `Pemasukan × ${days} Hari × 12 Bulan × ${revPct}% koefisien`;
+              } else {
+                pendapatan = category.note.split('·')[0].trim();
+              }
+              return `${pendapatan} · Pengeluaran: Rincian Manual (26f) = Rp${total26f.toLocaleString('id-ID')}`;
+            })()
+          : isNelayan && incomeMethod === 'nilai_langsung'
+            ? (() => {
+                const days   = (inputs.custom_days    !== undefined && inputs.custom_days    !== '') ? inputs.custom_days    : 30;
+                const revPct = (inputs.custom_rev_pct !== undefined && inputs.custom_rev_pct !== '') ? inputs.custom_rev_pct : 10;
+                const expPct = (inputs.custom_exp_pct !== undefined && inputs.custom_exp_pct !== '') ? inputs.custom_exp_pct : 30;
+                const freqTxt = INCOME_FREQ_OPTIONS.find(o => o.key === opsiB_freq)?.label || 'per Hari';
+                return `Pendapatan (${freqTxt}) ÷ konversi harian × ${days} Hari × 12 Bulan × ${revPct}% koefisien · Pengeluaran ${expPct}%`;
               })()
-            : category.note
+            : hasDailyModifier
+              ? (() => {
+                  const days   = (inputs.custom_days    !== undefined && inputs.custom_days    !== '') ? inputs.custom_days    : 30;
+                  const revPct = (inputs.custom_rev_pct !== undefined && inputs.custom_rev_pct !== '') ? inputs.custom_rev_pct : (categoryId === 'kuliner_rumah_makan' ? 60 : 10);
+                  const expPct = (inputs.custom_exp_pct !== undefined && inputs.custom_exp_pct !== '') ? inputs.custom_exp_pct : (categoryId === 'kuliner_rumah_makan' ? 40 : 30);
+                  return `Pemasukan × ${days} Hari × 12 Bulan × ${revPct}% koefisien · Pengeluaran ${expPct}%`;
+                })()
+              : category.note
         }
       </div>
     </div>
