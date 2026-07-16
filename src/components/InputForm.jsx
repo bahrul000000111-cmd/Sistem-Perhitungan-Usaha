@@ -4,7 +4,7 @@
  * Renders standardized fields per category, validates inputs,
  * and displays an optional BPS SE2026-L data section.
  */
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { AlertCircle, Link2, Link2Off, Info, ChevronDown, ChevronUp, Users, Calendar, DollarSign, Globe, Building2 } from 'lucide-react';
 import { formatRupiah } from '../utils/formatters';
 import { CATEGORIES, getConversionFormula, convertToAnnual, convertToDaily, convertHarvestToAnnual } from '../utils/calculations';
@@ -337,7 +337,7 @@ function IncomeMethodSelector({ value, onChange, options, tooltip }) {
   );
 }
 
-function ExpenseField({ id, label, value, freq, daysPerMonth, onValueChange, onFreqChange, tooltip, showHpp }) {
+function ExpenseField({ id, label, value, freq, daysPerMonth, onValueChange, onFreqChange, tooltip, showHpp, readOnly, autoModeBadge, autoModeRemark }) {
   const [focused, setFocused] = useState(false);
   const numVal  = parseFloat(value) || 0;
   const freqKey = freq || 'tahunan';
@@ -347,10 +347,16 @@ function ExpenseField({ id, label, value, freq, daysPerMonth, onValueChange, onF
 
   return (
     <div className="flex flex-col gap-1.5">
-      <div className="flex items-center gap-1.5">
+      <div className="flex items-center gap-1.5 flex-wrap">
         <label htmlFor={id} className="text-[12.5px] font-semibold text-slate-300 flex-1">
           {label}
         </label>
+        {/* Addendum #10: auto-mode badge */}
+        {autoModeBadge && (
+          <span className="flex items-center gap-1 text-[9.5px] font-semibold text-emerald-300 bg-emerald-500/10 border border-emerald-500/20 px-1.5 py-0.5 rounded-md">
+            🔄 Otomatis dari data pekerja
+          </span>
+        )}
         {tooltip && (
           <div className="tooltip cursor-pointer text-slate-500 hover:text-slate-300" data-tip={tooltip}>
             <Info size={13} />
@@ -372,13 +378,19 @@ function ExpenseField({ id, label, value, freq, daysPerMonth, onValueChange, onF
             min="0"
             value={value}
             placeholder="0"
+            readOnly={readOnly}
             onFocus={() => setFocused(true)}
             onBlur={() => setFocused(false)}
             onChange={e => {
+              if (readOnly) return;
               const raw = e.target.value.replace(/[^0-9.]/g, '');
               onValueChange(raw);
             }}
-            className="w-full rounded-xl border border-white/[0.08] bg-surface-700 text-slate-100 text-[13px] font-mono py-2.5 pl-9 pr-3 transition-all placeholder:text-slate-600 hover:border-white/[0.12] focus:border-indigo-500/50 outline-none"
+            className={`w-full rounded-xl border text-[13px] font-mono py-2.5 pl-9 pr-3 transition-all placeholder:text-slate-600 outline-none ${
+              readOnly
+                ? 'border-emerald-500/25 bg-emerald-500/6 text-emerald-200 cursor-default select-none'
+                : 'border-white/[0.08] bg-surface-700 text-slate-100 hover:border-white/[0.12] focus:border-indigo-500/50'
+            }`}
           />
         </div>
 
@@ -423,6 +435,10 @@ function ExpenseField({ id, label, value, freq, daysPerMonth, onValueChange, onF
           )}
         </div>
       )}
+      {/* Addendum #10: auto-mode remark row */}
+      {autoModeRemark && (
+        <p className="text-[10px] text-emerald-400/70 font-mono pl-1 leading-relaxed">{autoModeRemark}</p>
+      )}
     </div>
   );
 }
@@ -443,16 +459,38 @@ export default function InputForm({ categoryId, inputs, onInputChange, records }
   let defaultExpPct = 30;
   if (categoryId === 'kios_campuran')           { defaultRevPct = 10;  defaultExpPct = 30; }
   else if (categoryId === 'kuliner_rumah_makan') { defaultRevPct = 60;  defaultExpPct = 40; }
-  else if (categoryId === 'generik_harian')      { defaultRevPct = 20;  defaultExpPct = 30; }  // neutral generic defaults
+  else if (categoryId === 'generik_harian')      { defaultRevPct = 20;  defaultExpPct = 30; }
   else if (categoryId === 'tempurung' || categoryId === 'arang_tempurung') { defaultExpPct = 10; }
 
   const rawDays = inputs.custom_days;
   const displayDays = (rawDays !== undefined && rawDays !== '') ? rawDays : 30;
   const daysNum = Number(displayDays);
 
-  // Normalize use_detail_pengeluaran toggle — same logic as calculateRecord
+  // Normalize use_detail_pengeluaran toggle
   const rawToggle = inputs.use_detail_pengeluaran;
   const isDetailPengeluaranActive = rawToggle === true || rawToggle === 1 || rawToggle === 'true';
+
+  // ── Addendum #10: Wage auto-sync — compute at top level for useEffect ────
+  const _hasNewWorkerKeys =
+    inputs.pekerja_dibayar_l !== undefined || inputs.pekerja_dibayar_p !== undefined ||
+    inputs.pekerja_tidak_dibayar_l !== undefined || inputs.pekerja_tidak_dibayar_p !== undefined;
+  const _dibayarL = parseInt(_hasNewWorkerKeys ? inputs.pekerja_dibayar_l : inputs.pekerja_l) || 0;
+  const _dibayarP = parseInt(_hasNewWorkerKeys ? inputs.pekerja_dibayar_p : inputs.pekerja_p) || 0;
+  const totalPekerjaDibayar = _dibayarL + _dibayarP;
+  const rataUpahPerPekerja  = parseFloat(inputs.rata_upah_per_pekerja) || 0;
+  const estimasiUpahTahunan = totalPekerjaDibayar * rataUpahPerPekerja * 12;
+  // Auto-mode is active when: rata_upah is filled AND dibayar > 0 AND rincian toggle is on
+  const isWageAutoMode = rataUpahPerPekerja > 0 && totalPekerjaDibayar > 0 && isDetailPengeluaranActive;
+
+  // Auto-sync 26a whenever the auto-mode inputs change
+  useEffect(() => {
+    if (isWageAutoMode) {
+      onInputChange('biaya_upah', String(estimasiUpahTahunan));
+      onInputChange('biaya_upah_freq', 'tahunan');
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isWageAutoMode, totalPekerjaDibayar, rataUpahPerPekerja]);
+  // ─────────────────────────────────────────────────────────────────────────
 
   // ── Addendum #7: Nelayan income method ────────────────────────────────────
   const isNelayan = categoryId === 'nelayan_tangkap';
@@ -978,7 +1016,7 @@ export default function InputForm({ categoryId, inputs, onInputChange, records }
 
               {isDetailPengeluaranActive && (
                 <div className="space-y-3.5 pt-1 pl-2 border-l border-indigo-500/20 fade-in-up">
-                  {/* 26a — Upah, with wage estimation widget (Addendum #8) and hint */}
+                  {/* 26a — Upah (Addendum #10: auto-syncs from wage widget when rata_upah > 0) */}
                   <div className="flex flex-col gap-1.5">
                     <ExpenseField
                       id="biaya-upah"
@@ -989,99 +1027,51 @@ export default function InputForm({ categoryId, inputs, onInputChange, records }
                       onValueChange={val => onInputChange('biaya_upah', val)}
                       onFreqChange={freq => onInputChange('biaya_upah_freq', freq)}
                       tooltip="Upah pokok, bonus, natura makan/perumahan, iuran BPJS."
+                      readOnly={isWageAutoMode}
+                      autoModeBadge={isWageAutoMode}
+                      autoModeRemark={
+                        isWageAutoMode
+                          ? `≈ ${totalPekerjaDibayar} pekerja × ${formatRupiah(rataUpahPerPekerja)}/bln × 12 bln = ${formatRupiah(estimasiUpahTahunan)}`
+                          : null
+                      }
                     />
 
-                    {/* Wage estimation widget — shown when rincian active + pekerja dibayar > 0 */}
-                    {(() => {
-                      const hasNewKeys =
-                        inputs.pekerja_dibayar_l !== undefined ||
-                        inputs.pekerja_dibayar_p !== undefined ||
-                        inputs.pekerja_tidak_dibayar_l !== undefined ||
-                        inputs.pekerja_tidak_dibayar_p !== undefined;
-                      const dibayarL = parseInt(hasNewKeys ? inputs.pekerja_dibayar_l : inputs.pekerja_l) || 0;
-                      const dibayarP = parseInt(hasNewKeys ? inputs.pekerja_dibayar_p : inputs.pekerja_p) || 0;
-                      const totalDibayar = dibayarL + dibayarP;
-                      if (totalDibayar === 0) return null;
-
-                      const rataUpah = parseFloat(inputs.rata_upah_per_pekerja) || 0;
-                      const estimasiTahunan = totalDibayar * rataUpah * 12;
-
-                      // Compare estimate with current annualized 26a value
-                      const current26aRaw  = parseFloat(inputs.biaya_upah) || 0;
-                      const current26aFreq = inputs.biaya_upah_freq || 'tahunan';
-                      const current26aAnnual = convertToAnnual(current26aRaw, current26aFreq, Number(displayDays));
-                      const hasDiff = rataUpah > 0 && estimasiTahunan > 0 && Math.abs(current26aAnnual - estimasiTahunan) > 0.5;
-
-                      return (
-                        <div className="mt-1 pl-2 border-l border-indigo-500/20 space-y-2 fade-in-up">
-                          <div className="flex flex-col gap-1">
-                            <label htmlFor="input-rata-upah" className="text-[10.5px] font-semibold text-slate-400">
-                              Rata-rata Upah per Pekerja Dibayar (Rp/bulan)
-                              <span className="ml-1 text-slate-600 font-normal">— opsional, untuk estimasi 26a</span>
-                            </label>
-                            <div className="relative">
-                              <div className="absolute left-3 top-1/2 -translate-y-1/2 text-[11.5px] text-slate-400 font-mono select-none">Rp</div>
-                              <input
-                                id="input-rata-upah"
-                                type="number" inputMode="numeric" min="0"
-                                value={inputs.rata_upah_per_pekerja ?? ''}
-                                placeholder="1500000"
-                                onChange={e => onInputChange('rata_upah_per_pekerja', e.target.value.replace(/[^0-9.]/g, ''))}
-                                className="w-full rounded-xl border border-white/[0.06] bg-surface-800/60 text-slate-200 text-[12px] font-mono py-2 pl-9 pr-3 outline-none focus:border-indigo-500/40 transition-all placeholder:text-slate-700"
-                              />
-                            </div>
+                    {/* Wage widget — shown when pekerja dibayar > 0 */}
+                    {totalPekerjaDibayar > 0 && (
+                      <div className="mt-0.5 pl-2 border-l border-indigo-500/20 space-y-1.5 fade-in-up">
+                        <div className="flex flex-col gap-1">
+                          <label htmlFor="input-rata-upah" className="text-[10.5px] font-semibold text-slate-400">
+                            Rata-rata Upah per Pekerja Dibayar (Rp/bulan)
+                            <span className="ml-1 text-slate-600 font-normal">
+                              {isWageAutoMode ? '— kosongkan untuk edit 26a manual' : '— isi untuk sinkronisasi otomatis ke 26a'}
+                            </span>
+                          </label>
+                          <div className="relative">
+                            <div className="absolute left-3 top-1/2 -translate-y-1/2 text-[11.5px] text-slate-400 font-mono select-none">Rp</div>
+                            <input
+                              id="input-rata-upah"
+                              type="number" inputMode="numeric" min="0"
+                              value={inputs.rata_upah_per_pekerja ?? ''}
+                              placeholder="1500000"
+                              onChange={e => onInputChange('rata_upah_per_pekerja', e.target.value.replace(/[^0-9.]/g, ''))}
+                              className="w-full rounded-xl border border-white/[0.06] bg-surface-800/60 text-slate-200 text-[12px] font-mono py-2 pl-9 pr-3 outline-none focus:border-indigo-500/40 transition-all placeholder:text-slate-700"
+                            />
                           </div>
-
-                          {rataUpah > 0 && (
-                            <div className="bg-indigo-500/8 border border-indigo-500/15 rounded-xl px-3 py-2 space-y-1.5">
-                              <p className="text-[10px] text-slate-400 leading-relaxed">
-                                ≈ Estimasi Total Upah, Gaji &amp; Jaminan Sosial Tahunan:
-                              </p>
-                              <p className="text-[11.5px] font-bold text-indigo-200 font-mono">
-                                {totalDibayar} pekerja × {formatRupiah(rataUpah)}/bln × 12 bln = <span className="text-emerald-300">{formatRupiah(estimasiTahunan)}</span>
-                              </p>
-                              {hasDiff && (
-                                <p className="text-[10px] text-amber-400/80 leading-relaxed">
-                                  Nilai 26a saat ini ({formatRupiah(current26aAnnual)}) berbeda dari estimasi — klik tombol di bawah jika ingin memperbarui.
-                                </p>
-                              )}
-                              <button
-                                id="btn-terapkan-26a"
-                                type="button"
-                                onClick={() => {
-                                  onInputChange('biaya_upah', String(estimasiTahunan));
-                                  onInputChange('biaya_upah_freq', 'tahunan');
-                                }}
-                                className="mt-0.5 w-full flex items-center justify-center gap-1.5 rounded-lg bg-indigo-500/20 hover:bg-indigo-500/30 border border-indigo-500/30 text-indigo-300 text-[11px] font-semibold py-1.5 transition-all"
-                              >
-                                <DollarSign size={11} />
-                                Terapkan ke Upah, Gaji &amp; Jaminan Sosial (26a)
-                              </button>
-                            </div>
-                          )}
                         </div>
-                      );
-                    })()}
+                      </div>
+                    )}
 
-                    {/* Hint jika ada pekerja tapi biaya_upah masih kosong */}
+                    {/* Hint: pekerja ada tapi biaya_upah masih 0 dan auto-mode off */}
                     {(() => {
-                      const hasNewKeys =
-                        inputs.pekerja_dibayar_l !== undefined ||
-                        inputs.pekerja_dibayar_p !== undefined ||
-                        inputs.pekerja_tidak_dibayar_l !== undefined ||
-                        inputs.pekerja_tidak_dibayar_p !== undefined;
-                      const dibayarL = parseInt(hasNewKeys ? inputs.pekerja_dibayar_l : inputs.pekerja_l) || 0;
-                      const dibayarP = parseInt(hasNewKeys ? inputs.pekerja_dibayar_p : inputs.pekerja_p) || 0;
-                      const totalDibayar = dibayarL + dibayarP;
-                      const totalAll = totalDibayar
+                      const totalAll = totalPekerjaDibayar
                         + (parseInt(inputs.pekerja_tidak_dibayar_l) || 0)
                         + (parseInt(inputs.pekerja_tidak_dibayar_p) || 0);
-                      if (totalAll === 0 || parseFloat(inputs.biaya_upah) > 0) return null;
+                      if (totalAll === 0 || parseFloat(inputs.biaya_upah) > 0 || isWageAutoMode) return null;
                       return (
                         <div className="flex items-start gap-1.5 text-[10.5px] text-amber-400 bg-amber-500/8 border border-amber-500/15 rounded-lg px-2.5 py-1.5 leading-relaxed">
                           <span className="shrink-0 mt-0.5">⚠️</span>
                           <span>
-                            Usaha ini memiliki {totalAll} pekerja — pastikan komponen upah/gaji sudah dimasukkan di sini jika relevan.
+                            Usaha ini memiliki {totalAll} pekerja — isi Rata-rata Upah di atas untuk sinkronisasi otomatis, atau isi 26a secara manual.
                           </span>
                         </div>
                       );
