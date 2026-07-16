@@ -8,7 +8,7 @@
  * Suite 3: Addendum #2 — Frequency selector conversions
  */
 
-import { calculateRecord, convertToAnnual, getConversionFormula, convertToDaily, resolveWorkers } from './src/utils/calculations.js';
+import { calculateRecord, convertToAnnual, getConversionFormula, convertToDaily, resolveWorkers, convertHarvestToAnnual } from './src/utils/calculations.js';
 
 let pass = 0;
 let fail = 0;
@@ -496,6 +496,129 @@ console.log('\n5.9 Non-regresi: data pekerja tidak ubah formula pendapatan:');
   }}, []);
   assert('Pendapatan Tahunan sebelum = sesudah', rBefore.totalPendapatanTahunan, rAfter.totalPendapatanTahunan);
   assert('Pengeluaran sebelum = sesudah (normatif)', rBefore.totalPengeluaranTahunan, rAfter.totalPengeluaranTahunan);
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// SUITE 6: Addendum #9 — Harvest Period Selector (Perkebunan M2)
+// ─────────────────────────────────────────────────────────────────────────
+console.log('\n══ SUITE 6: Addendum #9 — Harvest Period Selector (Perkebunan) ══\n');
+
+// 6.1 convertHarvestToAnnual() unit tests
+console.log('6.1 convertHarvestToAnnual() unit tests:');
+assert('per 12 Bulan (×1, default)',   convertHarvestToAnnual(12_000_000, 12),  12_000_000);
+assert('per 1 Bulan (×12)',           convertHarvestToAnnual(1_000_000,  1),   12_000_000);
+assert('per 2 Bulan (×6)',            convertHarvestToAnnual(2_000_000,  2),   12_000_000);
+assert('per 3 Bulan (×4)',            convertHarvestToAnnual(12_000_000, 3),   48_000_000);
+assert('per 4 Bulan (×3)',            convertHarvestToAnnual(4_000_000,  4),   12_000_000);
+assert('per 6 Bulan (×2)',            convertHarvestToAnnual(5_000_000,  6),   10_000_000);
+assert('per 5 Bulan (×2.4, presisi)', convertHarvestToAnnual(5_000_000,  5),   12_000_000);
+assert('per 11 Bulan (presisi)',      convertHarvestToAnnual(11_000_000, 11),  12_000_000);
+assert('undefined period → ×1',      convertHarvestToAnnual(12_000_000, undefined), 12_000_000);
+assert('null period → ×1',           convertHarvestToAnnual(12_000_000, null),      12_000_000);
+
+// 6.2 Non-regresi — default (period = 12 Bulan), hasil identik sebelum fitur
+// Input 12.000.000, period 12, Pengeluaran 30%
+// → Tahunan = 12.000.000, Pengeluaran = 3.600.000, Bersih = 8.400.000, /Bulan = 700.000
+console.log('\n6.2 Non-regresi — period 12 Bulan (default), hasil identik:');
+{
+  const r = calculateRecord({ id: 'a9-1', categoryId: 'perkebunan_tahunan', inputs: {
+    total_pendapatan_tahunan: '12000000', custom_exp_pct: '30'
+    // harvest_period_bulan absent → defaults to 12
+  }}, []);
+  assert('Pendapatan Tahunan = 12.000.000', r.totalPendapatanTahunan, 12_000_000);
+  assert('Pengeluaran 30% = 3.600.000', r.totalPengeluaranTahunan, 3_600_000);
+  assert('Hasil Usaha Bersih = 8.400.000', r.totalHasilUsaha, 8_400_000);
+  assert('Pendapatan/Bulan = 700.000', r.pendapatanPerBulan, 700_000);
+}
+
+// 6.2b Same record but period explicitly set to '12'
+console.log('\n6.2b Explicit period=12, identik dengan tidak ada period:');
+{
+  const r = calculateRecord({ id: 'a9-2', categoryId: 'perkebunan_tahunan', inputs: {
+    total_pendapatan_tahunan: '12000000', harvest_period_bulan: '12', custom_exp_pct: '30'
+  }}, []);
+  assert('Pendapatan Tahunan = 12.000.000', r.totalPendapatanTahunan, 12_000_000);
+  assert('Hasil Usaha Bersih = 8.400.000', r.totalHasilUsaha, 8_400_000);
+}
+
+// 6.3 Uji periode panen 3 bulan
+// Input 12.000.000/panen, period=3 → Tahunan = 12m × (12÷3) = 48.000.000
+console.log('\n6.3 Period 3 Bulan — konversi ×4:');
+{
+  const r = calculateRecord({ id: 'a9-3', categoryId: 'perkebunan_tahunan', inputs: {
+    total_pendapatan_tahunan: '12000000', harvest_period_bulan: '3', custom_exp_pct: '30'
+  }}, []);
+  assert('Pendapatan Tahunan = 48.000.000', r.totalPendapatanTahunan, 48_000_000);
+  assert('Pengeluaran 30% = 14.400.000', r.totalPengeluaranTahunan, 14_400_000);
+  assert('Hasil Usaha Bersih = 33.600.000', r.totalHasilUsaha, 33_600_000);
+  assert('Pendapatan/Bulan = 2.800.000', r.pendapatanPerBulan, 2_800_000);
+}
+
+// 6.4 Uji periode panen 6 bulan
+// Input 5.000.000/panen, period=6 → Tahunan = 5m × 2 = 10.000.000
+console.log('\n6.4 Period 6 Bulan — konversi ×2:');
+{
+  const r = calculateRecord({ id: 'a9-4', categoryId: 'perkebunan_tahunan', inputs: {
+    total_pendapatan_tahunan: '5000000', harvest_period_bulan: '6', custom_exp_pct: '30'
+  }}, []);
+  assert('Pendapatan Tahunan = 10.000.000', r.totalPendapatanTahunan, 10_000_000);
+  assert('Pengeluaran 30% = 3.000.000', r.totalPengeluaranTahunan, 3_000_000);
+  assert('Hasil Usaha Bersih = 7.000.000', r.totalHasilUsaha, 7_000_000);
+  assert('Pendapatan/Bulan = 583.333', r.pendapatanPerBulan, 583_333, 1);
+}
+
+// 6.5 Uji periode panen 5 bulan (pecahan — 12÷5 = 2.4, presisi penuh)
+// Input 5.000.000/panen, period=5 → Tahunan = 5m × 2.4 = 12.000.000
+console.log('\n6.5 Period 5 Bulan — faktor pecahan ×2.4 (presisi penuh):');
+{
+  const r = calculateRecord({ id: 'a9-5', categoryId: 'perkebunan_tahunan', inputs: {
+    total_pendapatan_tahunan: '5000000', harvest_period_bulan: '5', custom_exp_pct: '30'
+  }}, []);
+  assert('Pendapatan Tahunan = 12.000.000 (5m × 2.4)', r.totalPendapatanTahunan, 12_000_000);
+  assert('Pengeluaran 30% = 3.600.000', r.totalPengeluaranTahunan, 3_600_000);
+  assert('Hasil Usaha Bersih = 8.400.000', r.totalHasilUsaha, 8_400_000);
+}
+
+// 6.6 Period 1 bulan (×12)
+console.log('\n6.6 Period 1 Bulan — konversi ×12:');
+{
+  const r = calculateRecord({ id: 'a9-6', categoryId: 'perkebunan_tahunan', inputs: {
+    total_pendapatan_tahunan: '1000000', harvest_period_bulan: '1', custom_exp_pct: '30'
+  }}, []);
+  assert('Pendapatan Tahunan = 12.000.000', r.totalPendapatanTahunan, 12_000_000);
+  assert('Hasil Usaha Bersih = 8.400.000', r.totalHasilUsaha, 8_400_000);
+}
+
+// 6.7 State preservation — mengganti period tidak mengubah rawValue
+// (di level kalkulasi: rawValue (total_pendapatan_tahunan) tidak ter-reset oleh pergantian period)
+console.log('\n6.7 Ganti period — raw value tidak berubah, hanya faktor yang berubah:');
+{
+  const rawValue = '12000000';
+  const r3 = calculateRecord({ id: 'a9-7a', categoryId: 'perkebunan_tahunan', inputs: {
+    total_pendapatan_tahunan: rawValue, harvest_period_bulan: '3', custom_exp_pct: '30'
+  }}, []);
+  const r6 = calculateRecord({ id: 'a9-7b', categoryId: 'perkebunan_tahunan', inputs: {
+    total_pendapatan_tahunan: rawValue, harvest_period_bulan: '6', custom_exp_pct: '30'
+  }}, []);
+  // rawValue same, different results — proving period changes don't reset rawValue
+  assert('r3.meta.rawPendapatan = 12.000.000 (tidak berubah)', r3.meta.rawPendapatan, 12_000_000);
+  assert('r6.meta.rawPendapatan = 12.000.000 (tidak berubah)', r6.meta.rawPendapatan, 12_000_000);
+  assert('r3.meta.periodBulan = 3', r3.meta.periodBulan, 3);
+  assert('r6.meta.periodBulan = 6', r6.meta.periodBulan, 6);
+  // Annual values differ due to period
+  assert('r3.totalPendapatan = 48.000.000 (3 bulan)', r3.totalPendapatanTahunan, 48_000_000);
+  assert('r6.totalPendapatan = 24.000.000 (6 bulan)', r6.totalPendapatanTahunan, 24_000_000);
+}
+
+// 6.8 Non-regresi: kategori lain (bukan perkebunan_tahunan) TIDAK terpengaruh
+console.log('\n6.8 Non-regresi: kategori kios_campuran tidak terpengaruh:');
+{
+  const r = calculateRecord({ id: 'a9-8', categoryId: 'kios_campuran', inputs: {
+    pemasukan_harian: '500000', custom_rev_pct: '10', custom_exp_pct: '30', custom_days: '30'
+  }}, []);
+  assert('Kios Campuran Pendapatan = 18.000.000', r.totalPendapatanTahunan, 18_000_000);
+  assert('Kios Campuran Pengeluaran = 5.400.000', r.totalPengeluaranTahunan, 5_400_000);
+  assert('Kios Campuran Bersih = 12.600.000', r.totalHasilUsaha, 12_600_000);
 }
 
 // ─────────────────────────────────────────────────────────────────────────

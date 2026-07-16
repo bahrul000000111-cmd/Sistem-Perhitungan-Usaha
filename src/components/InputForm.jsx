@@ -7,7 +7,97 @@
 import { useState } from 'react';
 import { AlertCircle, Link2, Link2Off, Info, ChevronDown, ChevronUp, Users, Calendar, DollarSign, Globe, Building2 } from 'lucide-react';
 import { formatRupiah } from '../utils/formatters';
-import { CATEGORIES, getConversionFormula, convertToAnnual, convertToDaily } from '../utils/calculations';
+import { CATEGORIES, getConversionFormula, convertToAnnual, convertToDaily, convertHarvestToAnnual } from '../utils/calculations';
+
+/**
+ * HarvestPeriodSelector — Addendum #9
+ * Reusable component that pairs a CurrencyInput with a harvest-period dropdown (1–12 months).
+ * Converts per-period input to annual basis via convertHarvestToAnnual() and shows a live hint.
+ * Default period = 12 months for full backward compatibility.
+ *
+ * Props:
+ *   id              - HTML id for the input
+ *   label           - Field label text
+ *   value           - Raw per-period value (string)
+ *   onValueChange   - Called with new raw value string when input changes
+ *   periodValue     - Current period in months (number or string, default 12)
+ *   onPeriodChange  - Called with new period (string) when dropdown changes
+ *   placeholder     - Input placeholder
+ */
+function HarvestPeriodSelector({ id, label, value, onValueChange, periodValue, onPeriodChange, placeholder }) {
+  const [focused, setFocused] = useState(false);
+  const rawNum    = parseFloat(value) || 0;
+  const period    = Math.max(1, Math.min(12, parseInt(periodValue) || 12));
+  const annualVal = convertHarvestToAnnual(rawNum, period);
+  const factor    = 12 / period;
+
+  // Only show conversion hint when period != 12 and there is a non-zero value
+  const showHint = period !== 12 && rawNum > 0;
+
+  // Generate hint text: = Rp X /tahun (Y × 12 ÷ N bulan)
+  const hintText = showHint
+    ? `= ${formatRupiah(annualVal)} /tahun (${formatRupiah(rawNum)} × 12 ÷ ${period} bulan)`
+    : null;
+
+  const PERIOD_OPTIONS = Array.from({ length: 12 }, (_, i) => i + 1);
+
+  return (
+    <div className="flex flex-col gap-1.5">
+      <label htmlFor={id} className="text-[12.5px] font-semibold text-slate-300">
+        {label}
+      </label>
+      <div className="flex gap-2 items-stretch">
+        {/* Value input */}
+        <div className="relative flex-1">
+          <div className="absolute left-3 top-1/2 -translate-y-1/2 text-[11.5px] text-slate-400 font-mono select-none">Rp</div>
+          <input
+            id={id}
+            type="number"
+            inputMode="numeric"
+            min="0"
+            placeholder={placeholder || '12000000'}
+            value={value}
+            onFocus={() => setFocused(true)}
+            onBlur={() => setFocused(false)}
+            onChange={e => onValueChange(e.target.value.replace(/[^0-9.]/g, ''))}
+            className="w-full rounded-xl border border-white/[0.08] bg-surface-700 text-slate-100 text-[13px] font-mono py-2.5 pl-9 pr-3 outline-none focus:border-indigo-500/50 transition-all placeholder:text-slate-600"
+          />
+          {/* Live Rp preview when not focused and period=12 (no extra hint needed) */}
+          {!focused && !showHint && rawNum > 0 && (
+            <div className="absolute inset-x-0 -bottom-5 text-[10.5px] text-indigo-300/70 font-mono text-right pr-1 pointer-events-none select-none">
+              {formatRupiah(rawNum)}
+            </div>
+          )}
+        </div>
+
+        {/* Period dropdown */}
+        <div className="relative shrink-0">
+          <select
+            id={`${id}-period`}
+            value={String(period)}
+            onChange={e => onPeriodChange(e.target.value)}
+            className="h-full rounded-xl border border-white/[0.08] bg-surface-700 text-slate-200 text-[11.5px] font-semibold pl-2.5 pr-7 py-2.5 outline-none focus:border-indigo-500/50 appearance-none cursor-pointer min-w-[112px]"
+          >
+            {PERIOD_OPTIONS.map(n => (
+              <option key={n} value={String(n)}>
+                per {n} Bulan
+              </option>
+            ))}
+          </select>
+          <ChevronDown size={12} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+        </div>
+      </div>
+
+      {/* Conversion hint row — shown when period != 12 and value > 0 */}
+      {hintText && (
+        <div className="flex items-center gap-1.5 text-[10.5px] text-emerald-400/80 bg-emerald-500/6 border border-emerald-500/15 rounded-lg px-2.5 py-1.5 font-mono leading-relaxed fade-in-up">
+          <span className="shrink-0">🔄</span>
+          <span>{hintText}</span>
+        </div>
+      )}
+    </div>
+  );
+}
 
 /**
  * Reusable currency input with live Rp preview and tooltip support.
@@ -503,6 +593,23 @@ export default function InputForm({ categoryId, inputs, onInputChange, records }
         }
 
         const isCurrency = ['pemasukan_harian', 'total_pendapatan_tahunan'].includes(field.key);
+
+        // Addendum #9: field with harvestPeriodKey renders the harvest period selector
+        if (field.harvestPeriodKey) {
+          return (
+            <HarvestPeriodSelector
+              key={field.key}
+              id={`input-${field.key}`}
+              label={field.label}
+              value={inputs[field.key] ?? ''}
+              onValueChange={v => onInputChange(field.key, v)}
+              periodValue={inputs[field.harvestPeriodKey] ?? '12'}
+              onPeriodChange={v => onInputChange(field.harvestPeriodKey, v)}
+              placeholder={field.placeholder}
+            />
+          );
+        }
+
         if (isCurrency) {
           return (
             <CurrencyInput

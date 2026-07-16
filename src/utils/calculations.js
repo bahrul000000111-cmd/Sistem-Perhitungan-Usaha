@@ -78,7 +78,8 @@ export const CATEGORIES = [
     mechLabel: 'Input Pendapatan Langsung (Tahunan)',
     mechSubtext: 'Cocok bila Anda sudah tahu total pendapatan tahunan usaha secara langsung — mis. kebun campuran, tanaman tahunan lain, usaha dengan pencatatan tahunan sederhana, dan sejenisnya.',
     fields: [
-      { key: 'total_pendapatan_tahunan', label: 'Total Pendapatan Tahunan', placeholder: '12000000', suffix: '/tahun' }
+      { key: 'total_pendapatan_tahunan', label: 'Total Pendapatan (per Periode Panen)', placeholder: '12000000', suffix: '/tahun',
+        harvestPeriodKey: 'harvest_period_bulan' }
     ],
     note: 'Input langsung pendapatan tahunan · Faktor pengeluaran 30%'
   },
@@ -308,6 +309,22 @@ export function convertToDaily(value, frequency, daysPerMonth = 30) {
 }
 
 /**
+ * Convert a per-harvest-period income value to its annual equivalent.
+ * Addendum #9 — Perkebunan M2 and future categories with variable harvest cycles.
+ * Default period = 12 months (backward compatible: ×1 factor, no change).
+ *
+ * Formula: annualValue = value × (12 ÷ periodBulan)
+ *
+ * @param {number} value        - Raw value per harvest period as entered by user
+ * @param {number} periodBulan  - Harvest period in months (1–12), defaults to 12
+ * @returns {number}            - Annualized value (full precision, no rounding)
+ */
+export function convertHarvestToAnnual(value, periodBulan = 12) {
+  const p = Math.max(1, Math.min(12, parseInt(periodBulan) || 12));
+  return value * (12 / p);
+}
+
+/**
  * Returns a human-readable conversion formula string for display.
  * Returns null when frequency is 'tahunan' (no conversion needed).
  *
@@ -397,9 +414,12 @@ export function calcKuliner(inputs = {}) {
 /**
  * Category 3: Perkebunan & Pertanian Tahunan
  * Default: Exp = 30%
+ * Addendum #9: supports harvest_period_bulan (1–12, default 12) for M2 income conversion.
  */
 export function calcPerkebunanTahunan(inputs = {}) {
-  const totalPendapatan = parseFloat(inputs.total_pendapatan_tahunan) || 0;
+  const rawValue    = parseFloat(inputs.total_pendapatan_tahunan) || 0;
+  const periodBulan = parseInt(inputs.harvest_period_bulan) || 12;
+  const totalPendapatan = convertHarvestToAnnual(rawValue, periodBulan);
   const expPct = getExpPct(inputs, 30);
 
   const totalPengeluaran = totalPendapatan * (expPct / 100);
@@ -413,7 +433,12 @@ export function calcPerkebunanTahunan(inputs = {}) {
     pendapatanPerBulan,
     perPanen: null,
     setahun: null,
-    meta: { faktorPengeluaran: `${expPct}%` }
+    meta: {
+      faktorPengeluaran: `${expPct}%`,
+      rawPendapatan: rawValue,
+      periodBulan,
+      harvestFactor: 12 / periodBulan,
+    }
   };
 }
 
