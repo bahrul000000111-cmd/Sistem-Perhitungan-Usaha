@@ -10,7 +10,6 @@ import {
 } from 'lucide-react';
 
 import AppHeader       from './components/AppHeader';
-import DashboardStats  from './components/DashboardStats';
 import CategorySidebar from './components/CategorySidebar';
 import RecordCard      from './components/RecordCard';
 import AddRecordModal  from './components/AddRecordModal';
@@ -170,11 +169,6 @@ export default function App() {
 
       {/* ── Main Content ── */}
       <main className="flex-1 w-full max-w-screen-2xl mx-auto px-3 sm:px-5 py-4 flex flex-col gap-4">
-
-        {/* ① Dashboard KPI strip */}
-        <section aria-label="Ringkasan Dashboard">
-          <DashboardStats records={enrichedRecords} />
-        </section>
 
         {/* ② Category navigation + content area */}
         <div className="flex flex-col md:flex-row w-full gap-4 items-start">

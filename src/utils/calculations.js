@@ -279,7 +279,7 @@ export function convertToAnnual(value, frequency, daysPerMonth = 30) {
   const freq = frequency || 'tahunan';
   switch (freq) {
     case 'harian':   return value * daysPerMonth * 12;
-    case 'mingguan': return value * 52;
+    case 'mingguan': return value * 4 * 12;   // 4 minggu × 12 bulan = 48 (Addendum #13)
     case 'bulanan':  return value * 12;
     case 'tahunan':
     default:         return value;
@@ -337,7 +337,7 @@ export function getConversionFormula(value, frequency, daysPerMonth = 30) {
   const freq = frequency || 'tahunan';
   switch (freq) {
     case 'harian':   return `${value.toLocaleString('id-ID')} × ${daysPerMonth} hari × 12 bulan`;
-    case 'mingguan': return `${value.toLocaleString('id-ID')} × 52 minggu`;
+    case 'mingguan': return `${value.toLocaleString('id-ID')} × 4 minggu × 12 bulan`;
     case 'bulanan':  return `${value.toLocaleString('id-ID')} × 12 bulan`;
     default:         return null;
   }

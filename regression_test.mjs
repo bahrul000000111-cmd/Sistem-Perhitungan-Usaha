@@ -140,7 +140,7 @@ console.log('\n══ SUITE 3: Addendum #2 — Frequency Selector ══\n');
 console.log('3.1 convertToAnnual() unit tests:');
 assert('tahunan ×1 (500k)', convertToAnnual(500_000, 'tahunan', 30), 500_000);
 assert('bulanan ×12 (500k)', convertToAnnual(500_000, 'bulanan', 30), 6_000_000);
-assert('mingguan ×52 (100k)', convertToAnnual(100_000, 'mingguan', 30), 5_200_000);
+assert('mingguan ×48 (100k)', convertToAnnual(100_000, 'mingguan', 30), 4_800_000);
 assert('harian ×30×12 (50k, 30 hari)', convertToAnnual(50_000, 'harian', 30), 18_000_000);
 assert('harian ×25×12 (50k, 25 hari)', convertToAnnual(50_000, 'harian', 25), 15_000_000);
 assert('null freq → tahunan ×1', convertToAnnual(200_000, null, 30), 200_000);
@@ -192,7 +192,7 @@ console.log('\n3.4 Reaktivitas per Hari: custom_days 25 → 30:');
 }
 
 // 3.5 Kasus per Minggu
-console.log('\n3.5 Konversi per Minggu (100k × 52 = 5.200.000):');
+console.log('\n3.5 Konversi per Minggu (100k × 48 = 4.800.000):');
 {
   const r = calculateRecord({ id: 'k4', categoryId: 'kuliner_rumah_makan', inputs: {
     pemasukan_harian: '500000',
@@ -200,7 +200,7 @@ console.log('\n3.5 Konversi per Minggu (100k × 52 = 5.200.000):');
     use_detail_pengeluaran: true,
     biaya_non_operasional: '100000', biaya_non_operasional_freq: 'mingguan'
   }}, []);
-  assert('26e mingguan 100k × 52 = 5.200.000', r.totalPengeluaranTahunan, 5_200_000);
+  assert('26e mingguan 100k × 48 = 4.800.000', r.totalPengeluaranTahunan, 4_800_000);
 }
 
 // 3.6 Backward compatibility — data lama tanpa freq keys
@@ -223,7 +223,7 @@ console.log('\n3.6 Backward compatibility — data lama tanpa freq keys:');
 console.log('\n3.7 getConversionFormula() unit tests:');
 assertEqual('tahunan → null', getConversionFormula(500_000, 'tahunan', 30), null);
 assertEqual('bulanan formula', getConversionFormula(200_000, 'bulanan', 30), '200.000 × 12 bulan');
-assertEqual('mingguan formula', getConversionFormula(100_000, 'mingguan', 30), '100.000 × 52 minggu');
+assertEqual('mingguan formula', getConversionFormula(100_000, 'mingguan', 30), '100.000 × 4 minggu × 12 bulan');
 assertEqual('harian formula 25 hari', getConversionFormula(50_000, 'harian', 25), '50.000 × 25 hari × 12 bulan');
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -706,6 +706,38 @@ console.log('\n7.2 Reaktivitas: Rata-rata Upah menjadi 2.000.000:');
   assert('Total Hasil Usaha Bersih = Rp62.400.000', r.totalHasilUsaha, 62_400_000);
   assert('Pendapatan per Bulan = Rp5.200.000', r.pendapatanPerBulan, 5_200_000);
 }
+
+// ─────────────────────────────────────────────────────────────────────────
+// SUITE 8: Addendum #13 — Weekly Conversion Factor & Calculations
+// ─────────────────────────────────────────────────────────────────────────
+console.log('\n══ SUITE 8: Addendum #13 — Weekly Conversion Factor Revisions ══\n');
+
+{
+  // 8.1 Weekly conversion factor in convertToAnnual
+  // expected base annual = 500.000 * 48 = 24.000.000
+  assert('Weekly value (500k) annualised = 24.000.000', convertToAnnual(500_000, 'mingguan', 30), 24_000_000);
+}
+
+{
+  // 8.2 Weekly expense conversion factor (100k) in calculateRecord
+  // expected annual expense = 100k * 48 = 4.800.000
+  const r = calculateRecord({
+    id: 'a13-2',
+    categoryId: 'kios_campuran',
+    inputs: {
+      pemasukan_harian: '500000', // harian 500k
+      custom_days: '30',
+      custom_rev_pct: '10',
+      custom_exp_pct: '30',
+      use_detail_pengeluaran: true,
+      biaya_produksi: '100000',
+      biaya_produksi_freq: 'mingguan' // 100k * 48 = 4.800.000
+    }
+  }, []);
+  
+  assert('Weekly expense (100k) annualised = 4.800.000', r.totalPengeluaranTahunan, 4_800_000);
+}
+
 
 // ─────────────────────────────────────────────────────────────────────────
 // Summary
