@@ -1061,17 +1061,16 @@ export default function InputForm({ categoryId, inputs, onInputChange, records }
                       </div>
                     )}
 
-                    {/* Hint: pekerja ada tapi biaya_upah masih 0 dan auto-mode off */}
+                    {/* Hint: pekerja DIBAYAR ada tapi biaya_upah masih 0 dan auto-mode off */}
                     {(() => {
-                      const totalAll = totalPekerjaDibayar
-                        + (parseInt(inputs.pekerja_tidak_dibayar_l) || 0)
-                        + (parseInt(inputs.pekerja_tidak_dibayar_p) || 0);
-                      if (totalAll === 0 || parseFloat(inputs.biaya_upah) > 0 || isWageAutoMode) return null;
+                      // Addendum #11: trigger hanya pada Pekerja DIBAYAR > 0, bukan total pekerja.
+                      // Pekerja Tidak Dibayar tidak punya komponen upah — jangan tampilkan peringatan.
+                      if (totalPekerjaDibayar === 0 || parseFloat(inputs.biaya_upah) > 0 || isWageAutoMode) return null;
                       return (
                         <div className="flex items-start gap-1.5 text-[10.5px] text-amber-400 bg-amber-500/8 border border-amber-500/15 rounded-lg px-2.5 py-1.5 leading-relaxed">
                           <span className="shrink-0 mt-0.5">⚠️</span>
                           <span>
-                            Usaha ini memiliki {totalAll} pekerja — isi Rata-rata Upah di atas untuk sinkronisasi otomatis, atau isi 26a secara manual.
+                            Usaha ini memiliki {totalPekerjaDibayar} pekerja dibayar — isi Rata-rata Upah di atas untuk sinkronisasi otomatis, atau isi 26a secara manual.
                           </span>
                         </div>
                       );
