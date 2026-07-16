@@ -163,8 +163,12 @@ export default function RecordCard({ record, allRecords, onUpdate, onDelete, onD
 
   // ── Handlers ────────────────────────────────────────────────────────────────
 
-  const handleInputChange = (field, value) => {
-    onUpdate(record.id, { inputs: { ...record.inputs, [field]: value } });
+  const handleInputChange = (fieldOrObject, value) => {
+    if (typeof fieldOrObject === 'object' && fieldOrObject !== null) {
+      onUpdate(record.id, { inputs: { ...record.inputs, ...fieldOrObject } });
+    } else {
+      onUpdate(record.id, { inputs: { ...record.inputs, [fieldOrObject]: value } });
+    }
   };
 
   const saveName = () => {

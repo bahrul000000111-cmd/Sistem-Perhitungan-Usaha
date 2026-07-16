@@ -621,6 +621,92 @@ console.log('\n6.8 Non-regresi: kategori kios_campuran tidak terpengaruh:');
   assert('Kios Campuran Bersih = 12.600.000', r.totalHasilUsaha, 12_600_000);
 }
 
+// ══ SUITE 7: Addendum #12 — Wage Auto-Sync Integration & Mathematical Aggregation ══
+console.log('\n══ SUITE 7: Addendum #12 — Wage Auto-Sync Integration & Mathematical Aggregation ══\n');
+
+// 7.1 Kasus utama dari prompt: Pekerja Dibayar = 3, Rata-rata Upah/bulan = Rp1.820.000, 26b harian = 50.000 (26 hari), 26c/d/e = 0
+// Total pendapatan = 150.000.000
+console.log('7.1 Kasus utama: Pekerja Dibayar = 3, Rata-rata Upah = 1.820.000, 26b harian = 50.000 (26 hari):');
+{
+  const r = calculateRecord({
+    id: 'a12-1',
+    categoryId: 'nelayan_tangkap',
+    inputs: {
+      income_method: 'nilai_langsung',
+      pemasukan_langsung: '1500000000',
+      pemasukan_langsung_freq: 'tahunan',
+      custom_days: '26',
+      
+      // Pekerja Dibayar (3 orang)
+      pekerja_dibayar_l: '2',
+      pekerja_dibayar_p: '1',
+      pekerja_tidak_dibayar_l: '1', // tidak dibayar, shouldn't affect wage estimation
+      rata_upah_per_pekerja: '1820000',
+      
+      use_detail_pengeluaran: true,
+      
+      biaya_produksi: '50000',
+      biaya_produksi_freq: 'harian',
+      biaya_hpp: '0',
+      biaya_hpp_freq: 'tahunan',
+      biaya_operasional: '0',
+      biaya_operasional_freq: 'tahunan',
+      biaya_non_operasional: '0',
+      biaya_non_operasional_freq: 'tahunan'
+    }
+  }, []);
+
+  // 26a = 3 * 1.820.000 * 12 = 65.520.000
+  // 26b = 50.000 * 26 * 12 = 15.600.000
+  // 26f = 65.520.000 + 15.600.000 = 81.120.000
+  // Hasil Usaha Bersih = 150.000.000 - 81.120.000 = 68.880.000
+  // Pendapatan per Bulan = 68.880.000 / 12 = 5.740.000
+  assert('Total Pendapatan Tahunan = Rp150.000.000', r.totalPendapatanTahunan, 150_000_000);
+  assert('Total Pengeluaran Tahunan (26f) = Rp81.120.000', r.totalPengeluaranTahunan, 81_120_000);
+  assert('Total Hasil Usaha Bersih = Rp68.880.000', r.totalHasilUsaha, 68_880_000);
+  assert('Pendapatan per Bulan = Rp5.740.000', r.pendapatanPerBulan, 5_740_000);
+}
+
+// 7.2 Reaktivitas: Ubah Rata-rata Upah/bulan dari 1.820.000 jadi 2.000.000 (pekerja tetap 3)
+console.log('\n7.2 Reaktivitas: Rata-rata Upah menjadi 2.000.000:');
+{
+  const r = calculateRecord({
+    id: 'a12-2',
+    categoryId: 'nelayan_tangkap',
+    inputs: {
+      income_method: 'nilai_langsung',
+      pemasukan_langsung: '1500000000',
+      pemasukan_langsung_freq: 'tahunan',
+      custom_days: '26',
+      
+      // Pekerja Dibayar (3 orang)
+      pekerja_dibayar_l: '2',
+      pekerja_dibayar_p: '1',
+      rata_upah_per_pekerja: '2000000',
+      
+      use_detail_pengeluaran: true,
+      
+      biaya_produksi: '50000',
+      biaya_produksi_freq: 'harian',
+      biaya_hpp: '0',
+      biaya_hpp_freq: 'tahunan',
+      biaya_operasional: '0',
+      biaya_operasional_freq: 'tahunan',
+      biaya_non_operasional: '0',
+      biaya_non_operasional_freq: 'tahunan'
+    }
+  }, []);
+
+  // 26a = 3 * 2.000.000 * 12 = 72.000.000
+  // 26b = 50.000 * 26 * 12 = 15.600.000
+  // 26f = 72.000.000 + 15.600.000 = 87.600.000
+  // Hasil Usaha Bersih = 150.000.000 - 87.600.000 = 62.400.000
+  // Pendapatan per Bulan = 62.400.000 / 12 = 5.200.000
+  assert('Total Pengeluaran Tahunan (26f) = Rp87.600.000', r.totalPengeluaranTahunan, 87_600_000);
+  assert('Total Hasil Usaha Bersih = Rp62.400.000', r.totalHasilUsaha, 62_400_000);
+  assert('Pendapatan per Bulan = Rp5.200.000', r.pendapatanPerBulan, 5_200_000);
+}
+
 // ─────────────────────────────────────────────────────────────────────────
 // Summary
 // ─────────────────────────────────────────────────────────────────────────

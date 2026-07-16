@@ -758,7 +758,15 @@ export function calculateRecord(record, allRecords = []) {
     // getDays reads custom_days from inputs (same as income side), fallback 30
     const daysPerMonth = getDays(inputs);
 
-    const upah    = convertToAnnual(parseFloat(inputs.biaya_upah)            || 0, inputs.biaya_upah_freq,           daysPerMonth);
+    const rataUpahPerPekerja = parseFloat(inputs.rata_upah_per_pekerja) || 0;
+    const isWageAutoMode = rataUpahPerPekerja > 0 && workers.totalDibayar > 0;
+    let upahValue = parseFloat(inputs.biaya_upah) || 0;
+    let upahFreq = inputs.biaya_upah_freq;
+    if (isWageAutoMode) {
+      upahValue = workers.totalDibayar * rataUpahPerPekerja * 12;
+      upahFreq = 'tahunan';
+    }
+    const upah    = convertToAnnual(upahValue, upahFreq, daysPerMonth);
     const prod    = convertToAnnual(parseFloat(inputs.biaya_produksi)        || 0, inputs.biaya_produksi_freq,       daysPerMonth);
     const hpp     = convertToAnnual(parseFloat(inputs.biaya_hpp)             || 0, inputs.biaya_hpp_freq,            daysPerMonth);
     const oper    = convertToAnnual(parseFloat(inputs.biaya_operasional)     || 0, inputs.biaya_operasional_freq,    daysPerMonth);

@@ -485,11 +485,13 @@ export default function InputForm({ categoryId, inputs, onInputChange, records }
   // Auto-sync 26a whenever the auto-mode inputs change
   useEffect(() => {
     if (isWageAutoMode) {
-      onInputChange('biaya_upah', String(estimasiUpahTahunan));
-      onInputChange('biaya_upah_freq', 'tahunan');
+      onInputChange({
+        biaya_upah: String(estimasiUpahTahunan),
+        biaya_upah_freq: 'tahunan'
+      });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isWageAutoMode, totalPekerjaDibayar, rataUpahPerPekerja]);
+  }, [isWageAutoMode, totalPekerjaDibayar, rataUpahPerPekerja, estimasiUpahTahunan]);
   // ─────────────────────────────────────────────────────────────────────────
 
   // ── Addendum #7: Nelayan income method ────────────────────────────────────
@@ -863,9 +865,11 @@ export default function InputForm({ categoryId, inputs, onInputChange, records }
                         value={hasNewKeys ? (inputs.pekerja_dibayar_l ?? '') : (inputs.pekerja_l ?? '')}
                         onChange={e => {
                           const v = e.target.value.replace(/\D/g, '');
-                          onInputChange('pekerja_dibayar_l', v);
-                          // Also clear legacy key if present to avoid ambiguity
-                          if (!hasNewKeys) onInputChange('pekerja_l', '');
+                          if (!hasNewKeys) {
+                            onInputChange({ pekerja_dibayar_l: v, pekerja_l: '' });
+                          } else {
+                            onInputChange('pekerja_dibayar_l', v);
+                          }
                         }}
                         className="w-1/2 rounded-xl border border-white/[0.08] bg-surface-700 text-slate-100 text-[12px] font-mono py-1.5 text-center outline-none focus:border-indigo-500/50"
                         title="Pekerja Dibayar Laki-laki"
@@ -876,8 +880,11 @@ export default function InputForm({ categoryId, inputs, onInputChange, records }
                         value={hasNewKeys ? (inputs.pekerja_dibayar_p ?? '') : (inputs.pekerja_p ?? '')}
                         onChange={e => {
                           const v = e.target.value.replace(/\D/g, '');
-                          onInputChange('pekerja_dibayar_p', v);
-                          if (!hasNewKeys) onInputChange('pekerja_p', '');
+                          if (!hasNewKeys) {
+                            onInputChange({ pekerja_dibayar_p: v, pekerja_p: '' });
+                          } else {
+                            onInputChange('pekerja_dibayar_p', v);
+                          }
                         }}
                         className="w-1/2 rounded-xl border border-white/[0.08] bg-surface-700 text-slate-100 text-[12px] font-mono py-1.5 text-center outline-none focus:border-indigo-500/50"
                         title="Pekerja Dibayar Perempuan"
