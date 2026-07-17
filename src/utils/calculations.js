@@ -419,7 +419,9 @@ export function calcKuliner(inputs = {}) {
 export function calcPerkebunanTahunan(inputs = {}) {
   const rawValue    = parseFloat(inputs.total_pendapatan_tahunan) || 0;
   const periodBulan = parseInt(inputs.harvest_period_bulan) || 12;
-  const totalPendapatan = convertHarvestToAnnual(rawValue, periodBulan);
+  const totalPendapatanKotor = convertHarvestToAnnual(rawValue, periodBulan);
+  const revPct = getRevPct(inputs, 100);
+  const totalPendapatan = totalPendapatanKotor * (revPct / 100);
   const expPct = getExpPct(inputs, 30);
 
   const totalPengeluaran = totalPendapatan * (expPct / 100);
@@ -434,6 +436,7 @@ export function calcPerkebunanTahunan(inputs = {}) {
     perPanen: null,
     setahun: null,
     meta: {
+      koefisien: `${revPct}%`,
       faktorPengeluaran: `${expPct}%`,
       rawPendapatan: rawValue,
       periodBulan,
@@ -448,10 +451,12 @@ export function calcPerkebunanTahunan(inputs = {}) {
  */
 export function calcKelapaPerTigaBulan(inputs = {}) {
   const pohon = parseFloat(inputs.jumlah_pohon) || 0;
+  const revPct = getRevPct(inputs, 100);
   const expPct = getExpPct(inputs, 30);
 
   // Per panen (single harvest)
-  const nilaiRevenuePanen = pohon * 25 * 2000;
+  const nilaiRevenuePanenKotor = pohon * 25 * 2000;
+  const nilaiRevenuePanen = nilaiRevenuePanenKotor * (revPct / 100);
   const pengeluaranPanen = nilaiRevenuePanen * (expPct / 100);
   const hasilPanen = nilaiRevenuePanen - pengeluaranPanen;
   const pendapatanBulanPanen = hasilPanen / 12; // annualized monthly basis
@@ -479,7 +484,7 @@ export function calcKelapaPerTigaBulan(inputs = {}) {
       totalHasilUsaha,
       pendapatanPerBulan
     },
-    meta: { jumlah_pohon: pohon, hargaPerBuah: 2000, buahPerPohon: 25, panenPerTahun: 4, faktorPengeluaran: `${expPct}%` }
+    meta: { jumlah_pohon: pohon, hargaPerBuah: 2000, buahPerPohon: 25, panenPerTahun: 4, koefisien: `${revPct}%`, faktorPengeluaran: `${expPct}%` }
   };
 }
 
@@ -489,10 +494,12 @@ export function calcKelapaPerTigaBulan(inputs = {}) {
  */
 export function calcKopra(inputs = {}) {
   const berat = parseFloat(inputs.berat_kopra) || 0;
+  const revPct = getRevPct(inputs, 100);
   const expPct = getExpPct(inputs, 30);
 
   // Per panen
-  const nilaiRevenuePanen = (berat / 5) * 15000;
+  const nilaiRevenuePanenKotor = (berat / 5) * 15000;
+  const nilaiRevenuePanen = nilaiRevenuePanenKotor * (revPct / 100);
   const pengeluaranPanen = nilaiRevenuePanen * (expPct / 100);
   const hasilPanen = nilaiRevenuePanen - pengeluaranPanen;
   const pendapatanBulanPanen = hasilPanen / 12;
@@ -520,7 +527,7 @@ export function calcKopra(inputs = {}) {
       totalHasilUsaha,
       pendapatanPerBulan
     },
-    meta: { berat_kopra: berat, hargaPerUnit: 15000, unitPer5Kg: berat / 5, panenPerTahun: 4, faktorPengeluaran: `${expPct}%` }
+    meta: { berat_kopra: berat, hargaPerUnit: 15000, unitPer5Kg: berat / 5, panenPerTahun: 4, koefisien: `${revPct}%`, faktorPengeluaran: `${expPct}%` }
   };
 }
 
@@ -530,10 +537,11 @@ export function calcKopra(inputs = {}) {
  */
 export function calcTempurung(inputs = {}) {
   const berat = parseFloat(inputs.berat_tempurung) || 0;
+  const revPct = getRevPct(inputs, 100);
   const expPct = getExpPct(inputs, 10);
 
-  const nilaiHarianBox = (berat / 10) * 5000;
-  const totalPendapatan = nilaiHarianBox;
+  const nilaiHarianBoxKotor = (berat / 10) * 5000;
+  const totalPendapatan = nilaiHarianBoxKotor * (revPct / 100);
   const totalPengeluaran = totalPendapatan * (expPct / 100);
   const totalHasilUsaha = totalPendapatan - totalPengeluaran;
   const pendapatanPerBulan = totalHasilUsaha / 12;
@@ -545,7 +553,7 @@ export function calcTempurung(inputs = {}) {
     pendapatanPerBulan,
     perPanen: null,
     setahun: null,
-    meta: { nilaiHarianBox, berat_tempurung: berat, faktorPengeluaran: `${expPct}%` }
+    meta: { nilaiHarianBox: nilaiHarianBoxKotor, berat_tempurung: berat, koefisien: `${revPct}%`, faktorPengeluaran: `${expPct}%` }
   };
 }
 
@@ -555,6 +563,7 @@ export function calcTempurung(inputs = {}) {
  */
 export function calcArangTempurung(inputs = {}, linkedNilaiHarianBox = null) {
   let nilaiHarianBox;
+  const revPct = getRevPct(inputs, 100);
   const expPct = getExpPct(inputs, 10);
 
   if (inputs.link_tempurung && linkedNilaiHarianBox !== null) {
@@ -564,8 +573,8 @@ export function calcArangTempurung(inputs = {}, linkedNilaiHarianBox = null) {
     nilaiHarianBox = (berat / 10) * 5000;
   }
 
-  const nilaiHarianArang = nilaiHarianBox + 13500;
-  const totalPendapatan = nilaiHarianArang;
+  const nilaiHarianArangKotor = nilaiHarianBox + 13500;
+  const totalPendapatan = nilaiHarianArangKotor * (revPct / 100);
   const totalPengeluaran = totalPendapatan * (expPct / 100);
   const totalHasilUsaha = totalPendapatan - totalPengeluaran;
   const pendapatanPerBulan = totalHasilUsaha / 12;
@@ -577,7 +586,7 @@ export function calcArangTempurung(inputs = {}, linkedNilaiHarianBox = null) {
     pendapatanPerBulan,
     perPanen: null,
     setahun: null,
-    meta: { nilaiHarianBox, nilaiHarianArang, tambahan: 13500, faktorPengeluaran: `${expPct}%` }
+    meta: { nilaiHarianBox, nilaiHarianArang: nilaiHarianArangKotor, tambahan: 13500, koefisien: `${revPct}%`, faktorPengeluaran: `${expPct}%` }
   };
 }
 

@@ -626,14 +626,15 @@ export default function InputForm({ categoryId, inputs, onInputChange, records }
 
   // Determine modifiers config
   const hasDailyModifier = ['kios_campuran', 'kuliner_rumah_makan', 'nelayan_tangkap', 'generik_harian'].includes(categoryId);
-  const hasRevenueModifier = hasDailyModifier;
+  const hasRevenueModifier = !isBagiHasilMode;
 
-  let defaultRevPct = 10;
+  let defaultRevPct = 100;
   let defaultExpPct = 30;
   if (categoryId === 'kios_campuran')           { defaultRevPct = 10;  defaultExpPct = 30; }
   else if (categoryId === 'kuliner_rumah_makan') { defaultRevPct = 60;  defaultExpPct = 40; }
   else if (categoryId === 'generik_harian')      { defaultRevPct = 20;  defaultExpPct = 30; }
-  else if (categoryId === 'tempurung' || categoryId === 'arang_tempurung') { defaultExpPct = 10; }
+  else if (categoryId === 'nelayan_tangkap')     { defaultRevPct = 10;  defaultExpPct = 30; }
+  else if (categoryId === 'tempurung' || categoryId === 'arang_tempurung') { defaultRevPct = 100; defaultExpPct = 10; }
 
   const rawDays = inputs.custom_days;
   const displayDays = (rawDays !== undefined && rawDays !== '') ? rawDays : 30;
@@ -773,7 +774,60 @@ export default function InputForm({ categoryId, inputs, onInputChange, records }
   const opsiB_freq      = inputs.pemasukan_langsung_freq || 'harian';
   const opsiB_daily     = convertToDaily(opsiB_rawIncome, opsiB_freq, daysNum);
   const opsiB_freqLabel = INCOME_FREQ_OPTIONS.find(o => o.key === opsiB_freq)?.label || 'per Hari';
-  const revPct          = (inputs.custom_rev_pct !== undefined && inputs.custom_rev_pct !== '') ? Number(inputs.custom_rev_pct) : 10;
+  const getFormulaText = () => {
+    const revPctVal = (inputs.custom_rev_pct !== undefined && inputs.custom_rev_pct !== '') ? inputs.custom_rev_pct : defaultRevPct;
+    const expPctVal = (inputs.custom_exp_pct !== undefined && inputs.custom_exp_pct !== '') ? inputs.custom_exp_pct : defaultExpPct;
+
+    const total26f =
+      (parseFloat(inputs.biaya_upah)            || 0) +
+      (parseFloat(inputs.biaya_produksi)        || 0) +
+      (parseFloat(inputs.biaya_hpp)             || 0) +
+      (parseFloat(inputs.biaya_operasional)     || 0) +
+      (parseFloat(inputs.biaya_non_operasional) || 0);
+
+    if (isBagiHasilMode) {
+      if (isDetailPengeluaranActive) {
+        return `Pendapatan: Hasil Tangkap/Trip × Harga × ${tripQty} Trip/bln × 12 bln · Pengeluaran: Upah Kru (26a) + Operasional Trip (26b) = Rp${total26f.toLocaleString('id-ID')}`;
+      }
+      return `Pendapatan: Hasil Tangkap/Trip × Harga × ${tripQty} Trip/bln × 12 bln · Pengeluaran: Upah Kru (26a) + Operasional Trip (26b)`;
+    }
+
+    let pendapatan;
+    if (isNelayan && incomeMethod === 'nilai_langsung') {
+      const freqTxt = INCOME_FREQ_OPTIONS.find(o => o.key === opsiB_freq)?.label || 'per Hari';
+      let factorDesc = '';
+      if (opsiB_freq === 'harian') {
+        factorDesc = `${daysNum} Hari × 12 Bulan`;
+      } else if (opsiB_freq === 'mingguan') {
+        factorDesc = '48 Minggu';
+      } else if (opsiB_freq === 'bulanan') {
+        factorDesc = '12 Bulan';
+      } else if (opsiB_freq === 'tahunan') {
+        factorDesc = '1';
+      }
+      pendapatan = `Pendapatan Kotor (${freqTxt}) × ${factorDesc} × ${revPctVal}% koefisien`;
+    } else if (categoryId === 'kios_campuran' || categoryId === 'kuliner_rumah_makan' || categoryId === 'generik_harian') {
+      const days = (inputs.custom_days !== undefined && inputs.custom_days !== '') ? inputs.custom_days : 30;
+      pendapatan = `Pemasukan × ${days} Hari × 12 Bulan × ${revPctVal}% koefisien`;
+    } else if (categoryId === 'perkebunan_tahunan') {
+      pendapatan = `Input langsung pendapatan (per periode) × ${revPctVal}% koefisien`;
+    } else if (categoryId === 'kelapa_per3bulan') {
+      pendapatan = `Harga: 25 buah/pohon × Rp 2.000 × 4 panen/tahun × ${revPctVal}% koefisien`;
+    } else if (categoryId === 'industri_kopra') {
+      pendapatan = `Harga: (berat ÷ 5) × Rp 15.000 × 4 siklus/tahun × ${revPctVal}% koefisien`;
+    } else if (categoryId === 'tempurung') {
+      pendapatan = `Harga: (berat ÷ 10) × Rp 5.000 × ${revPctVal}% koefisien`;
+    } else if (categoryId === 'arang_tempurung') {
+      pendapatan = `Nilai Batch = (Nilai Bahan Baku + Nilai Tambah Tetap) × ${revPctVal}% koefisien`;
+    } else {
+      pendapatan = `Pendapatan Kotor × ${revPctVal}% koefisien`;
+    }
+
+    if (isDetailPengeluaranActive) {
+      return `${pendapatan} · Pengeluaran: Rincian Manual (26f) = Rp${total26f.toLocaleString('id-ID')}`;
+    }
+    return `${pendapatan} · Faktor pengeluaran ${expPctVal}%`;
+  };
 
   return (
     <div className="flex flex-col gap-4">
@@ -1784,68 +1838,7 @@ export default function InputForm({ categoryId, inputs, onInputChange, records }
       {/* ── Formula Footer Note ── */}
       <div className="text-[11px] text-slate-500 bg-surface-800/50 border border-white/[0.04] rounded-xl px-3 py-2.5 leading-relaxed font-sans">
         <span className="text-slate-400 font-semibold">Formula: </span>
-        {isDetailPengeluaranActive
-          ? (() => {
-              // When rincian mode is active, show live 26f total
-              const total26f =
-                (parseFloat(inputs.biaya_upah)            || 0) +
-                (parseFloat(inputs.biaya_produksi)        || 0) +
-                (parseFloat(inputs.biaya_hpp)             || 0) +
-                (parseFloat(inputs.biaya_operasional)     || 0) +
-                (parseFloat(inputs.biaya_non_operasional) || 0);
-              if (isBagiHasilMode) {
-                return `Pendapatan: Hasil Tangkap/Trip × Harga × ${tripQty} Trip/bln × 12 bln · Pengeluaran: Upah Kru (26a) + Operasional Trip (26b) = Rp${total26f.toLocaleString('id-ID')}`;
-              }
-              let pendapatan;
-              if (isNelayan && incomeMethod === 'nilai_langsung') {
-                const revPctVal = (inputs.custom_rev_pct !== undefined && inputs.custom_rev_pct !== '') ? inputs.custom_rev_pct : 10;
-                const freqTxt = INCOME_FREQ_OPTIONS.find(o => o.key === opsiB_freq)?.label || 'per Hari';
-                let factorDesc = '';
-                if (opsiB_freq === 'harian') {
-                  factorDesc = `${daysNum} Hari × 12 Bulan`;
-                } else if (opsiB_freq === 'mingguan') {
-                  factorDesc = '48 Minggu';
-                } else if (opsiB_freq === 'bulanan') {
-                  factorDesc = '12 Bulan';
-                } else if (opsiB_freq === 'tahunan') {
-                  factorDesc = '1';
-                }
-                pendapatan = `Pendapatan Kotor (${freqTxt}) × ${factorDesc} × ${revPctVal}% koefisien`;
-              } else if (hasDailyModifier) {
-                const days   = (inputs.custom_days    !== undefined && inputs.custom_days    !== '') ? inputs.custom_days    : 30;
-                const revPctVal = (inputs.custom_rev_pct !== undefined && inputs.custom_rev_pct !== '') ? inputs.custom_rev_pct : (categoryId === 'kuliner_rumah_makan' ? 60 : 10);
-                pendapatan = `Pemasukan × ${days} Hari × 12 Bulan × ${revPctVal}% koefisien`;
-              } else {
-                pendapatan = category.note.split('·')[0].trim();
-              }
-              return `${pendapatan} · Pengeluaran: Rincian Manual (26f) = Rp${total26f.toLocaleString('id-ID')}`;
-            })()
-          : isNelayan && incomeMethod === 'nilai_langsung'
-            ? (() => {
-                const revPctVal = (inputs.custom_rev_pct !== undefined && inputs.custom_rev_pct !== '') ? inputs.custom_rev_pct : 10;
-                const expPctVal = (inputs.custom_exp_pct !== undefined && inputs.custom_exp_pct !== '') ? inputs.custom_exp_pct : 30;
-                const freqTxt = INCOME_FREQ_OPTIONS.find(o => o.key === opsiB_freq)?.label || 'per Hari';
-                let factorDesc = '';
-                if (opsiB_freq === 'harian') {
-                  factorDesc = `${daysNum} Hari × 12 Bulan`;
-                } else if (opsiB_freq === 'mingguan') {
-                  factorDesc = '48 Minggu';
-                } else if (opsiB_freq === 'bulanan') {
-                  factorDesc = '12 Bulan';
-                } else if (opsiB_freq === 'tahunan') {
-                  factorDesc = '1';
-                }
-                return `Pendapatan Kotor (${freqTxt}) × ${factorDesc} × ${revPctVal}% koefisien · Pengeluaran ${expPctVal}%`;
-              })()
-            : hasDailyModifier
-              ? (() => {
-                  const days   = (inputs.custom_days    !== undefined && inputs.custom_days    !== '') ? inputs.custom_days    : 30;
-                  const revPct = (inputs.custom_rev_pct !== undefined && inputs.custom_rev_pct !== '') ? inputs.custom_rev_pct : (categoryId === 'kuliner_rumah_makan' ? 60 : 10);
-                  const expPct = (inputs.custom_exp_pct !== undefined && inputs.custom_exp_pct !== '') ? inputs.custom_exp_pct : (categoryId === 'kuliner_rumah_makan' ? 40 : 30);
-                  return `Pemasukan × ${days} Hari × 12 Bulan × ${revPct}% koefisien · Pengeluaran ${expPct}%`;
-                })()
-              : category.note
-        }
+        {getFormulaText()}
       </div>
 
       {/* ── Floating Drawer Panel (Addendum #18) ── */}

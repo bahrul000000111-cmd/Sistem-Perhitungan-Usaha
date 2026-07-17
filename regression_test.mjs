@@ -878,6 +878,87 @@ console.log('\n10.2 Migration of Bagi Hasil Kru/Trip:');
 
 
 // ─────────────────────────────────────────────────────────────────────────
+// SUITE 11: Addendum #19 — Universal Revenue Coefficient for M2/M3
+// ─────────────────────────────────────────────────────────────────────────
+console.log('\n══ SUITE 11: Addendum #19 — Universal Revenue Coefficient for M2/M3 ══\n');
+
+// 11.1 Usaha Perkebunan (M2) - Default 100%
+console.log('11.1 Usaha Perkebunan (M2) - Default 100%:');
+{
+  const r = calculateRecord({
+    id: 'perkebunan-default',
+    categoryId: 'perkebunan_tahunan',
+    inputs: {
+      total_pendapatan_tahunan: '7000000',
+      harvest_period_bulan: '12',
+      custom_exp_pct: '30'
+    }
+  }, []);
+
+  assert('Total Pendapatan Kotor/Tahunan = Rp7.000.000', r.totalPendapatanTahunan, 7_000_000);
+  assert('Total Pengeluaran Tahunan = Rp2.100.000', r.totalPengeluaranTahunan, 2_100_000);
+  assert('Total Hasil Usaha Bersih = Rp4.900.000', r.totalHasilUsaha, 4_900_000);
+  assert('Pendapatan Per Bulan ≈ Rp408.333', r.pendapatanPerBulan, 408_333.33, 1.0);
+}
+
+// 11.2 Usaha Perkebunan (M2) - Custom 70%
+console.log('\n11.2 Usaha Perkebunan (M2) - Custom 70%:');
+{
+  const r = calculateRecord({
+    id: 'perkebunan-custom',
+    categoryId: 'perkebunan_tahunan',
+    inputs: {
+      total_pendapatan_tahunan: '7000000',
+      harvest_period_bulan: '12',
+      custom_rev_pct: '70',
+      custom_exp_pct: '30'
+    }
+  }, []);
+
+  assert('Total Pendapatan Tahunan = Rp4.900.000', r.totalPendapatanTahunan, 4_900_000);
+  assert('Total Pengeluaran Tahunan = Rp1.470.000', r.totalPengeluaranTahunan, 1_470_000);
+  assert('Total Hasil Usaha Bersih = Rp3.430.000', r.totalHasilUsaha, 3_430_000);
+  assert('Pendapatan Per Bulan ≈ Rp285.833', r.pendapatanPerBulan, 285_833.33, 1.0);
+}
+
+// 11.3 Usaha M3 (Kelapa) - Default 100%
+console.log('\n11.3 Usaha M3 (Kelapa) - Default 100%:');
+{
+  const r = calculateRecord({
+    id: 'kelapa-default',
+    categoryId: 'kelapa_per3bulan',
+    inputs: {
+      jumlah_pohon: '30',
+      custom_exp_pct: '30'
+    }
+  }, []);
+
+  assert('Total Pendapatan Tahunan = Rp6.000.000', r.totalPendapatanTahunan, 6_000_000);
+  assert('Total Hasil Usaha Bersih = Rp4.200.000', r.totalHasilUsaha, 4_200_000);
+  assert('Pendapatan Per Bulan = Rp350.000', r.pendapatanPerBulan, 350_000);
+}
+
+// 11.4 Usaha M3 (Kelapa) - Custom 80%
+console.log('\n11.4 Usaha M3 (Kelapa) - Custom 80%:');
+{
+  const r = calculateRecord({
+    id: 'kelapa-custom',
+    categoryId: 'kelapa_per3bulan',
+    inputs: {
+      jumlah_pohon: '30',
+      custom_rev_pct: '80',
+      custom_exp_pct: '30'
+    }
+  }, []);
+
+  assert('Total Pendapatan Tahunan = Rp4.800.000', r.totalPendapatanTahunan, 4_800_000);
+  assert('Total Pengeluaran Tahunan = Rp1.440.000', r.totalPengeluaranTahunan, 1_440_000);
+  assert('Total Hasil Usaha Bersih = Rp3.360.000', r.totalHasilUsaha, 3_360_000);
+  assert('Pendapatan Per Bulan = Rp280.000', r.pendapatanPerBulan, 280_000);
+}
+
+
+// ─────────────────────────────────────────────────────────────────────────
 // Summary
 // ─────────────────────────────────────────────────────────────────────────
 console.log(`\n══ HASIL: ${pass} lulus, ${fail} gagal ══`);
