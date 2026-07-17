@@ -5,9 +5,11 @@
  * and displays an optional BPS SE2026-L data section.
  */
 import { useState, useEffect, useRef, useLayoutEffect } from 'react';
-import { AlertCircle, Link2, Link2Off, Info, ChevronDown, ChevronUp, Users, Calendar, DollarSign, Globe, Building2 } from 'lucide-react';
+import { AlertCircle, Link2, Link2Off, Info, ChevronDown, ChevronUp, Users, Calendar, DollarSign, Globe, Building2, X } from 'lucide-react';
 import { formatRupiah, formatNumberWithDots } from '../utils/formatters';
 import { CATEGORIES, getConversionFormula, convertToAnnual, convertToDaily, convertHarvestToAnnual, calculateRecord } from '../utils/calculations';
+import { KOEFISIEN_GUIDE_DATA } from '../utils/koefisienGuideData';
+
 
 /**
  * HarvestPeriodSelector — Addendum #9
@@ -291,20 +293,31 @@ function UnitInput({ id, label, value, onChange, placeholder, suffix, tooltip })
 /**
  * Reusable percentage modifier slider linked with number input.
  */
-function PercentSlider({ id, label, value, onChange, defaultValue, tooltip }) {
+function PercentSlider({ id, label, value, onChange, defaultValue, tooltip, onOpenGuide }) {
   const displayValue = (value !== undefined && value !== '') ? value : defaultValue;
 
   return (
     <div className="flex flex-col gap-1.5">
       <div className="flex justify-between items-center">
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-1.5 flex-wrap">
           <label htmlFor={id} className="text-[12px] font-medium text-slate-300">
             {label}
           </label>
           {tooltip && (
-            <div className="tooltip cursor-pointer text-slate-500 hover:text-slate-300" data-tip={tooltip}>
+            <div className="tooltip cursor-pointer text-slate-500 hover:text-slate-300 animate-fade-in" data-tip={tooltip}>
               <Info size={13} />
             </div>
+          )}
+          {onOpenGuide && (
+            <button
+              id={`btn-guide-${id}`}
+              type="button"
+              onClick={onOpenGuide}
+              className="flex items-center gap-0.5 text-[9.5px] font-bold text-amber-400 bg-amber-500/10 hover:bg-amber-500/20 px-1.5 py-0.5 rounded transition-all cursor-pointer select-none"
+              title="Lihat Panduan Koefisien Donggala"
+            >
+              <span>💡 Panduan</span>
+            </button>
           )}
         </div>
         <span className="text-[11px] font-semibold font-mono text-indigo-300 bg-indigo-500/15 px-1.5 py-0.5 rounded">
@@ -568,6 +581,30 @@ const AUTO_FLAG_SUFFIX = '_auto_proportion';
 export default function InputForm({ categoryId, inputs, onInputChange, records }) {
 
   const [showBps, setShowBps] = useState(false);
+  const [isGuideOpen, setIsGuideOpen] = useState(false);
+  const guideRef = useRef(null);
+
+  // Close guide drawer when clicking outside, excluding form elements and sliders
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (guideRef.current && !guideRef.current.contains(event.target)) {
+        const isClickingFormInput =
+          event.target.closest('input') ||
+          event.target.closest('select') ||
+          event.target.closest('button') ||
+          event.target.closest('.tooltip');
+        if (!isClickingFormInput) {
+          setIsGuideOpen(false);
+        }
+      }
+    }
+    if (isGuideOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isGuideOpen]);
 
   const category = CATEGORIES.find(c => c.id === categoryId);
   if (!category) return null;
@@ -750,8 +787,10 @@ export default function InputForm({ categoryId, inputs, onInputChange, records }
         />
       )}
 
-      {/* Bagi Hasil Kru/Trip fields (shown when method = bagi_hasil or legacy volume_harga with workers >= 2) */}
-      {isBagiHasilMode && (
+      {isNelayan && (
+        <>
+          {/* Bagi Hasil Kru/Trip fields (shown when method = bagi_hasil or legacy volume_harga with workers >= 2) */}
+          {isBagiHasilMode && (
             <>
               <UnitInput
                 id="input-satuan-kg"
@@ -1151,14 +1190,25 @@ export default function InputForm({ categoryId, inputs, onInputChange, records }
 
       {/* ── Custom Parameters Section ── */}
       {!isBagiHasilMode && (
-        <div className="mt-2 pt-4 border-t border-white/[0.06] space-y-3.5">
-          <div className="flex items-center gap-1.5">
-            <p className="text-[10px] font-bold text-indigo-400 uppercase tracking-wider">
-              Koefisien &amp; Parameter Kustom
-            </p>
-            <div className="tooltip cursor-pointer text-slate-500 hover:text-slate-300" data-tip="Sesuaikan faktor koefisien pendapatan normatif BPS, faktor pengeluaran usaha, atau hari kerja per bulan.">
-              <Info size={12} />
+        <div className="mt-2 pt-4 border-t border-white/[0.06] space-y-3.5 animate-fade-in">
+          <div className="flex justify-between items-center">
+            <div className="flex items-center gap-1.5">
+              <p className="text-[10px] font-bold text-indigo-400 uppercase tracking-wider">
+                Koefisien &amp; Parameter Kustom
+              </p>
+              <div className="tooltip cursor-pointer text-slate-500 hover:text-slate-300" data-tip="Sesuaikan faktor koefisien pendapatan normatif BPS, faktor pengeluaran usaha, atau hari kerja per bulan.">
+                <Info size={12} />
+              </div>
             </div>
+            {/* Guide Trigger Button */}
+            <button
+              id="btn-trigger-guide"
+              type="button"
+              onClick={() => setIsGuideOpen(true)}
+              className="flex items-center gap-1 text-[10.5px] font-semibold text-amber-400 hover:text-amber-300 transition-colors cursor-pointer"
+            >
+              <span>💡 Panduan Koefisien</span>
+            </button>
           </div>
 
           {/* Revenue Modifier */}
@@ -1170,6 +1220,7 @@ export default function InputForm({ categoryId, inputs, onInputChange, records }
               onChange={val => onInputChange('custom_rev_pct', val)}
               defaultValue={defaultRevPct}
               tooltip="Faktor proporsi pendapatan kotor yang diakui sebagai output bruto menurut norma sektoral BPS."
+              onOpenGuide={() => setIsGuideOpen(true)}
             />
           )}
 
@@ -1796,6 +1847,145 @@ export default function InputForm({ categoryId, inputs, onInputChange, records }
               : category.note
         }
       </div>
+
+      {/* ── Floating Drawer Panel (Addendum #18) ── */}
+      {isGuideOpen && (
+        <div
+          ref={guideRef}
+          id="koefisien-floating-drawer"
+          className="fixed right-4 top-20 bottom-4 w-[360px] max-w-[calc(100vw-32px)] glass rounded-2xl border border-white/[0.08] shadow-2xl z-40 flex flex-col overflow-hidden animate-slide-in-right"
+          style={{ maxHeight: 'calc(100vh - 120px)' }}
+        >
+          {/* Drawer Header */}
+          <div className="flex items-center justify-between px-4 py-3 border-b border-white/[0.07] bg-surface-800/80 shrink-0">
+            <div className="flex items-center gap-2">
+              <span className="text-base">💡</span>
+              <div>
+                <h3 className="text-[12.5px] font-bold text-white">Panduan Koefisien</h3>
+                <p className="text-[9.5px] text-indigo-400 font-semibold tracking-wide">MASTER GUIDE DONGGALA</p>
+              </div>
+            </div>
+            <button
+              id="btn-close-guide"
+              type="button"
+              onClick={() => setIsGuideOpen(false)}
+              className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-white hover:bg-surface-700 transition-colors cursor-pointer"
+            >
+              <X size={15} />
+            </button>
+          </div>
+
+          {/* Drawer Content */}
+          <div className="flex-1 overflow-y-auto p-4 space-y-4 scrollbar-none" style={{ scrollbarWidth: 'none' }}>
+            {(() => {
+              const getGuideKey = () => {
+                if (inputs._groupKey) return inputs._groupKey;
+                if (categoryId === 'kios_campuran' || categoryId === 'tempurung') return 'perdagangan';
+                if (categoryId === 'kuliner_rumah_makan') return 'akomodasi-makan-minum';
+                if (categoryId === 'perkebunan_tahunan' || categoryId === 'kelapa_per3bulan') return 'perkebunan';
+                if (categoryId === 'industri_kopra' || categoryId === 'arang_tempurung') return 'industri-pengolahan';
+                if (categoryId === 'nelayan_tangkap') return 'perikanan';
+                return null;
+              };
+              const guideKey = getGuideKey();
+              const guide = KOEFISIEN_GUIDE_DATA[guideKey];
+
+              if (!guide) {
+                return (
+                  <div className="flex flex-col items-center justify-center py-10 text-center gap-3">
+                    <span className="text-3xl">⚠️</span>
+                    <p className="text-[11.5px] text-slate-400 max-w-[240px] leading-relaxed">
+                      Panduan koefisien untuk kategori ini belum tersedia. Gunakan penilaian usaha Anda sendiri, atau hubungi admin untuk menambahkan panduan.
+                    </p>
+                  </div>
+                );
+              }
+
+              return (
+                <div className="space-y-3.5">
+                  <div className="text-[11px] font-bold text-slate-350 uppercase tracking-widest pl-0.5">
+                    {guide.title}
+                  </div>
+                  {guide.note && (
+                    <div className="text-[10px] text-amber-350 bg-amber-500/10 border border-amber-500/15 rounded-xl p-2.5 leading-relaxed font-sans">
+                      📌 <strong>Catatan:</strong> {guide.note}
+                    </div>
+                  )}
+                  <div className="flex flex-col gap-3">
+                    {guide.levels.map((level, idx) => {
+                      const currentVal = parseFloat(inputs.custom_rev_pct !== undefined && inputs.custom_rev_pct !== '' ? inputs.custom_rev_pct : defaultRevPct);
+                      const isMatch = currentVal >= level.min && currentVal <= level.max;
+                      return (
+                        <div
+                          key={idx}
+                          id={`guide-card-${idx}`}
+                          className={`p-3 rounded-xl border transition-all flex flex-col gap-2 ${
+                            isMatch
+                              ? 'bg-indigo-500/10 border-indigo-500 shadow-[0_0_12px_rgba(99,102,241,0.15)] animate-fade-in'
+                              : 'bg-surface-800/40 border-white/[0.06] hover:bg-surface-800/60'
+                          }`}
+                        >
+                          <div className="flex justify-between items-start gap-1">
+                            <div className="flex-1">
+                              <h4 className="text-[11px] font-bold text-slate-200">{level.name}</h4>
+                              <p className="text-[10.5px] font-mono text-indigo-400 font-bold mt-0.5">
+                                Rentang: {level.min}% – {level.max}%
+                              </p>
+                            </div>
+                            {isMatch && (
+                              <span className="text-[8px] font-extrabold uppercase px-1.5 py-0.5 rounded bg-indigo-500 text-white shrink-0 select-none">
+                                Cocok
+                              </span>
+                            )}
+                          </div>
+
+                          <p className="text-[11px] text-slate-400 leading-relaxed pl-0.5">
+                            {level.guide}
+                          </p>
+
+                          <div className="flex gap-2 mt-1">
+                            <button
+                              id={`btn-apply-range-${idx}`}
+                              type="button"
+                              onClick={() => {
+                                const mid = Math.round((level.min + level.max) / 2);
+                                onInputChange('custom_rev_pct', String(mid));
+                              }}
+                              className="text-[10px] font-bold py-1.5 px-2 rounded-lg bg-surface-700 hover:bg-surface-600 text-slate-200 hover:text-white transition-all cursor-pointer flex-1 text-center border border-white/[0.04] outline-none"
+                            >
+                              Gunakan Rentang Ini ({Math.round((level.min + level.max) / 2)}%)
+                            </button>
+
+                            {level.action && level.action.type === 'activate_bagi_hasil' && (
+                              <button
+                                id={`btn-guide-activate-bagi-hasil-${idx}`}
+                                type="button"
+                                onClick={() => {
+                                  onInputChange('income_method', 'bagi_hasil');
+                                }}
+                                className="text-[10px] font-bold py-1.5 px-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white transition-all cursor-pointer flex-1 text-center outline-none"
+                              >
+                                {level.action.label}
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })()}
+          </div>
+
+          {/* Drawer Footer */}
+          <div className="px-4 py-2 border-t border-white/[0.05] bg-surface-850 shrink-0">
+            <p className="text-[9.5px] text-slate-500 text-center leading-normal">
+              Nilai Koefisien Pendapatan (%) dapat disesuaikan secara bebas sesuai kondisi riil usaha di lapangan.
+            </p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
