@@ -41,6 +41,20 @@ export function formatNumber(value) {
 }
 
 /**
+ * Format a digit string (or number) with thousands separator (dots, Indonesian standard).
+ * Safe for in-progress typing (handles empty string, preserves leading digits).
+ * @param {string|number} val
+ * @returns {string}
+ */
+export function formatNumberWithDots(val) {
+  if (val === undefined || val === null || val === '') return '';
+  const raw = String(val).replace(/\D/g, '');
+  if (!raw) return '';
+  return raw.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+}
+
+
+/**
  * Parse a formatted Rupiah string back to a raw number.
  * "Rp 1.500.000" → 1500000
  * @param {string} str

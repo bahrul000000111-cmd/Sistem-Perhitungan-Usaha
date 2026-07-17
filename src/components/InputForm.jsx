@@ -4,9 +4,9 @@
  * Renders standardized fields per category, validates inputs,
  * and displays an optional BPS SE2026-L data section.
  */
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useLayoutEffect } from 'react';
 import { AlertCircle, Link2, Link2Off, Info, ChevronDown, ChevronUp, Users, Calendar, DollarSign, Globe, Building2 } from 'lucide-react';
-import { formatRupiah } from '../utils/formatters';
+import { formatRupiah, formatNumberWithDots } from '../utils/formatters';
 import { CATEGORIES, getConversionFormula, convertToAnnual, convertToDaily, convertHarvestToAnnual, calculateRecord } from '../utils/calculations';
 
 /**
@@ -48,27 +48,23 @@ function HarvestPeriodSelector({ id, label, value, onValueChange, periodValue, o
       </label>
       <div className="flex gap-2 items-stretch">
         {/* Value input */}
-        <div className="relative flex-1">
-          <div className="absolute left-3 top-1/2 -translate-y-1/2 text-[11.5px] text-slate-400 font-mono select-none">Rp</div>
-          <input
-            id={id}
-            type="number"
-            inputMode="numeric"
-            min="0"
-            placeholder={placeholder || '12000000'}
-            value={value}
-            onFocus={() => setFocused(true)}
-            onBlur={() => setFocused(false)}
-            onChange={e => onValueChange(e.target.value.replace(/[^0-9.]/g, ''))}
-            className="w-full rounded-xl border border-white/[0.08] bg-surface-700 text-slate-100 text-[13px] font-mono py-2.5 pl-9 pr-3 outline-none focus:border-indigo-500/50 transition-all placeholder:text-slate-600"
-          />
-          {/* Live Rp preview when not focused and period=12 (no extra hint needed) */}
-          {!focused && !showHint && rawNum > 0 && (
-            <div className="absolute inset-x-0 -bottom-5 text-[10.5px] text-indigo-300/70 font-mono text-right pr-1 pointer-events-none select-none">
-              {formatRupiah(rawNum)}
-            </div>
-          )}
-        </div>
+        <CurrencyInput
+          id={id}
+          value={value}
+          onChange={onValueChange}
+          placeholder={placeholder || '12000000'}
+          hideLabel={true}
+          className="relative flex-1"
+          onFocus={() => setFocused(true)}
+          onBlur={() => setFocused(false)}
+        />
+        {/* Live Rp preview when not focused and period=12 (no extra hint needed) */}
+        {!focused && !showHint && rawNum > 0 && (
+          <div className="absolute left-3 -bottom-5 text-[10.5px] text-indigo-300/70 font-mono pointer-events-none select-none">
+            ≈ {formatRupiah(rawNum)}
+          </div>
+        )}
+
 
         {/* Period dropdown */}
         <div className="relative shrink-0">
@@ -100,43 +96,146 @@ function HarvestPeriodSelector({ id, label, value, onValueChange, periodValue, o
 }
 
 /**
- * Reusable currency input with live Rp preview and tooltip support.
+ * Reusable currency input with live Rp preview, tooltip support,
+ * and real-time thousand separator (dots) formatting with cursor preservation.
  */
-function CurrencyInput({ id, label, value, onChange, placeholder, tooltip }) {
+function CurrencyInput({
+  id,
+  label,
+  value,
+  onChange,
+  placeholder,
+  tooltip,
+  readOnly,
+  hideLabel,
+  className,
+  onFocus,
+  onBlur
+}) {
   const [focused, setFocused] = useState(false);
-  const numVal = parseFloat(value) || 0;
-  const showPreview = !focused && numVal > 0;
+  const inputRef = useRef(null);
+  const cursorDigitsRef = useRef(0);
+  const lastKeyRef = useRef('');
+
+  // Clean value for number parsing
+  const cleanVal = String(value ?? '').replace(/\D/g, '');
+  const numVal = parseFloat(cleanVal) || 0;
+  const showPreview = !focused && numVal > 0 && !hideLabel;
+
+  const handleKeyDown = (e) => {
+    lastKeyRef.current = e.key;
+  };
+
+  const handleInputChange = (e) => {
+    if (readOnly) return;
+    const input = e.target;
+    const val = input.value;
+    const prevDisplayed = formatNumberWithDots(value);
+    const selStart = input.selectionStart;
+
+    let raw = val.replace(/\D/g, '');
+    const prevRaw = String(value ?? '').replace(/\D/g, '');
+
+    // Check if user deleted a dot
+    if (val.length < prevDisplayed.length && raw.length === prevRaw.length) {
+      let digitsToLeft = 0;
+      for (let i = 0; i < selStart; i++) {
+        if (/\d/.test(prevDisplayed[i])) {
+          digitsToLeft++;
+        }
+      }
+
+      if (lastKeyRef.current === 'Delete') {
+        if (digitsToLeft < raw.length) {
+          raw = raw.slice(0, digitsToLeft) + raw.slice(digitsToLeft + 1);
+          cursorDigitsRef.current = digitsToLeft;
+        } else {
+          cursorDigitsRef.current = digitsToLeft;
+        }
+      } else {
+        if (digitsToLeft > 0) {
+          raw = raw.slice(0, digitsToLeft - 1) + raw.slice(digitsToLeft);
+          cursorDigitsRef.current = digitsToLeft - 1;
+        } else {
+          cursorDigitsRef.current = 0;
+        }
+      }
+    } else {
+      let digitsToLeft = 0;
+      for (let i = 0; i < selStart; i++) {
+        if (/\d/.test(val[i])) {
+          digitsToLeft++;
+        }
+      }
+      cursorDigitsRef.current = digitsToLeft;
+    }
+
+    onChange(raw);
+  };
+
+  useLayoutEffect(() => {
+    if (!inputRef.current || document.activeElement !== inputRef.current) return;
+    const input = inputRef.current;
+    const val = input.value;
+
+    let digitsCount = 0;
+    let newSel = 0;
+    for (let i = 0; i <= val.length; i++) {
+      newSel = i;
+      if (digitsCount === cursorDigitsRef.current) {
+        break;
+      }
+      if (/\d/.test(val[i])) {
+        digitsCount++;
+      }
+    }
+    input.setSelectionRange(newSel, newSel);
+  }, [value]);
+
+  const displayedText = formatNumberWithDots(value);
 
   return (
-    <div className="flex flex-col gap-1.5">
-      <div className="flex items-center gap-1.5">
-        <label htmlFor={id} className="text-[12.5px] font-semibold text-slate-300">
-          {label}
-        </label>
-        {tooltip && (
-          <div className="tooltip cursor-pointer text-slate-500 hover:text-slate-300" data-tip={tooltip}>
-            <Info size={13} />
-          </div>
-        )}
-      </div>
+    <div className={className || "flex flex-col gap-1.5"}>
+      {!hideLabel && (
+        <div className="flex items-center gap-1.5">
+          <label htmlFor={id} className="text-[12.5px] font-semibold text-slate-300">
+            {label}
+          </label>
+          {tooltip && (
+            <div className="tooltip cursor-pointer text-slate-500 hover:text-slate-300" data-tip={tooltip}>
+              <Info size={13} />
+            </div>
+          )}
+        </div>
+      )}
+
       <div className="relative">
         <div className="absolute left-3 top-1/2 -translate-y-1/2 text-[12.5px] text-slate-400 font-mono select-none">
           Rp
         </div>
         <input
+          ref={inputRef}
           id={id}
-          type="number"
+          type="text"
           inputMode="numeric"
-          min="0"
-          value={value}
+          value={displayedText}
           placeholder={placeholder || '0'}
-          onFocus={() => setFocused(true)}
-          onBlur={() => setFocused(false)}
-          onChange={e => {
-            const raw = e.target.value.replace(/[^0-9.]/g, '');
-            onChange(raw);
+          readOnly={readOnly}
+          onFocus={(e) => {
+            setFocused(true);
+            if (onFocus) onFocus(e);
           }}
-          className="w-full rounded-xl border border-white/[0.08] bg-surface-700 text-slate-100 text-[13px] font-mono py-2.5 pl-9 pr-3 transition-all placeholder:text-slate-600 hover:border-white/[0.12] focus:border-indigo-500/50 outline-none"
+          onBlur={(e) => {
+            setFocused(false);
+            if (onBlur) onBlur(e);
+          }}
+          onKeyDown={handleKeyDown}
+          onChange={handleInputChange}
+          className={`w-full rounded-xl border text-[13px] font-mono py-2.5 pl-9 pr-3 transition-all placeholder:text-slate-600 outline-none ${
+            readOnly
+              ? 'border-emerald-500/25 bg-emerald-500/6 text-emerald-200 cursor-default select-none'
+              : 'border-white/[0.08] bg-surface-700 text-slate-100 hover:border-white/[0.12] focus:border-indigo-500/50'
+          }`}
         />
       </div>
       {showPreview && (
@@ -147,6 +246,7 @@ function CurrencyInput({ id, label, value, onChange, placeholder, tooltip }) {
     </div>
   );
 }
+
 
 /**
  * Reusable unit input for raw units (kg, pohon, etc.).
@@ -367,32 +467,17 @@ function ExpenseField({ id, label, value, freq, daysPerMonth, onValueChange, onF
       {/* Input row: Rp input + frequency selector side-by-side */}
       <div className="flex gap-2 items-stretch">
         {/* Currency input */}
-        <div className="relative flex-1">
-          <div className="absolute left-3 top-1/2 -translate-y-1/2 text-[12.5px] text-slate-400 font-mono select-none">
-            Rp
-          </div>
-          <input
-            id={id}
-            type="number"
-            inputMode="numeric"
-            min="0"
-            value={value}
-            placeholder="0"
-            readOnly={readOnly}
-            onFocus={() => setFocused(true)}
-            onBlur={() => setFocused(false)}
-            onChange={e => {
-              if (readOnly) return;
-              const raw = e.target.value.replace(/[^0-9.]/g, '');
-              onValueChange(raw);
-            }}
-            className={`w-full rounded-xl border text-[13px] font-mono py-2.5 pl-9 pr-3 transition-all placeholder:text-slate-600 outline-none ${
-              readOnly
-                ? 'border-emerald-500/25 bg-emerald-500/6 text-emerald-200 cursor-default select-none'
-                : 'border-white/[0.08] bg-surface-700 text-slate-100 hover:border-white/[0.12] focus:border-indigo-500/50'
-            }`}
-          />
-        </div>
+        <CurrencyInput
+          id={id}
+          value={value}
+          onChange={onValueChange}
+          placeholder="0"
+          readOnly={readOnly}
+          hideLabel={true}
+          className="relative flex-1"
+          onFocus={() => setFocused(true)}
+          onBlur={() => setFocused(false)}
+        />
 
         {/* Frequency selector */}
         <div className="relative shrink-0">
@@ -647,19 +732,14 @@ export default function InputForm({ categoryId, inputs, onInputChange, records }
 
               {/* Input row: Rp + frequency selector */}
               <div className="flex gap-2 items-stretch">
-                <div className="relative flex-1">
-                  <div className="absolute left-3 top-1/2 -translate-y-1/2 text-[12.5px] text-slate-400 font-mono select-none">Rp</div>
-                  <input
-                    id="input-pemasukan-langsung"
-                    type="number"
-                    inputMode="numeric"
-                    min="0"
-                    value={inputs.pemasukan_langsung ?? ''}
-                    placeholder="300000"
-                    onChange={e => onInputChange('pemasukan_langsung', e.target.value.replace(/[^0-9.]/g, ''))}
-                    className="w-full rounded-xl border border-white/[0.08] bg-surface-700 text-slate-100 text-[13px] font-mono py-2.5 pl-9 pr-3 transition-all placeholder:text-slate-600 hover:border-white/[0.12] focus:border-indigo-500/50 outline-none"
-                  />
-                </div>
+                <CurrencyInput
+                  id="input-pemasukan-langsung"
+                  value={inputs.pemasukan_langsung ?? ''}
+                  onChange={val => onInputChange('pemasukan_langsung', val)}
+                  placeholder="300000"
+                  hideLabel={true}
+                  className="relative flex-1"
+                />
 
                 {/* Frequency selector */}
                 <div className="relative shrink-0">
@@ -1069,28 +1149,22 @@ export default function InputForm({ categoryId, inputs, onInputChange, records }
             <div className="space-y-3 pt-3 border-t border-white/[0.04]">
               <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Aset Usaha (Rincian 28)</p>
               <div className="grid grid-cols-2 gap-3">
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-[11px] font-semibold text-slate-400">Tanah &amp; Bangunan</label>
-                  <input
-                    type="number"
-                    placeholder="Nilai Rp"
-                    min="0"
-                    value={inputs.aset_tanah_bangunan || ''}
-                    onChange={e => onInputChange('aset_tanah_bangunan', e.target.value.replace(/\D/g, ''))}
-                    className="w-full rounded-xl border border-white/[0.08] bg-surface-700 text-slate-100 text-[12px] font-mono py-2 px-3 outline-none"
-                  />
-                </div>
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-[11px] font-semibold text-slate-400">Aset Selain Tanah</label>
-                  <input
-                    type="number"
-                    placeholder="Nilai Rp"
-                    min="0"
-                    value={inputs.aset_lainnya || ''}
-                    onChange={e => onInputChange('aset_lainnya', e.target.value.replace(/\D/g, ''))}
-                    className="w-full rounded-xl border border-white/[0.08] bg-surface-700 text-slate-100 text-[12px] font-mono py-2 px-3 outline-none"
-                  />
-                </div>
+                <CurrencyInput
+                  id="input-aset-tanah-bangunan"
+                  label="Tanah &amp; Bangunan"
+                  value={inputs.aset_tanah_bangunan || ''}
+                  onChange={val => onInputChange('aset_tanah_bangunan', val)}
+                  placeholder="Nilai Rp"
+                  className="flex flex-col gap-1.5"
+                />
+                <CurrencyInput
+                  id="input-aset-lainnya"
+                  label="Aset Selain Tanah"
+                  value={inputs.aset_lainnya || ''}
+                  onChange={val => onInputChange('aset_lainnya', val)}
+                  placeholder="Nilai Rp"
+                  className="flex flex-col gap-1.5"
+                />
               </div>
             </div>
 
@@ -1153,17 +1227,13 @@ export default function InputForm({ categoryId, inputs, onInputChange, records }
                         {isWageAutoMode ? '— kosongkan untuk edit 26a manual' : '— isi untuk sinkronisasi otomatis ke 26a'}
                       </span>
                     </label>
-                    <div className="relative">
-                      <div className="absolute left-3 top-1/2 -translate-y-1/2 text-[11.5px] text-slate-400 font-mono select-none">Rp</div>
-                      <input
-                        id="input-rata-upah"
-                        type="number" inputMode="numeric" min="0"
-                        value={inputs.rata_upah_per_pekerja ?? ''}
-                        placeholder="1500000"
-                        onChange={e => onInputChange('rata_upah_per_pekerja', e.target.value.replace(/[^0-9.]/g, ''))}
-                        className="w-full rounded-xl border border-white/[0.06] bg-surface-800/60 text-slate-200 text-[12px] font-mono py-2 pl-9 pr-3 outline-none focus:border-indigo-500/40 transition-all placeholder:text-slate-700"
-                      />
-                    </div>
+                    <CurrencyInput
+                      id="input-rata-upah"
+                      value={inputs.rata_upah_per_pekerja ?? ''}
+                      onChange={val => onInputChange('rata_upah_per_pekerja', val)}
+                      placeholder="1500000"
+                      hideLabel={true}
+                    />
                   </div>
                 </div>
               )}
