@@ -601,10 +601,20 @@ export function calcNelayan(inputs = {}) {
   let metaExtra = {};
 
   if (method === 'nilai_langsung') {
-    // Opsi B — convert raw income to daily basis first
+    // Opsi B — convert raw income using direct frequency factors to avoid double-counting (Addendum #15)
     const rawIncome = parseFloat(inputs.pemasukan_langsung) || 0;
     const freq      = inputs.pemasukan_langsung_freq || 'harian';
-    pendapatanHarian = convertToDaily(rawIncome, freq, days);
+    let factor = 1;
+    if (freq === 'harian') {
+      factor = days * 12;
+    } else if (freq === 'mingguan') {
+      factor = 48;
+    } else if (freq === 'bulanan') {
+      factor = 12;
+    } else if (freq === 'tahunan') {
+      factor = 1;
+    }
+    pendapatanHarian = (rawIncome * factor) / (days * 12);
     metaExtra = {
       income_method: 'nilai_langsung',
       pemasukan_langsung: rawIncome,

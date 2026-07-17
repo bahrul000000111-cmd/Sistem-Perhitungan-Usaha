@@ -683,6 +683,7 @@ export default function InputForm({ categoryId, inputs, onInputChange, records }
   const opsiB_freq      = inputs.pemasukan_langsung_freq || 'harian';
   const opsiB_daily     = convertToDaily(opsiB_rawIncome, opsiB_freq, daysNum);
   const opsiB_freqLabel = INCOME_FREQ_OPTIONS.find(o => o.key === opsiB_freq)?.label || 'per Hari';
+  const revPct          = (inputs.custom_rev_pct !== undefined && inputs.custom_rev_pct !== '') ? Number(inputs.custom_rev_pct) : 10;
 
   return (
     <div className="flex flex-col gap-4">
@@ -762,24 +763,34 @@ export default function InputForm({ categoryId, inputs, onInputChange, records }
                 </div>
               </div>
 
-              {/* Conversion hint to daily basis */}
+              {/* Conversion hint / helper (Addendum #15) */}
               {opsiB_rawIncome > 0 && (
-                <div className="flex items-center gap-1.5 pl-1">
-                  <span className="text-[10.5px] font-semibold text-emerald-300 font-mono tabular-nums">
-                    ≈ {formatRupiah(opsiB_daily)} /hari
-                  </span>
-                  {opsiB_freq !== 'harian' && (
-                    <span className="text-[9.5px] text-slate-500">
-                      ({formatRupiah(opsiB_rawIncome)} {opsiB_freqLabel} ÷ konversi ke harian)
-                    </span>
-                  )}
-                  <span
-                    className="tooltip text-slate-600 hover:text-slate-400 cursor-pointer"
-                    data-tip={`Nilai ini dikonversi ke basis harian sebelum masuk ke rumus utama (× ${daysNum} hari × 12 bulan × koefisien%).`}
-                  >
-                    <Info size={10} />
-                  </span>
-                </div>
+                (() => {
+                  let factor = 1;
+                  if (opsiB_freq === 'harian') {
+                    factor = daysNum * 12;
+                  } else if (opsiB_freq === 'mingguan') {
+                    factor = 48;
+                  } else if (opsiB_freq === 'bulanan') {
+                    factor = 12;
+                  } else if (opsiB_freq === 'tahunan') {
+                    factor = 1;
+                  }
+                  const sebelumKoefisien = opsiB_rawIncome * factor;
+                  const kontribusiTotal = sebelumKoefisien * (revPct / 100);
+                  return (
+                    <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1 pl-1 text-[11px] text-slate-400 font-mono tabular-nums leading-relaxed">
+                      <span>=</span>
+                      <span className="font-semibold text-slate-200">{formatRupiah(sebelumKoefisien)}/tahun</span>
+                      <span className="text-slate-500 text-[10px]">(sebelum koefisien)</span>
+                      <span className="text-slate-500">→</span>
+                      <span className="text-indigo-300">× {revPct}% koefisien</span>
+                      <span>=</span>
+                      <span className="font-semibold text-emerald-400">{formatRupiah(kontribusiTotal)}</span>
+                      <span className="text-slate-500 text-[10px]">kontribusi ke Total Pendapatan</span>
+                    </div>
+                  );
+                })()
               )}
             </div>
           )}
@@ -1427,13 +1438,23 @@ export default function InputForm({ categoryId, inputs, onInputChange, records }
                 (parseFloat(inputs.biaya_non_operasional) || 0);
               let pendapatan;
               if (isNelayan && incomeMethod === 'nilai_langsung') {
-                const days   = (inputs.custom_days    !== undefined && inputs.custom_days    !== '') ? inputs.custom_days    : 30;
-                const revPct = (inputs.custom_rev_pct !== undefined && inputs.custom_rev_pct !== '') ? inputs.custom_rev_pct : 10;
-                pendapatan = `Pendapatan Langsung (basis harian) × ${days} Hari × 12 Bulan × ${revPct}% koefisien`;
+                const revPctVal = (inputs.custom_rev_pct !== undefined && inputs.custom_rev_pct !== '') ? inputs.custom_rev_pct : 10;
+                const freqTxt = INCOME_FREQ_OPTIONS.find(o => o.key === opsiB_freq)?.label || 'per Hari';
+                let factorDesc = '';
+                if (opsiB_freq === 'harian') {
+                  factorDesc = `${daysNum} Hari × 12 Bulan`;
+                } else if (opsiB_freq === 'mingguan') {
+                  factorDesc = '48 Minggu';
+                } else if (opsiB_freq === 'bulanan') {
+                  factorDesc = '12 Bulan';
+                } else if (opsiB_freq === 'tahunan') {
+                  factorDesc = '1';
+                }
+                pendapatan = `Pendapatan Kotor (${freqTxt}) × ${factorDesc} × ${revPctVal}% koefisien`;
               } else if (hasDailyModifier) {
                 const days   = (inputs.custom_days    !== undefined && inputs.custom_days    !== '') ? inputs.custom_days    : 30;
-                const revPct = (inputs.custom_rev_pct !== undefined && inputs.custom_rev_pct !== '') ? inputs.custom_rev_pct : (categoryId === 'kuliner_rumah_makan' ? 60 : 10);
-                pendapatan = `Pemasukan × ${days} Hari × 12 Bulan × ${revPct}% koefisien`;
+                const revPctVal = (inputs.custom_rev_pct !== undefined && inputs.custom_rev_pct !== '') ? inputs.custom_rev_pct : (categoryId === 'kuliner_rumah_makan' ? 60 : 10);
+                pendapatan = `Pemasukan × ${days} Hari × 12 Bulan × ${revPctVal}% koefisien`;
               } else {
                 pendapatan = category.note.split('·')[0].trim();
               }
@@ -1441,11 +1462,20 @@ export default function InputForm({ categoryId, inputs, onInputChange, records }
             })()
           : isNelayan && incomeMethod === 'nilai_langsung'
             ? (() => {
-                const days   = (inputs.custom_days    !== undefined && inputs.custom_days    !== '') ? inputs.custom_days    : 30;
-                const revPct = (inputs.custom_rev_pct !== undefined && inputs.custom_rev_pct !== '') ? inputs.custom_rev_pct : 10;
-                const expPct = (inputs.custom_exp_pct !== undefined && inputs.custom_exp_pct !== '') ? inputs.custom_exp_pct : 30;
+                const revPctVal = (inputs.custom_rev_pct !== undefined && inputs.custom_rev_pct !== '') ? inputs.custom_rev_pct : 10;
+                const expPctVal = (inputs.custom_exp_pct !== undefined && inputs.custom_exp_pct !== '') ? inputs.custom_exp_pct : 30;
                 const freqTxt = INCOME_FREQ_OPTIONS.find(o => o.key === opsiB_freq)?.label || 'per Hari';
-                return `Pendapatan (${freqTxt}) ÷ konversi harian × ${days} Hari × 12 Bulan × ${revPct}% koefisien · Pengeluaran ${expPct}%`;
+                let factorDesc = '';
+                if (opsiB_freq === 'harian') {
+                  factorDesc = `${daysNum} Hari × 12 Bulan`;
+                } else if (opsiB_freq === 'mingguan') {
+                  factorDesc = '48 Minggu';
+                } else if (opsiB_freq === 'bulanan') {
+                  factorDesc = '12 Bulan';
+                } else if (opsiB_freq === 'tahunan') {
+                  factorDesc = '1';
+                }
+                return `Pendapatan Kotor (${freqTxt}) × ${factorDesc} × ${revPctVal}% koefisien · Pengeluaran ${expPctVal}%`;
               })()
             : hasDailyModifier
               ? (() => {

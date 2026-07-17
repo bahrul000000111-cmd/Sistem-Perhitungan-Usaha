@@ -302,7 +302,9 @@ console.log('\n4.5 Opsi B per Bulan — konversi bulanan→harian:');
 }
 
 // 4.6 Opsi B — per Minggu
-// pemasukan_langsung=1.050.000 /minggu → harian = 1.050.000 ÷ 7 = 150.000
+// pemasukan_langsung=1.050.000 /minggu → factor = 48
+// totalPendapatan = 1.050.000 × 48 × 10% = 5.040.000
+// basis harian derived = (1.050.000 × 48) ÷ (30 × 12) = 140.000
 console.log('\n4.6 Opsi B per Minggu — konversi mingguan→harian:');
 {
   const r = calculateRecord({ id: 'a7-5', categoryId: 'nelayan_tangkap', inputs: {
@@ -310,8 +312,8 @@ console.log('\n4.6 Opsi B per Minggu — konversi mingguan→harian:');
     pemasukan_langsung: '1050000', pemasukan_langsung_freq: 'mingguan',
     custom_rev_pct: '10', custom_exp_pct: '30', custom_days: '30'
   }}, []);
-  assert('Basis harian derived ≈ 150.000', r.meta.pendapatanHarianDerived, 150_000);
-  assert('Pendapatan Tahunan = 5.400.000', r.totalPendapatanTahunan, 5_400_000);
+  assert('Basis harian derived ≈ 140.000', r.meta.pendapatanHarianDerived, 140_000);
+  assert('Pendapatan Tahunan = 5.040.000', r.totalPendapatanTahunan, 5_040_000);
 }
 
 // 4.7 Opsi B — per Tahun
@@ -369,6 +371,43 @@ console.log('\n4.9 State preservation — kedua method tersimpan, kalkulasi guna
     ...inputsBothFilled, income_method: 'volume_harga'
   }}, []);
   assert('Kembali Opsi A: masih 7.200.000 (tidak ter-reset)', rABack.totalPendapatanTahunan, 7_200_000);
+}
+
+// 4.10 Verifikasi Addendum #15 (Test Cases dari user)
+// Koefisien = 10%, Hari Kerja = 20, Nilai = 75.000
+console.log('\n4.10 Verifikasi Addendum #15 (Test Cases dari user):');
+{
+  // A. per Hari: 75.000 × (20 × 12) × 10% = 1.800.000
+  const rHari = calculateRecord({ id: 'a15-hari', categoryId: 'nelayan_tangkap', inputs: {
+    income_method: 'nilai_langsung',
+    pemasukan_langsung: '75000', pemasukan_langsung_freq: 'harian',
+    custom_rev_pct: '10', custom_days: '20'
+  }}, []);
+  assert('per Hari: 75.000 × 20 × 12 × 10% = 1.800.000', rHari.totalPendapatanTahunan, 1_800_000);
+
+  // B. per Minggu: 75.000 × 48 × 10% = 360.000
+  const rMinggu = calculateRecord({ id: 'a15-minggu', categoryId: 'nelayan_tangkap', inputs: {
+    income_method: 'nilai_langsung',
+    pemasukan_langsung: '75000', pemasukan_langsung_freq: 'mingguan',
+    custom_rev_pct: '10', custom_days: '20'
+  }}, []);
+  assert('per Minggu: 75.000 × 48 × 10% = 360.000', rMinggu.totalPendapatanTahunan, 360_000);
+
+  // C. per Bulan: 75.000 × 12 × 10% = 90.000
+  const rBulan = calculateRecord({ id: 'a15-bulan', categoryId: 'nelayan_tangkap', inputs: {
+    income_method: 'nilai_langsung',
+    pemasukan_langsung: '75000', pemasukan_langsung_freq: 'bulanan',
+    custom_rev_pct: '10', custom_days: '20'
+  }}, []);
+  assert('per Bulan: 75.000 × 12 × 10% = 90.000', rBulan.totalPendapatanTahunan, 90_000);
+
+  // D. per Tahun: 75.000 × 1 × 10% = 7.500
+  const rTahun = calculateRecord({ id: 'a15-tahun', categoryId: 'nelayan_tangkap', inputs: {
+    income_method: 'nilai_langsung',
+    pemasukan_langsung: '75000', pemasukan_langsung_freq: 'tahunan',
+    custom_rev_pct: '10', custom_days: '20'
+  }}, []);
+  assert('per Tahun: 75.000 × 1 × 10% = 7.500', rTahun.totalPendapatanTahunan, 7_500);
 }
 
 // ─────────────────────────────────────────────────────────────────────────
