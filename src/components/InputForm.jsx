@@ -774,6 +774,7 @@ export default function InputForm({ categoryId, inputs, onInputChange, records }
   const opsiB_freq      = inputs.pemasukan_langsung_freq || 'harian';
   const opsiB_daily     = convertToDaily(opsiB_rawIncome, opsiB_freq, daysNum);
   const opsiB_freqLabel = INCOME_FREQ_OPTIONS.find(o => o.key === opsiB_freq)?.label || 'per Hari';
+  const revPct          = (inputs.custom_rev_pct !== undefined && inputs.custom_rev_pct !== '') ? Number(inputs.custom_rev_pct) : defaultRevPct;
   const getFormulaText = () => {
     const revPctVal = (inputs.custom_rev_pct !== undefined && inputs.custom_rev_pct !== '') ? inputs.custom_rev_pct : defaultRevPct;
     const expPctVal = (inputs.custom_exp_pct !== undefined && inputs.custom_exp_pct !== '') ? inputs.custom_exp_pct : defaultExpPct;
