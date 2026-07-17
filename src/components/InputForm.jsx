@@ -576,7 +576,16 @@ export default function InputForm({ categoryId, inputs, onInputChange, records }
 
   const isNelayan = categoryId === 'nelayan_tangkap';
   const incomeMethod = inputs.income_method || 'volume_harga';  // default = Opsi A
-  const isBagiHasilMode = isNelayan && incomeMethod === 'bagi_hasil';
+
+  // ── Addendum #10: Wage auto-sync — compute at top level for useEffect ────
+  const _hasNewWorkerKeys =
+    inputs.pekerja_dibayar_l !== undefined || inputs.pekerja_dibayar_p !== undefined ||
+    inputs.pekerja_tidak_dibayar_l !== undefined || inputs.pekerja_tidak_dibayar_p !== undefined;
+  const _dibayarL = parseInt(_hasNewWorkerKeys ? inputs.pekerja_dibayar_l : inputs.pekerja_l) || 0;
+  const _dibayarP = parseInt(_hasNewWorkerKeys ? inputs.pekerja_dibayar_p : inputs.pekerja_p) || 0;
+  const totalPekerjaDibayar = _dibayarL + _dibayarP;
+
+  const isBagiHasilMode = isNelayan && incomeMethod === 'volume_harga' && totalPekerjaDibayar >= 2;
 
   // Determine modifiers config
   const hasDailyModifier = ['kios_campuran', 'kuliner_rumah_makan', 'nelayan_tangkap', 'generik_harian'].includes(categoryId);
@@ -597,13 +606,6 @@ export default function InputForm({ categoryId, inputs, onInputChange, records }
   const rawToggle = inputs.use_detail_pengeluaran;
   const isDetailPengeluaranActive = rawToggle === true || rawToggle === 1 || rawToggle === 'true' || isBagiHasilMode;
 
-  // ── Addendum #10: Wage auto-sync — compute at top level for useEffect ────
-  const _hasNewWorkerKeys =
-    inputs.pekerja_dibayar_l !== undefined || inputs.pekerja_dibayar_p !== undefined ||
-    inputs.pekerja_tidak_dibayar_l !== undefined || inputs.pekerja_tidak_dibayar_p !== undefined;
-  const _dibayarL = parseInt(_hasNewWorkerKeys ? inputs.pekerja_dibayar_l : inputs.pekerja_l) || 0;
-  const _dibayarP = parseInt(_hasNewWorkerKeys ? inputs.pekerja_dibayar_p : inputs.pekerja_p) || 0;
-  const totalPekerjaDibayar = _dibayarL + _dibayarP;
   const rataUpahPerPekerja  = parseFloat(inputs.rata_upah_per_pekerja) || 0;
   const estimasiUpahTahunan = totalPekerjaDibayar * rataUpahPerPekerja * 12;
   // Auto-mode is active when: rata_upah is filled AND dibayar > 0 AND rincian toggle is on
@@ -621,9 +623,9 @@ export default function InputForm({ categoryId, inputs, onInputChange, records }
   }, [isWageAutoMode, totalPekerjaDibayar, rataUpahPerPekerja, estimasiUpahTahunan]);
 
   // ── Bagi Hasil Kapal (Punggawa-Sawi) calculations for UI ──
-  const tripSat = parseFloat(inputs.trip_satuan) || 0;
-  const tripPrc = parseFloat(inputs.trip_harga_satuan) || 0;
-  const tripQty = parseFloat(inputs.trip_per_bulan) || 0;
+  const tripSat = parseFloat(inputs.satuan_kg) || 0;
+  const tripPrc = parseFloat(inputs.pemasukan_harian) || 0;
+  const tripQty = parseFloat(inputs.custom_days !== undefined && inputs.custom_days !== '' ? inputs.custom_days : 30);
 
   const tripEs = parseFloat(inputs.biaya_trip_es) || 0;
   const tripBbm = parseFloat(inputs.biaya_trip_bbm) || 0;
@@ -720,7 +722,6 @@ export default function InputForm({ categoryId, inputs, onInputChange, records }
   const NELAYAN_METHOD_OPTIONS = [
     { key: 'volume_harga',   label: '● Volume × Harga Satuan' },
     { key: 'nilai_langsung', label: 'Nilai Pendapatan Langsung' },
-    { key: 'bagi_hasil',     label: '● Bagi Hasil Kru/Trip' },
   ];
 
   // For Opsi B: live daily conversion preview
@@ -737,27 +738,12 @@ export default function InputForm({ categoryId, inputs, onInputChange, records }
         <>
           <IncomeMethodSelector
             value={incomeMethod}
-            onChange={v => {
-              if (v === 'bagi_hasil') {
-                onInputChange({
-                  income_method: v,
-                  use_detail_pengeluaran: true
-                });
-              } else {
-                onInputChange('income_method', v);
-              }
-            }}
+            onChange={v => onInputChange('income_method', v)}
             options={NELAYAN_METHOD_OPTIONS}
             tooltip="Pilih cara Anda mencatat pendapatan — per satuan hasil tangkapan, atau langsung total pendapatan."
           />
 
-          {incomeMethod === 'bagi_hasil' && (
-            <p className="text-[11px] text-slate-400 leading-normal pl-1 -mt-1 mb-2">
-              Cocok untuk usaha dengan operasional per trip/perjalanan &amp; sistem bagi hasil pemilik-kru (mis. kapal tangkap ikan berkru, dan usaha sejenis lainnya).
-            </p>
-          )}
-
-          {/* Opsi A fields: existing Volume × Harga (shown when method = volume_harga) */}
+          {/* Opsi A fields: Volume × Harga (shown when method = volume_harga) */}
           {incomeMethod === 'volume_harga' && (
             <>
               <UnitInput
@@ -766,7 +752,7 @@ export default function InputForm({ categoryId, inputs, onInputChange, records }
                 value={inputs.satuan_kg ?? 1}
                 onChange={v => onInputChange('satuan_kg', v)}
                 placeholder="1"
-                suffix="kg/hari"
+                suffix="kg/trip"
               />
               <CurrencyInput
                 id="input-pemasukan-harian"
@@ -776,6 +762,181 @@ export default function InputForm({ categoryId, inputs, onInputChange, records }
                 placeholder="150000"
                 tooltip="Harga jual per kg hasil tangkapan."
               />
+
+              {/* TAHAP A Live Calculation Preview (Bagi Hasil Mode) */}
+              {isBagiHasilMode && (() => {
+                const sat = parseFloat(inputs.satuan_kg) || 0;
+                const prc = parseFloat(inputs.pemasukan_harian) || 0;
+                const trips = parseFloat(inputs.custom_days !== undefined && inputs.custom_days !== '' ? inputs.custom_days : 30);
+                const perTrip = sat * prc;
+                const bulanan = perTrip * trips;
+                const tahunan = bulanan * 12;
+                if (tahunan > 0) {
+                  return (
+                    <div className="text-[11px] font-mono text-slate-350 bg-indigo-500/10 border border-indigo-500/20 rounded-xl p-3 space-y-1.5 mt-1">
+                      <div className="font-bold text-indigo-400 uppercase tracking-wide text-[9px] mb-1">Estimasi Pendapatan Kotor (Tahap A)</div>
+                      <div className="flex justify-between"><span>Pendapatan per Trip:</span><span className="font-semibold text-slate-200">{formatRupiah(perTrip)}</span></div>
+                      <div className="flex justify-between"><span>Total Pendapatan Kotor Bulanan:</span><span className="font-semibold text-slate-200">{formatRupiah(bulanan)}</span></div>
+                      <div className="flex justify-between border-t border-white/5 pt-1.5 mt-1"><span>Total Pendapatan Kotor Tahunan:</span><span className="font-semibold text-emerald-455">{formatRupiah(tahunan)}</span></div>
+                    </div>
+                  );
+                }
+                return null;
+              })()}
+
+              {/* TAHAP B — BIAYA OPERASIONAL PER TRIP */}
+              {isBagiHasilMode && (
+                <div className="p-4 rounded-xl bg-surface-800/40 border border-white/[0.06] space-y-3 mt-2">
+                  <div className="flex items-center gap-1.5 border-b border-white/5 pb-2 mb-1">
+                    <span className="text-[10px] font-bold text-indigo-400 uppercase tracking-wider">
+                      Tahap B — Biaya Operasional per Trip
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <CurrencyInput
+                      id="input-biaya-trip-es"
+                      label="Es Balok (Rp)"
+                      value={inputs.biaya_trip_es ?? ''}
+                      onChange={v => onInputChange('biaya_trip_es', v)}
+                      placeholder="300.000"
+                    />
+                    <CurrencyInput
+                      id="input-biaya-trip-bbm"
+                      label="BBM/Solar (Rp)"
+                      value={inputs.biaya_trip_bbm ?? ''}
+                      onChange={v => onInputChange('biaya_trip_bbm', v)}
+                      placeholder="800.000"
+                    />
+                    <CurrencyInput
+                      id="input-biaya-trip-ransum"
+                      label="Ransum/Makanan Kru (Rp)"
+                      value={inputs.biaya_trip_ransum ?? ''}
+                      onChange={v => onInputChange('biaya_trip_ransum', v)}
+                      placeholder="400.000"
+                    />
+                    <CurrencyInput
+                      id="input-biaya-trip-umpan"
+                      label="Umpan (Rp)"
+                      value={inputs.biaya_trip_umpan ?? ''}
+                      onChange={v => onInputChange('biaya_trip_umpan', v)}
+                      placeholder="200.000"
+                    />
+                  </div>
+
+                  {/* TAHAP B Live Calculation Preview */}
+                  {(() => {
+                    const es = parseFloat(inputs.biaya_trip_es) || 0;
+                    const bbm = parseFloat(inputs.biaya_trip_bbm) || 0;
+                    const ransum = parseFloat(inputs.biaya_trip_ransum) || 0;
+                    const umpan = parseFloat(inputs.biaya_trip_umpan) || 0;
+                    const trips = parseFloat(inputs.custom_days !== undefined && inputs.custom_days !== '' ? inputs.custom_days : 30);
+                    const totalTrip = es + bbm + ransum + umpan;
+                    const bulanan = totalTrip * trips;
+                    const tahunan = bulanan * 12;
+                    if (totalTrip > 0) {
+                      return (
+                        <div className="text-[11px] font-mono text-slate-350 bg-surface-900/40 border border-white/[0.04] rounded-lg p-2.5 mt-2 space-y-1">
+                          <div className="flex justify-between"><span>Total Biaya per Trip:</span><span className="font-semibold text-slate-200">{formatRupiah(totalTrip)}</span></div>
+                          <div className="flex justify-between"><span>Total Biaya Bulanan:</span><span className="font-semibold text-slate-200">{formatRupiah(bulanan)}</span></div>
+                          <div className="flex justify-between border-t border-white/5 pt-1 mt-1"><span>Total Biaya Tahunan (26b):</span><span className="font-semibold text-rose-400">{formatRupiah(tahunan)}</span></div>
+                        </div>
+                      );
+                    }
+                    return null;
+                  })()}
+                </div>
+              )}
+
+              {/* TAHAP C — PEMBAGIAN HASIL USAHA (SHU) */}
+              {isBagiHasilMode && (
+                <div className="p-4 rounded-xl bg-surface-800/40 border border-white/[0.06] space-y-3.5 mt-2">
+                  <div className="flex items-center gap-1.5 border-b border-white/5 pb-2 mb-1">
+                    <span className="text-[10px] font-bold text-indigo-400 uppercase tracking-wider">
+                      Tahap C — Pembagian Hasil Usaha (SHU)
+                    </span>
+                  </div>
+                  
+                  {/* Persentase Slider */}
+                  <PercentSlider
+                    id="input-bagi-hasil-pemilik"
+                    label="Persentase Bagian Pemilik (%)"
+                    value={inputs.bagi_hasil_pemilik}
+                    onChange={val => onInputChange('bagi_hasil_pemilik', val)}
+                    defaultValue={50}
+                    tooltip="Persentase Sisa Hasil Usaha (SHU) yang menjadi hak pemilik kapal."
+                  />
+
+                  {/* Read-only Kru % */}
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-[11px] font-semibold text-slate-400">
+                      Persentase Bagian Kru (%)
+                    </label>
+                    <input
+                      type="text"
+                      readOnly
+                      value={`${kruPct}%`}
+                      className="w-full rounded-xl border border-white/[0.06] bg-surface-700/50 text-slate-350 text-[12px] font-mono py-2 px-3 outline-none cursor-not-allowed"
+                    />
+                  </div>
+
+                  {/* Jumlah Kru/ABK info */}
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[11px] font-semibold text-slate-400">
+                      Jumlah Kru / ABK (Pekerja Dibayar)
+                    </label>
+                    <div className="flex items-center justify-between w-full rounded-xl border border-white/[0.06] bg-surface-700/50 text-slate-350 text-[12px] py-2 px-3">
+                      <span className="font-semibold text-slate-200">
+                        {totalPekerjaDibayar} orang
+                      </span>
+                      <span className="text-[10px] text-slate-500 italic">
+                        (diambil dari data Pekerja Dibayar)
+                      </span>
+                    </div>
+                    <p className="text-[9.5px] text-slate-500 italic mt-0.5">
+                      *Ubah jumlah kru di bagian &quot;Pekerja Dibayar&quot; pada Data Pendukung SE2026-L di bawah.
+                    </p>
+                  </div>
+
+                  {/* TAHAP C Live Calculation Preview */}
+                  {(() => {
+                    const sat = parseFloat(inputs.satuan_kg) || 0;
+                    const prc = parseFloat(inputs.pemasukan_harian) || 0;
+                    const trips = parseFloat(inputs.custom_days !== undefined && inputs.custom_days !== '' ? inputs.custom_days : 30);
+                    const kotorBulanan = sat * prc * trips;
+
+                    const es = parseFloat(inputs.biaya_trip_es) || 0;
+                    const bbm = parseFloat(inputs.biaya_trip_bbm) || 0;
+                    const ransum = parseFloat(inputs.biaya_trip_ransum) || 0;
+                    const umpan = parseFloat(inputs.biaya_trip_umpan) || 0;
+                    const totalTripExp = es + bbm + ransum + umpan;
+                    const bulananExp = totalTripExp * trips;
+
+                    const shuBulanan = kotorBulanan - bulananExp;
+                    const bagianPemilikBulanan = shuBulanan * (pemilikPct / 100);
+                    const bagianKruBulanan = shuBulanan * (kruPct / 100);
+                    const bagianPerKruBulanan = totalPekerjaDibayar > 0 ? bagianKruBulanan / totalPekerjaDibayar : 0;
+                    const bagianKruTahunan = bagianKruBulanan * 12;
+
+                    if (kotorBulanan > 0 || bulananExp > 0) {
+                      return (
+                        <div className="text-[11px] font-mono text-slate-300 bg-surface-900/40 border border-white/[0.04] rounded-lg p-2.5 mt-2 space-y-1.5">
+                          <div className="flex justify-between"><span>SHU Bersih Bulanan:</span><span className="font-semibold text-slate-205">{formatRupiah(shuBulanan)}</span></div>
+                          <div className="flex justify-between"><span>Bagian Pemilik (Bulanan):</span><span className="font-semibold text-indigo-300">{formatRupiah(bagianPemilikBulanan)}</span></div>
+                          <div className="flex justify-between"><span>Bagian Total Kru (Bulanan):</span><span className="font-semibold text-emerald-400">{formatRupiah(bagianKruBulanan)}</span></div>
+                          {totalPekerjaDibayar > 0 && (
+                            <div className="flex justify-between text-[10px] text-slate-400 italic pl-2">
+                              <span>Bagian per ABK/Kru (Bulanan):</span>
+                              <span>{formatRupiah(bagianPerKruBulanan)}</span>
+                            </div>
+                          )}
+                          <div className="flex justify-between border-t border-white/5 pt-1.5 mt-1"><span>Bagian Total Kru Tahunan (26a):</span><span className="font-semibold text-emerald-450">{formatRupiah(bagianKruTahunan)}</span></div>
+                        </div>
+                      );
+                    }
+                    return null;
+                  })()}
+                </div>
+              )}
             </>
           )}
 
@@ -847,211 +1008,11 @@ export default function InputForm({ categoryId, inputs, onInputChange, records }
                       <span className="text-indigo-300">× {revPct}% koefisien</span>
                       <span>=</span>
                       <span className="font-semibold text-emerald-400">{formatRupiah(kontribusiTotal)}</span>
-                      <span className="text-slate-500 text-[10px]">kontribusi ke Total Pendapatan</span>
+                      <span className="text-slate-500 text-[10px]">kontribusi to Total Pendapatan</span>
                     </div>
                   );
                 })()
               )}
-            </div>
-          )}
-
-          {/* Opsi C fields: Bagi Hasil Kru/Trip */}
-          {incomeMethod === 'bagi_hasil' && (
-            <div className="flex flex-col gap-3">
-              <UnitInput
-                id="input-trip-satuan"
-                label="Jumlah Satuan Hasil Tangkap per Trip (mis. Termos, Keranjang, dll.)"
-                value={inputs.trip_satuan ?? ''}
-                onChange={v => onInputChange('trip_satuan', v)}
-                placeholder="5"
-                suffix="satuan/trip"
-              />
-              <CurrencyInput
-                id="input-trip-harga-satuan"
-                label="Harga per Satuan (Rp)"
-                value={inputs.trip_harga_satuan ?? ''}
-                onChange={v => onInputChange('trip_harga_satuan', v)}
-                placeholder="1.000.000"
-              />
-              <UnitInput
-                id="input-trip-per-bulan"
-                label="Jumlah Trip per Bulan"
-                value={inputs.trip_per_bulan ?? ''}
-                onChange={v => onInputChange('trip_per_bulan', v)}
-                placeholder="4"
-                suffix="trip/bulan"
-              />
-
-              {/* TAHAP A Live Calculation Preview */}
-              {(() => {
-                const sat = parseFloat(inputs.trip_satuan) || 0;
-                const prc = parseFloat(inputs.trip_harga_satuan) || 0;
-                const trips = parseFloat(inputs.trip_per_bulan) || 0;
-                const perTrip = sat * prc;
-                const bulanan = perTrip * trips;
-                const tahunan = bulanan * 12;
-                if (tahunan > 0) {
-                  return (
-                    <div className="text-[11px] font-mono text-slate-350 bg-indigo-500/10 border border-indigo-500/20 rounded-xl p-3 space-y-1.5 mt-1">
-                      <div className="font-bold text-indigo-400 uppercase tracking-wide text-[9px] mb-1">Estimasi Pendapatan Kotor (Tahap A)</div>
-                      <div className="flex justify-between"><span>Pendapatan per Trip:</span><span className="font-semibold text-slate-200">{formatRupiah(perTrip)}</span></div>
-                      <div className="flex justify-between"><span>Total Pendapatan Kotor Bulanan:</span><span className="font-semibold text-slate-200">{formatRupiah(bulanan)}</span></div>
-                      <div className="flex justify-between border-t border-white/5 pt-1.5 mt-1"><span>Total Pendapatan Kotor Tahunan:</span><span className="font-semibold text-emerald-450">{formatRupiah(tahunan)}</span></div>
-                    </div>
-                  );
-                }
-                return null;
-              })()}
-
-              {/* TAHAP B — BIAYA OPERASIONAL PER TRIP */}
-              <div className="p-4 rounded-xl bg-surface-800/40 border border-white/[0.06] space-y-3 mt-2">
-                <div className="flex items-center gap-1.5 border-b border-white/5 pb-2 mb-1">
-                  <span className="text-[10px] font-bold text-indigo-400 uppercase tracking-wider">
-                    Tahap B — Biaya Operasional per Trip
-                  </span>
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <CurrencyInput
-                    id="input-biaya-trip-es"
-                    label="Es Balok (Rp)"
-                    value={inputs.biaya_trip_es ?? ''}
-                    onChange={v => onInputChange('biaya_trip_es', v)}
-                    placeholder="300.000"
-                  />
-                  <CurrencyInput
-                    id="input-biaya-trip-bbm"
-                    label="BBM/Solar (Rp)"
-                    value={inputs.biaya_trip_bbm ?? ''}
-                    onChange={v => onInputChange('biaya_trip_bbm', v)}
-                    placeholder="800.000"
-                  />
-                  <CurrencyInput
-                    id="input-biaya-trip-ransum"
-                    label="Ransum/Makanan Kru (Rp)"
-                    value={inputs.biaya_trip_ransum ?? ''}
-                    onChange={v => onInputChange('biaya_trip_ransum', v)}
-                    placeholder="400.000"
-                  />
-                  <CurrencyInput
-                    id="input-biaya-trip-umpan"
-                    label="Umpan (Rp)"
-                    value={inputs.biaya_trip_umpan ?? ''}
-                    onChange={v => onInputChange('biaya_trip_umpan', v)}
-                    placeholder="200.000"
-                  />
-                </div>
-
-                {/* TAHAP B Live Calculation Preview */}
-                {(() => {
-                  const es = parseFloat(inputs.biaya_trip_es) || 0;
-                  const bbm = parseFloat(inputs.biaya_trip_bbm) || 0;
-                  const ransum = parseFloat(inputs.biaya_trip_ransum) || 0;
-                  const umpan = parseFloat(inputs.biaya_trip_umpan) || 0;
-                  const trips = parseFloat(inputs.trip_per_bulan) || 0;
-                  const totalTrip = es + bbm + ransum + umpan;
-                  const bulanan = totalTrip * trips;
-                  const tahunan = bulanan * 12;
-                  if (totalTrip > 0) {
-                    return (
-                      <div className="text-[11px] font-mono text-slate-350 bg-surface-900/40 border border-white/[0.04] rounded-lg p-2.5 mt-2 space-y-1">
-                        <div className="flex justify-between"><span>Total Biaya per Trip:</span><span className="font-semibold text-slate-200">{formatRupiah(totalTrip)}</span></div>
-                        <div className="flex justify-between"><span>Total Biaya Bulanan:</span><span className="font-semibold text-slate-200">{formatRupiah(bulanan)}</span></div>
-                        <div className="flex justify-between border-t border-white/5 pt-1 mt-1"><span>Total Biaya Tahunan (26b):</span><span className="font-semibold text-rose-400">{formatRupiah(tahunan)}</span></div>
-                      </div>
-                    );
-                  }
-                  return null;
-                })()}
-              </div>
-
-              {/* TAHAP C — PEMBAGIAN HASIL USAHA (SHU) */}
-              <div className="p-4 rounded-xl bg-surface-800/40 border border-white/[0.06] space-y-3.5 mt-2">
-                <div className="flex items-center gap-1.5 border-b border-white/5 pb-2 mb-1">
-                  <span className="text-[10px] font-bold text-indigo-400 uppercase tracking-wider">
-                    Tahap C — Pembagian Hasil Usaha (SHU)
-                  </span>
-                </div>
-                
-                {/* Persentase Slider */}
-                <PercentSlider
-                  id="input-bagi-hasil-pemilik"
-                  label="Persentase Bagian Pemilik (%)"
-                  value={inputs.bagi_hasil_pemilik}
-                  onChange={val => onInputChange('bagi_hasil_pemilik', val)}
-                  defaultValue={50}
-                  tooltip="Persentase Sisa Hasil Usaha (SHU) yang menjadi hak pemilik kapal."
-                />
-
-                {/* Read-only Kru % */}
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-[11px] font-semibold text-slate-400">
-                    Persentase Bagian Kru (%)
-                  </label>
-                  <input
-                    type="text"
-                    readOnly
-                    value={`${kruPct}%`}
-                    className="w-full rounded-xl border border-white/[0.06] bg-surface-700/50 text-slate-350 text-[12px] font-mono py-2 px-3 outline-none cursor-not-allowed"
-                  />
-                </div>
-
-                {/* Jumlah Kru/ABK info */}
-                <div className="flex flex-col gap-1">
-                  <label className="text-[11px] font-semibold text-slate-400">
-                    Jumlah Kru / ABK (Pekerja Dibayar)
-                  </label>
-                  <div className="flex items-center justify-between w-full rounded-xl border border-white/[0.06] bg-surface-700/50 text-slate-350 text-[12px] py-2 px-3">
-                    <span className="font-semibold text-slate-200">
-                      {totalPekerjaDibayar} orang
-                    </span>
-                    <span className="text-[10px] text-slate-500 italic">
-                      (diambil dari data Pekerja Dibayar)
-                    </span>
-                  </div>
-                  <p className="text-[9.5px] text-slate-500 italic mt-0.5">
-                    *Ubah jumlah kru di bagian &quot;Pekerja Dibayar&quot; pada Data Pendukung SE2026-L di bawah.
-                  </p>
-                </div>
-
-                {/* TAHAP C Live Calculation Preview */}
-                {(() => {
-                  const sat = parseFloat(inputs.trip_satuan) || 0;
-                  const prc = parseFloat(inputs.trip_harga_satuan) || 0;
-                  const trips = parseFloat(inputs.trip_per_bulan) || 0;
-                  const kotorBulanan = sat * prc * trips;
-
-                  const es = parseFloat(inputs.biaya_trip_es) || 0;
-                  const bbm = parseFloat(inputs.biaya_trip_bbm) || 0;
-                  const ransum = parseFloat(inputs.biaya_trip_ransum) || 0;
-                  const umpan = parseFloat(inputs.biaya_trip_umpan) || 0;
-                  const totalTripExp = es + bbm + ransum + umpan;
-                  const bulananExp = totalTripExp * trips;
-
-                  const shuBulanan = kotorBulanan - bulananExp;
-                  const bagianPemilikBulanan = shuBulanan * (pemilikPct / 100);
-                  const bagianKruBulanan = shuBulanan * (kruPct / 100);
-                  const bagianPerKruBulanan = totalPekerjaDibayar > 0 ? bagianKruBulanan / totalPekerjaDibayar : 0;
-                  const bagianKruTahunan = bagianKruBulanan * 12;
-
-                  if (kotorBulanan > 0 || bulananExp > 0) {
-                    return (
-                      <div className="text-[11px] font-mono text-slate-300 bg-surface-900/40 border border-white/[0.04] rounded-lg p-2.5 mt-2 space-y-1.5">
-                        <div className="flex justify-between"><span>SHU Bersih Bulanan:</span><span className="font-semibold text-slate-205">{formatRupiah(shuBulanan)}</span></div>
-                        <div className="flex justify-between"><span>Bagian Pemilik (Bulanan):</span><span className="font-semibold text-indigo-300">{formatRupiah(bagianPemilikBulanan)}</span></div>
-                        <div className="flex justify-between"><span>Bagian Total Kru (Bulanan):</span><span className="font-semibold text-emerald-400">{formatRupiah(bagianKruBulanan)}</span></div>
-                        {totalPekerjaDibayar > 0 && (
-                          <div className="flex justify-between text-[10px] text-slate-400 italic pl-2">
-                            <span>Bagian per ABK/Kru (Bulanan):</span>
-                            <span>{formatRupiah(bagianPerKruBulanan)}</span>
-                          </div>
-                        )}
-                        <div className="flex justify-between border-t border-white/5 pt-1.5 mt-1"><span>Bagian Total Kru Tahunan (26a):</span><span className="font-semibold text-emerald-450">{formatRupiah(bagianKruTahunan)}</span></div>
-                      </div>
-                    );
-                  }
-                  return null;
-                })()}
-              </div>
             </div>
           )}
         </>
@@ -1207,14 +1168,14 @@ export default function InputForm({ categoryId, inputs, onInputChange, records }
         )}
 
         {/* Operational Days (Daily categories only) */}
-        {hasDailyModifier && !isBagiHasilMode && (
+        {hasDailyModifier && (
           <div className="flex flex-col gap-1.5">
             <div className="flex justify-between items-center">
               <label htmlFor="input-custom-days" className="text-[12px] font-medium text-slate-300">
-                Jumlah Hari Kerja / Bulan
+                {isNelayan ? 'Jumlah Trip / Bulan' : 'Jumlah Hari Kerja / Bulan'}
               </label>
               <span className="text-[11px] font-semibold font-mono text-cyan-300 bg-cyan-500/15 px-1.5 py-0.5 rounded">
-                {displayDays} hari
+                {displayDays} {isNelayan ? 'trip' : 'hari'}
               </span>
             </div>
             <div className="flex items-center gap-3">

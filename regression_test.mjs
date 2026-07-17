@@ -495,8 +495,8 @@ console.log('\n5.6 Estimasi upah: 4 × 1.500.000 × 12 = 72.000.000:');
 // 5.7 Rincian Manual + Terapkan ke 26a simulation
 console.log('\n5.7 Terapkan ke 26a → 26f → seluruh turunan:');
 {
-  const r = calculateRecord({ id: 'a8-3', categoryId: 'nelayan_tangkap', inputs: {
-    satuan_kg: '1', pemasukan_harian: '150000',
+  const r = calculateRecord({ id: 'a8-3', categoryId: 'kios_campuran', inputs: {
+    pemasukan_harian: '150000',
     custom_rev_pct: '10', custom_exp_pct: '30', custom_days: '30',
     pekerja_dibayar_l: '3', pekerja_dibayar_p: '1',
     rata_upah_per_pekerja: '1500000',
@@ -504,7 +504,7 @@ console.log('\n5.7 Terapkan ke 26a → 26f → seluruh turunan:');
     biaya_upah: '72000000', biaya_upah_freq: 'tahunan',
     biaya_produksi: '0', biaya_operasional: '0', biaya_non_operasional: '0'
   }}, []);
-  // Pendapatan: 1 × 150k × 30 × 12 × 10% = 5.400.000
+  // Pendapatan: 150k × 30 × 12 × 10% = 5.400.000
   assert('Pendapatan Tahunan = 5.400.000', r.totalPendapatanTahunan, 5_400_000);
   // 26f = 72.000.000
   assert('26f = 72.000.000', r.totalPengeluaranTahunan, 72_000_000);
@@ -515,8 +515,8 @@ console.log('\n5.7 Terapkan ke 26a → 26f → seluruh turunan:');
 // 5.8 Manual override biaya_upah tidak otomatis direset oleh sistem
 console.log('\n5.8 Manual override biaya_upah = 80.000.000 tetap 80m (bukan 72m):');
 {
-  const r = calculateRecord({ id: 'a8-4', categoryId: 'nelayan_tangkap', inputs: {
-    satuan_kg: '1', pemasukan_harian: '150000',
+  const r = calculateRecord({ id: 'a8-4', categoryId: 'kios_campuran', inputs: {
+    pemasukan_harian: '150000',
     custom_rev_pct: '10', custom_exp_pct: '30', custom_days: '30',
     pekerja_dibayar_l: '4',
     use_detail_pengeluaran: true,
@@ -528,9 +528,9 @@ console.log('\n5.8 Manual override biaya_upah = 80.000.000 tetap 80m (bukan 72m)
 // 5.9 Non-regresi: penambahan data pekerja tidak mengubah formula pendapatan
 console.log('\n5.9 Non-regresi: data pekerja tidak ubah formula pendapatan:');
 {
-  const base = { satuan_kg: '1', pemasukan_harian: '150000', custom_rev_pct: '10', custom_exp_pct: '30', custom_days: '30' };
-  const rBefore = calculateRecord({ id: 'a8-5a', categoryId: 'nelayan_tangkap', inputs: base }, []);
-  const rAfter  = calculateRecord({ id: 'a8-5b', categoryId: 'nelayan_tangkap', inputs: {
+  const base = { pemasukan_harian: '150000', custom_rev_pct: '10', custom_exp_pct: '30', custom_days: '30' };
+  const rBefore = calculateRecord({ id: 'a8-5a', categoryId: 'kios_campuran', inputs: base }, []);
+  const rAfter  = calculateRecord({ id: 'a8-5b', categoryId: 'kios_campuran', inputs: {
     ...base, pekerja_dibayar_l: '5', pekerja_dibayar_p: '2', pekerja_tidak_dibayar_l: '1'
   }}, []);
   assert('Pendapatan Tahunan sebelum = sesudah', rBefore.totalPendapatanTahunan, rAfter.totalPendapatanTahunan);
@@ -786,10 +786,10 @@ console.log('\n══ SUITE 9: Addendum #16 — Bagi Hasil Kapal (Punggawa-Sawi)
     id: 'a16-test',
     categoryId: 'nelayan_tangkap',
     inputs: {
-      income_method: 'bagi_hasil',
-      trip_satuan: '5',
-      trip_harga_satuan: '1000000',
-      trip_per_bulan: '4',
+      income_method: 'volume_harga',
+      satuan_kg: '5',
+      pemasukan_harian: '1000000',
+      custom_days: '4',
       biaya_trip_es: '300000',
       biaya_trip_bbm: '800000',
       biaya_trip_ransum: '400000',
