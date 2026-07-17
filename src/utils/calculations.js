@@ -591,14 +591,13 @@ export function calcArangTempurung(inputs = {}, linkedNilaiHarianBox = null) {
  * Backward compatible: missing income_method → 'volume_harga'.
  */
 export function calcNelayan(inputs = {}) {
-  const revPct = getRevPct(inputs, 10);
+  const method = inputs.income_method || 'volume_harga';
+  const workers = resolveWorkers(inputs);
+  const isKruMode = method === 'volume_harga' && workers.totalDibayar >= 2;
+  const revPct = isKruMode ? 100 : getRevPct(inputs, 10);
   const expPct = getExpPct(inputs, 30);
   const days   = getDays(inputs); // custom_days represents trips/month in Opsi A
-  const workers = resolveWorkers(inputs);
-  const isKruMode = workers.totalDibayar >= 2;
 
-  // ── Determine gross income based on chosen method ──
-  const method = inputs.income_method || 'volume_harga';
   let pendapatanHarian;
   let metaExtra = {};
   let totalPendapatan;
@@ -678,7 +677,7 @@ export function calcNelayan(inputs = {}) {
     setahun: null,
     meta: {
       ...metaExtra,
-      koefisien: method === 'bagi_hasil' ? '100% (Tanpa Koefisien)' : `${revPct}%`,
+      koefisien: isKruMode ? '100% (Tanpa Koefisien)' : `${revPct}%`,
       faktorPengeluaran: `${expPct}%`,
       hariKerja: days,
       pendapatanHarian,
