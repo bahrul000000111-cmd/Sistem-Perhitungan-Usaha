@@ -8,7 +8,7 @@
  * Suite 3: Addendum #2 — Frequency selector conversions
  */
 
-import { calculateRecord, convertToAnnual, getConversionFormula, convertToDaily, resolveWorkers, convertHarvestToAnnual } from './src/utils/calculations.js';
+import { calculateRecord, convertToAnnual, getConversionFormula, convertToDaily, resolveWorkers, convertHarvestToAnnual, migrateLegacyNelayanInputs } from './src/utils/calculations.js';
 
 let pass = 0;
 let fail = 0;
@@ -805,6 +805,75 @@ console.log('\n══ SUITE 9: Addendum #16 — Bagi Hasil Kapal (Punggawa-Sawi)
   assert('Total Pengeluaran Tahunan (26f) = Rp160.800.000', r.totalPengeluaranTahunan, 160_800_000);
   assert('Total Hasil Usaha Bersih = Rp79.200.000', r.totalHasilUsaha, 79_200_000);
   assert('Pendapatan Per Bulan = Rp6.600.000', r.pendapatanPerBulan, 6_600_000);
+}
+
+
+// ─────────────────────────────────────────────────────────────────────────
+// SUITE 10: Addendum #17 — Fishery Revenue Input Redesign & Migration
+// ─────────────────────────────────────────────────────────────────────────
+console.log('\n══ SUITE 10: Addendum #17 — Fishery Revenue Input Redesign & Migration ══\n');
+
+// 10.1 Migration of Nelayan Mandiri (workers < 2)
+console.log('10.1 Migration of Nelayan Mandiri:');
+{
+  const legacyInputs = {
+    income_method: 'volume_harga',
+    satuan_kg: '2',
+    pemasukan_harian: '100000',
+    custom_rev_pct: '10',
+    custom_exp_pct: '30',
+    custom_days: '30',
+    pekerja_dibayar_l: '0',
+    pekerja_dibayar_p: '0'
+  };
+  
+  const migratedInputs = migrateLegacyNelayanInputs(legacyInputs);
+  assertEqual('income_method migrated to nilai_langsung', migratedInputs.income_method, 'nilai_langsung');
+  assertEqual('pemasukan_langsung is calculated correctly (2 * 100k)', migratedInputs.pemasukan_langsung, '200000');
+  assertEqual('pemasukan_langsung_freq is harian', migratedInputs.pemasukan_langsung_freq, 'harian');
+  assertEqual('original satuan_kg is preserved', migratedInputs.satuan_kg, '2');
+  assertEqual('original pemasukan_harian is preserved', migratedInputs.pemasukan_harian, '100000');
+
+  // Calculate with legacy inputs
+  const rLegacy = calculateRecord({ id: 'legacy-mandiri', categoryId: 'nelayan_tangkap', inputs: legacyInputs }, []);
+  // Calculate with migrated inputs
+  const rMigrated = calculateRecord({ id: 'migrated-mandiri', categoryId: 'nelayan_tangkap', inputs: migratedInputs }, []);
+
+  assert('Legacy and migrated totalPendapatanTahunan are identical', rMigrated.totalPendapatanTahunan, rLegacy.totalPendapatanTahunan);
+  assert('Legacy and migrated totalPengeluaranTahunan are identical', rMigrated.totalPengeluaranTahunan, rLegacy.totalPengeluaranTahunan);
+  assert('Legacy and migrated totalHasilUsaha are identical', rMigrated.totalHasilUsaha, rLegacy.totalHasilUsaha);
+}
+
+// 10.2 Migration of Bagi Hasil Kru/Trip (workers >= 2)
+console.log('\n10.2 Migration of Bagi Hasil Kru/Trip:');
+{
+  const legacyInputs = {
+    income_method: 'volume_harga',
+    satuan_kg: '5',
+    pemasukan_harian: '1000000',
+    custom_days: '4',
+    pekerja_dibayar_l: '3',
+    pekerja_dibayar_p: '1',
+    biaya_trip_es: '200000',
+    biaya_trip_bbm: '800000',
+    biaya_trip_ransum: '300000',
+    biaya_trip_umpan: '200000',
+    bagi_hasil_pemilik: '50'
+  };
+
+  const migratedInputs = migrateLegacyNelayanInputs(legacyInputs);
+  assertEqual('income_method migrated to bagi_hasil', migratedInputs.income_method, 'bagi_hasil');
+  assertEqual('original satuan_kg is preserved', migratedInputs.satuan_kg, '5');
+  assertEqual('original pemasukan_harian is preserved', migratedInputs.pemasukan_harian, '1000000');
+
+  // Calculate with legacy inputs
+  const rLegacy = calculateRecord({ id: 'legacy-kru', categoryId: 'nelayan_tangkap', inputs: legacyInputs }, []);
+  // Calculate with migrated inputs
+  const rMigrated = calculateRecord({ id: 'migrated-kru', categoryId: 'nelayan_tangkap', inputs: migratedInputs }, []);
+
+  assert('Legacy and migrated totalPendapatanTahunan are identical', rMigrated.totalPendapatanTahunan, rLegacy.totalPendapatanTahunan);
+  assert('Legacy and migrated totalPengeluaranTahunan are identical', rMigrated.totalPengeluaranTahunan, rLegacy.totalPengeluaranTahunan);
+  assert('Legacy and migrated totalHasilUsaha are identical', rMigrated.totalHasilUsaha, rLegacy.totalHasilUsaha);
 }
 
 

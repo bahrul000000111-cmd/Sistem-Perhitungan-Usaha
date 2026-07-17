@@ -4,6 +4,7 @@
  * Persists all records to localStorage and provides CRUD actions.
  */
 import { useState, useCallback, useEffect } from 'react';
+import { migrateLegacyNelayanInputs } from '../utils/calculations';
 
 const STORAGE_KEY = 'umk_records_v1';
 
@@ -16,7 +17,25 @@ function generateId() {
 function loadFromStorage() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? JSON.parse(raw) : [];
+    const parsed = raw ? JSON.parse(raw) : [];
+    
+    // Migrate legacy nelayan records
+    let modified = false;
+    const migrated = parsed.map(record => {
+      if (record.categoryId === 'nelayan_tangkap' && record.inputs) {
+        const oldMethod = record.inputs.income_method || 'volume_harga';
+        if (oldMethod === 'volume_harga') {
+          record.inputs = migrateLegacyNelayanInputs(record.inputs);
+          modified = true;
+        }
+      }
+      return record;
+    });
+
+    if (modified) {
+      saveToStorage(migrated);
+    }
+    return migrated;
   } catch {
     return [];
   }

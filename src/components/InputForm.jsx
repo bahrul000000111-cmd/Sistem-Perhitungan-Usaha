@@ -575,7 +575,7 @@ export default function InputForm({ categoryId, inputs, onInputChange, records }
   const tempurungRecords = records.filter(r => r.categoryId === 'tempurung');
 
   const isNelayan = categoryId === 'nelayan_tangkap';
-  const incomeMethod = inputs.income_method || 'volume_harga';  // default = Opsi A
+  const incomeMethod = inputs.income_method || 'nilai_langsung';
 
   // ── Addendum #10: Wage auto-sync — compute at top level for useEffect ────
   const _hasNewWorkerKeys =
@@ -585,7 +585,7 @@ export default function InputForm({ categoryId, inputs, onInputChange, records }
   const _dibayarP = parseInt(_hasNewWorkerKeys ? inputs.pekerja_dibayar_p : inputs.pekerja_p) || 0;
   const totalPekerjaDibayar = _dibayarL + _dibayarP;
 
-  const isBagiHasilMode = isNelayan && incomeMethod === 'volume_harga' && totalPekerjaDibayar >= 2;
+  const isBagiHasilMode = isNelayan && (incomeMethod === 'bagi_hasil' || (incomeMethod === 'volume_harga' && totalPekerjaDibayar >= 2));
 
   // Determine modifiers config
   const hasDailyModifier = ['kios_campuran', 'kuliner_rumah_makan', 'nelayan_tangkap', 'generik_harian'].includes(categoryId);
@@ -718,11 +718,18 @@ export default function InputForm({ categoryId, inputs, onInputChange, records }
   // ─────────────────────────────────────────────────────────────────────────
 
   // ── Addendum #7: Nelayan income method ────────────────────────────────────
-  // Options config for IncomeMethodSelector (generic/reusable — just pass different options for other categories)
-  const NELAYAN_METHOD_OPTIONS = [
-    { key: 'volume_harga',   label: '● Volume × Harga Satuan' },
-    { key: 'nilai_langsung', label: 'Nilai Pendapatan Langsung' },
-  ];
+  // Dynamic options helper for IncomeMethodSelector to satisfy "dinamis/reusable" requirement
+  const getIncomeMethodOptions = () => {
+    if (isNelayan) {
+      const opts = [];
+      opts.push({ key: 'nilai_langsung', label: 'Nilai Pendapatan Langsung' });
+      // Addendum #16 / #17 Bagi Hasil Kru/Trip option
+      opts.push({ key: 'bagi_hasil',     label: 'Bagi Hasil Kru/Trip' });
+      return opts;
+    }
+    return [];
+  };
+  const nelayanOptions = getIncomeMethodOptions();
 
   // For Opsi B: live daily conversion preview
   const opsiB_rawIncome = parseFloat(inputs.pemasukan_langsung) || 0;
@@ -733,18 +740,18 @@ export default function InputForm({ categoryId, inputs, onInputChange, records }
 
   return (
     <div className="flex flex-col gap-4">
-      {/* ── Income Method Selector (Addendum #7 — nelayan_tangkap only, component is generic) ── */}
-      {isNelayan && (
-        <>
-          <IncomeMethodSelector
-            value={incomeMethod}
-            onChange={v => onInputChange('income_method', v)}
-            options={NELAYAN_METHOD_OPTIONS}
-            tooltip="Pilih cara Anda mencatat pendapatan — per satuan hasil tangkapan, atau langsung total pendapatan."
-          />
+      {/* ── Income Method Selector (Addendum #7 & #17 — hide toggle if <= 1 option available) ── */}
+      {isNelayan && nelayanOptions.length > 1 && (
+        <IncomeMethodSelector
+          value={incomeMethod}
+          onChange={v => onInputChange('income_method', v)}
+          options={nelayanOptions}
+          tooltip="Pilih cara Anda mencatat pendapatan — langsung total pendapatan atau bagi hasil kru/trip."
+        />
+      )}
 
-          {/* Opsi A fields: Volume × Harga (shown when method = volume_harga) */}
-          {incomeMethod === 'volume_harga' && (
+      {/* Bagi Hasil Kru/Trip fields (shown when method = bagi_hasil or legacy volume_harga with workers >= 2) */}
+      {isBagiHasilMode && (
             <>
               <UnitInput
                 id="input-satuan-kg"

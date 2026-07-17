@@ -593,7 +593,7 @@ export function calcArangTempurung(inputs = {}, linkedNilaiHarianBox = null) {
 export function calcNelayan(inputs = {}) {
   const method = inputs.income_method || 'volume_harga';
   const workers = resolveWorkers(inputs);
-  const isKruMode = method === 'volume_harga' && workers.totalDibayar >= 2;
+  const isKruMode = method === 'bagi_hasil' || (method === 'volume_harga' && workers.totalDibayar >= 2);
   const revPct = isKruMode ? 100 : getRevPct(inputs, 10);
   const expPct = getExpPct(inputs, 30);
   const days   = getDays(inputs); // custom_days represents trips/month in Opsi A
@@ -627,13 +627,13 @@ export function calcNelayan(inputs = {}) {
     totalPendapatan = pendapatanHarian * days * 12 * (revPct / 100);
     totalPengeluaran = totalPendapatan * (expPct / 100);
   } else {
-    // Opsi A — Volume x Harga Satuan (Trip-based)
+    // Opsi A or Bagi Hasil Kru/Trip (Trip-based)
     const satuan = parseFloat(inputs.satuan_kg) || 0; // kg/trip
     const ph     = parseFloat(inputs.pemasukan_harian) || 0; // Rp/kg
     pendapatanHarian = satuan * ph; // per trip
 
     metaExtra = {
-      income_method: 'volume_harga',
+      income_method: method,
       satuan_kg: satuan,
       pemasukan_harian: ph,
     };
@@ -792,7 +792,7 @@ export function calculateRecord(record, allRecords = []) {
   // Guard: use_detail_pengeluaran can be boolean (runtime) or string (edge case) — normalize it
   let totalPengeluaran = result.totalPengeluaranTahunan;
   const rawToggle = inputs.use_detail_pengeluaran;
-  const isBagiHasilKruMode = categoryId === 'nelayan_tangkap' && (inputs.income_method || 'volume_harga') === 'volume_harga' && workers.totalDibayar >= 2;
+  const isBagiHasilKruMode = categoryId === 'nelayan_tangkap' && (inputs.income_method === 'bagi_hasil' || ((inputs.income_method || 'volume_harga') === 'volume_harga' && workers.totalDibayar >= 2));
   const isDetailPengeluaranActive = rawToggle === true || rawToggle === 1 || rawToggle === 'true' || isBagiHasilKruMode;
 
   let totalPengeluaranDetail = 0;
@@ -933,4 +933,38 @@ export function aggregateStats(records) {
     totalRevenue,
     totalExpense
   };
+}
+
+/**
+ * migrateLegacyNelayanInputs
+ * Migrates old volume_harga inputs for category 'nelayan_tangkap' dynamically.
+ * If worker count >= 2, migrates to bagi_hasil. Otherwise, migrates to nilai_langsung.
+ * Original raw inputs (satuan_kg, pemasukan_harian) are preserved.
+ *
+ * @param {Object} inputs
+ * @returns {Object}
+ */
+export function migrateLegacyNelayanInputs(inputs = {}) {
+  const method = inputs.income_method || 'volume_harga';
+  if (method === 'volume_harga') {
+    const workers = resolveWorkers(inputs);
+    const isKru = workers.totalDibayar >= 2;
+    if (isKru) {
+      return {
+        ...inputs,
+        income_method: 'bagi_hasil'
+      };
+    } else {
+      const sat = parseFloat(inputs.satuan_kg) || 0;
+      const ph = parseFloat(inputs.pemasukan_harian) || 0;
+      const calculatedIncome = sat * ph;
+      return {
+        ...inputs,
+        pemasukan_langsung: String(calculatedIncome),
+        pemasukan_langsung_freq: 'harian',
+        income_method: 'nilai_langsung'
+      };
+    }
+  }
+  return inputs;
 }
