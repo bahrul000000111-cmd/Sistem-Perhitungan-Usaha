@@ -649,7 +649,9 @@ export default function InputForm({ categoryId, inputs, onInputChange, records }
         biaya_produksi: String(totalBiayaTripTahunan),
         biaya_produksi_freq: 'tahunan',
         biaya_upah: String(bagianKruTahunan),
-        biaya_upah_freq: 'tahunan'
+        biaya_upah_freq: 'tahunan',
+        biaya_operasional: '0',
+        biaya_non_operasional: '0'
       });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1458,18 +1460,19 @@ export default function InputForm({ categoryId, inputs, onInputChange, records }
               </div>
             </div>
 
-            {/* Rincian Pengeluaran Toggle */}
+             {/* Rincian Pengeluaran Toggle */}
             <div className="pt-3 border-t border-white/[0.04] space-y-3.5">
               <div className="flex items-center justify-between">
                 <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Rincian Pengeluaran</span>
-                <label className="relative inline-flex items-center cursor-pointer select-none">
+                <label className={`relative inline-flex items-center select-none ${isBagiHasilMode ? 'cursor-not-allowed' : 'cursor-pointer'}`}>
                   <input
                     type="checkbox"
                     checked={isDetailPengeluaranActive}
+                    disabled={isBagiHasilMode}
                     onChange={e => onInputChange('use_detail_pengeluaran', e.target.checked)}
                     className="sr-only peer"
                   />
-                  <div className="w-8 h-4 bg-surface-700 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-3.5 after:w-3.5 after:transition-all peer-checked:bg-indigo-500"></div>
+                  <div className={`w-8 h-4 bg-surface-700 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-3.5 after:w-3.5 after:transition-all peer-checked:bg-indigo-500 ${isBagiHasilMode ? 'opacity-50' : ''}`}></div>
                   <span className="ml-2 text-[10px] font-medium text-slate-400">Gunakan Rincian</span>
                 </label>
               </div>
@@ -1509,7 +1512,7 @@ export default function InputForm({ categoryId, inputs, onInputChange, records }
                 customBadge={
                   isBagiHasilMode ? (
                     <span className="flex items-center gap-1 text-[9.5px] font-semibold text-emerald-300 bg-emerald-500/10 border border-emerald-500/20 px-1.5 py-0.5 rounded-md">
-                      🔄 ⚓ Bagi Hasil Kru Kapal (Punggawa-Sawi)
+                      🔄 Otomatis dari Bagi Hasil Kru (Punggawa-Sawi)
                     </span>
                   ) : null
                 }
@@ -1612,7 +1615,7 @@ export default function InputForm({ categoryId, inputs, onInputChange, records }
                     customBadge={
                       isBagiHasilMode ? (
                         <span className="flex items-center gap-1 text-[9.5px] font-semibold text-rose-300 bg-rose-500/10 border border-rose-500/20 px-1.5 py-0.5 rounded-md">
-                          🔄 ⚓ Biaya Operasional Trip Kapal
+                          🔄 Otomatis dari Biaya Trip
                         </span>
                       ) : null
                     }
@@ -1666,7 +1669,7 @@ export default function InputForm({ categoryId, inputs, onInputChange, records }
             })()}
 
             {/* 26d — Operasional */}
-            {(() => {
+            {!isBagiHasilMode && (() => {
               const fieldKey = 'biaya_operasional';
               const hasProportion = proportionCfg && proportionCfg[fieldKey];
               const isAutoField = hasProportion && inputs[fieldKey + AUTO_FLAG_SUFFIX] !== false;
@@ -1705,16 +1708,18 @@ export default function InputForm({ categoryId, inputs, onInputChange, records }
             })()}
 
             {/* 26e — Non-Operasional (always manual) */}
-            <ExpenseField
-              id="biaya-non-operasional"
-              label="Biaya Non-Operasional (26e)"
-              value={inputs.biaya_non_operasional || ''}
-              freq={inputs.biaya_non_operasional_freq}
-              daysPerMonth={Number(displayDays)}
-              onValueChange={val => onInputChange('biaya_non_operasional', val)}
-              onFreqChange={freq => onInputChange('biaya_non_operasional_freq', freq)}
-              tooltip="Bunga pinjaman, donasi, kerugian revaluasi aset, pajak ijin usaha."
-            />
+            {!isBagiHasilMode && (
+              <ExpenseField
+                id="biaya-non-operasional"
+                label="Biaya Non-Operasional (26e)"
+                value={inputs.biaya_non_operasional || ''}
+                freq={inputs.biaya_non_operasional_freq}
+                daysPerMonth={Number(displayDays)}
+                onValueChange={val => onInputChange('biaya_non_operasional', val)}
+                onFreqChange={freq => onInputChange('biaya_non_operasional_freq', freq)}
+                tooltip="Bunga pinjaman, donasi, kerugian revaluasi aset, pajak ijin usaha."
+              />
+            )}
 
             {/* Live 26f total summary — uses live26fForAnomaly for accuracy with wage auto-mode */}
             {live26fForAnomaly > 0 && (
@@ -1748,6 +1753,9 @@ export default function InputForm({ categoryId, inputs, onInputChange, records }
                 (parseFloat(inputs.biaya_hpp)             || 0) +
                 (parseFloat(inputs.biaya_operasional)     || 0) +
                 (parseFloat(inputs.biaya_non_operasional) || 0);
+              if (isBagiHasilMode) {
+                return `Pendapatan: Hasil Tangkap/Trip × Harga × ${tripQty} Trip/bln × 12 bln · Pengeluaran: Upah Kru (26a) + Operasional Trip (26b) = Rp${total26f.toLocaleString('id-ID')}`;
+              }
               let pendapatan;
               if (isNelayan && incomeMethod === 'nilai_langsung') {
                 const revPctVal = (inputs.custom_rev_pct !== undefined && inputs.custom_rev_pct !== '') ? inputs.custom_rev_pct : 10;

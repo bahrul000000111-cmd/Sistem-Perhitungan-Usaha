@@ -792,6 +792,12 @@ export function calculateRecord(record, allRecords = []) {
     let upahFreq = 'tahunan';
     let prodValue;
     let prodFreq = 'tahunan';
+    let hppValue = 0;
+    let hppFreq = 'tahunan';
+    let operValue = 0;
+    let operFreq = 'tahunan';
+    let nonOperValue = 0;
+    let nonOperFreq = 'tahunan';
 
     if (inputs.income_method === 'bagi_hasil') {
       const sat = parseFloat(inputs.trip_satuan) || 0;
@@ -827,13 +833,22 @@ export function calculateRecord(record, allRecords = []) {
 
       prodValue = parseFloat(inputs.biaya_produksi) || 0;
       prodFreq = inputs.biaya_produksi_freq;
+
+      hppValue = parseFloat(inputs.biaya_hpp) || 0;
+      hppFreq = inputs.biaya_hpp_freq;
+
+      operValue = parseFloat(inputs.biaya_operasional) || 0;
+      operFreq = inputs.biaya_operasional_freq;
+
+      nonOperValue = parseFloat(inputs.biaya_non_operasional) || 0;
+      nonOperFreq = inputs.biaya_non_operasional_freq;
     }
 
     const upah    = convertToAnnual(upahValue, upahFreq, daysPerMonth);
     const prod    = convertToAnnual(prodValue, prodFreq, daysPerMonth);
-    const hpp     = convertToAnnual(parseFloat(inputs.biaya_hpp)             || 0, inputs.biaya_hpp_freq,            daysPerMonth);
-    const oper    = convertToAnnual(parseFloat(inputs.biaya_operasional)     || 0, inputs.biaya_operasional_freq,    daysPerMonth);
-    const nonOper = convertToAnnual(parseFloat(inputs.biaya_non_operasional) || 0, inputs.biaya_non_operasional_freq, daysPerMonth);
+    const hpp     = convertToAnnual(hppValue, hppFreq, daysPerMonth);
+    const oper    = convertToAnnual(operValue, operFreq, daysPerMonth);
+    const nonOper = convertToAnnual(nonOperValue, nonOperFreq, daysPerMonth);
     totalPengeluaranDetail = upah + prod + hpp + oper + nonOper;
     totalPengeluaran = totalPengeluaranDetail;
   }
