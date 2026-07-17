@@ -777,6 +777,36 @@ console.log('\n══ SUITE 8: Addendum #13 — Weekly Conversion Factor Revisio
   assert('Weekly expense (100k) annualised = 4.800.000', r.totalPengeluaranTahunan, 4_800_000);
 }
 
+// ─────────────────────────────────────────────────────────────────────────
+// SUITE 9: Addendum #16 — Bagi Hasil Kapal (Punggawa-Sawi)
+// ─────────────────────────────────────────────────────────────────────────
+console.log('\n══ SUITE 9: Addendum #16 — Bagi Hasil Kapal (Punggawa-Sawi) ══\n');
+{
+  const r = calculateRecord({
+    id: 'a16-test',
+    categoryId: 'nelayan_tangkap',
+    inputs: {
+      income_method: 'bagi_hasil',
+      trip_satuan: '5',
+      trip_harga_satuan: '1000000',
+      trip_per_bulan: '4',
+      biaya_trip_es: '300000',
+      biaya_trip_bbm: '800000',
+      biaya_trip_ransum: '400000',
+      biaya_trip_umpan: '200000',
+      bagi_hasil_pemilik: '50',
+      pekerja_dibayar_l: '4', // Jumlah Kru = 4
+      use_detail_pengeluaran: true
+    }
+  }, []);
+
+  console.log('Nelayan Tangkap Bagi Hasil Kru/Trip:');
+  assert('Total Pendapatan (Tahunan) = Rp240.000.000', r.totalPendapatanTahunan, 240_000_000);
+  assert('Total Pengeluaran Tahunan (26f) = Rp160.800.000', r.totalPengeluaranTahunan, 160_800_000);
+  assert('Total Hasil Usaha Bersih = Rp79.200.000', r.totalHasilUsaha, 79_200_000);
+  assert('Pendapatan Per Bulan = Rp6.600.000', r.pendapatanPerBulan, 6_600_000);
+}
+
 
 // ─────────────────────────────────────────────────────────────────────────
 // Summary

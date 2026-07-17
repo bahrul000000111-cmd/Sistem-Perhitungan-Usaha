@@ -599,8 +599,25 @@ export function calcNelayan(inputs = {}) {
   const method = inputs.income_method || 'volume_harga';
   let pendapatanHarian;
   let metaExtra = {};
+  let totalPendapatan;
+  let totalPengeluaran;
 
-  if (method === 'nilai_langsung') {
+  if (method === 'bagi_hasil') {
+    const sat = parseFloat(inputs.trip_satuan) || 0;
+    const prc = parseFloat(inputs.trip_harga_satuan) || 0;
+    const trips = parseFloat(inputs.trip_per_bulan) || 0;
+    totalPendapatan = sat * prc * trips * 12;
+    pendapatanHarian = totalPendapatan / (days * 12);
+    // Norm-based default pengeluaran using expPct
+    totalPengeluaran = totalPendapatan * (expPct / 100);
+    metaExtra = {
+      income_method: 'bagi_hasil',
+      trip_satuan: sat,
+      trip_harga_satuan: prc,
+      trip_per_bulan: trips,
+      pendapatanHarianDerived: pendapatanHarian,
+    };
+  } else if (method === 'nilai_langsung') {
     // Opsi B — convert raw income using direct frequency factors to avoid double-counting (Addendum #15)
     const rawIncome = parseFloat(inputs.pemasukan_langsung) || 0;
     const freq      = inputs.pemasukan_langsung_freq || 'harian';
@@ -621,6 +638,8 @@ export function calcNelayan(inputs = {}) {
       pemasukan_langsung_freq: freq,
       pendapatanHarianDerived: pendapatanHarian,
     };
+    totalPendapatan = pendapatanHarian * days * 12 * (revPct / 100);
+    totalPengeluaran = totalPendapatan * (expPct / 100);
   } else {
     // Opsi A — original formula: satuan_kg × nilai_per_satuan
     const satuan = parseFloat(inputs.satuan_kg) || 0;
@@ -631,10 +650,10 @@ export function calcNelayan(inputs = {}) {
       satuan_kg: satuan,
       pemasukan_harian: ph,
     };
+    totalPendapatan = pendapatanHarian * days * 12 * (revPct / 100);
+    totalPengeluaran = totalPendapatan * (expPct / 100);
   }
 
-  const totalPendapatan   = pendapatanHarian * days * 12 * (revPct / 100);
-  const totalPengeluaran  = totalPendapatan * (expPct / 100);
   const totalHasilUsaha   = totalPendapatan - totalPengeluaran;
   const pendapatanPerBulan = totalHasilUsaha / 12;
 
@@ -647,7 +666,8 @@ export function calcNelayan(inputs = {}) {
     setahun: null,
     meta: {
       ...metaExtra,
-      koefisien: `${revPct}%`, faktorPengeluaran: `${expPct}%`,
+      koefisien: method === 'bagi_hasil' ? '100% (Tanpa Koefisien)' : `${revPct}%`,
+      faktorPengeluaran: `${expPct}%`,
       hariKerja: days,
       pendapatanHarian,
       catatan: 'Menangkap ikan setiap hari'
@@ -761,23 +781,56 @@ export function calculateRecord(record, allRecords = []) {
   // Guard: use_detail_pengeluaran can be boolean (runtime) or string (edge case) — normalize it
   let totalPengeluaran = result.totalPengeluaranTahunan;
   const rawToggle = inputs.use_detail_pengeluaran;
-  const isDetailPengeluaranActive = rawToggle === true || rawToggle === 1 || rawToggle === 'true';
+  const isDetailPengeluaranActive = rawToggle === true || rawToggle === 1 || rawToggle === 'true' || inputs.income_method === 'bagi_hasil';
 
   let totalPengeluaranDetail = 0;
   if (isDetailPengeluaranActive) {
     // getDays reads custom_days from inputs (same as income side), fallback 30
     const daysPerMonth = getDays(inputs);
 
-    const rataUpahPerPekerja = parseFloat(inputs.rata_upah_per_pekerja) || 0;
-    const isWageAutoMode = rataUpahPerPekerja > 0 && workers.totalDibayar > 0;
-    let upahValue = parseFloat(inputs.biaya_upah) || 0;
-    let upahFreq = inputs.biaya_upah_freq;
-    if (isWageAutoMode) {
-      upahValue = workers.totalDibayar * rataUpahPerPekerja * 12;
-      upahFreq = 'tahunan';
+    let upahValue;
+    let upahFreq = 'tahunan';
+    let prodValue;
+    let prodFreq = 'tahunan';
+
+    if (inputs.income_method === 'bagi_hasil') {
+      const sat = parseFloat(inputs.trip_satuan) || 0;
+      const prc = parseFloat(inputs.trip_harga_satuan) || 0;
+      const trips = parseFloat(inputs.trip_per_bulan) || 0;
+      const kotorBulanan = sat * prc * trips;
+
+      const es = parseFloat(inputs.biaya_trip_es) || 0;
+      const bbm = parseFloat(inputs.biaya_trip_bbm) || 0;
+      const ransum = parseFloat(inputs.biaya_trip_ransum) || 0;
+      const umpan = parseFloat(inputs.biaya_trip_umpan) || 0;
+      const totalTripExp = es + bbm + ransum + umpan;
+      const bulananExp = totalTripExp * trips;
+      const totalBiayaOperasionalTahunan = bulananExp * 12;
+
+      const shuBulanan = kotorBulanan - bulananExp;
+      const pemilikPct = inputs.bagi_hasil_pemilik !== undefined && inputs.bagi_hasil_pemilik !== '' ? parseFloat(inputs.bagi_hasil_pemilik) : 50;
+      const kruPct = 100 - pemilikPct;
+      const bagianKruBulanan = shuBulanan * (kruPct / 100);
+      const bagianKruTahunan = bagianKruBulanan * 12;
+
+      upahValue = bagianKruTahunan;
+      prodValue = totalBiayaOperasionalTahunan;
+    } else {
+      const rataUpahPerPekerja = parseFloat(inputs.rata_upah_per_pekerja) || 0;
+      const isWageAutoMode = rataUpahPerPekerja > 0 && workers.totalDibayar > 0;
+      upahValue = parseFloat(inputs.biaya_upah) || 0;
+      upahFreq = inputs.biaya_upah_freq;
+      if (isWageAutoMode) {
+        upahValue = workers.totalDibayar * rataUpahPerPekerja * 12;
+        upahFreq = 'tahunan';
+      }
+
+      prodValue = parseFloat(inputs.biaya_produksi) || 0;
+      prodFreq = inputs.biaya_produksi_freq;
     }
+
     const upah    = convertToAnnual(upahValue, upahFreq, daysPerMonth);
-    const prod    = convertToAnnual(parseFloat(inputs.biaya_produksi)        || 0, inputs.biaya_produksi_freq,       daysPerMonth);
+    const prod    = convertToAnnual(prodValue, prodFreq, daysPerMonth);
     const hpp     = convertToAnnual(parseFloat(inputs.biaya_hpp)             || 0, inputs.biaya_hpp_freq,            daysPerMonth);
     const oper    = convertToAnnual(parseFloat(inputs.biaya_operasional)     || 0, inputs.biaya_operasional_freq,    daysPerMonth);
     const nonOper = convertToAnnual(parseFloat(inputs.biaya_non_operasional) || 0, inputs.biaya_non_operasional_freq, daysPerMonth);
