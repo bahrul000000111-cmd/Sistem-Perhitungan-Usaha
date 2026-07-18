@@ -1337,8 +1337,8 @@ export default function InputForm({ categoryId, inputs, onInputChange, records }
         </div>
       )}
 
-      {/* ── Custom Parameters Section ── */}
-      {!isBagiHasilMode && (
+      {/* ── Custom Parameters Section (Koefisien & Parameter Kustom) ── */}
+      {!isBagiHasilMode && !isPencatatanRiil && (
         <div className="mt-2 pt-4 border-t border-white/[0.06] space-y-3.5 animate-fade-in">
           <div className="flex justify-between items-center">
             <div className="flex items-center gap-1.5">
@@ -1394,44 +1394,49 @@ export default function InputForm({ categoryId, inputs, onInputChange, records }
               </div>
             </div>
           )}
+        </div>
+      )}
 
-          {/* Operational Days (Daily categories only) */}
-          {hasDailyModifier && (
-            <div className="flex flex-col gap-1.5">
-              <div className="flex justify-between items-center">
-                <label htmlFor="input-custom-days" className="text-[12px] font-medium text-slate-300">
-                  {isNelayan ? 'Jumlah Trip / Bulan' : 'Jumlah Hari Kerja / Bulan'}
-                </label>
-                <span className="text-[11px] font-semibold font-mono text-cyan-300 bg-cyan-500/15 px-1.5 py-0.5 rounded">
-                  {displayDays} {isNelayan ? 'trip' : 'hari'}
-                </span>
-              </div>
-              <div className="flex items-center gap-3">
-                <input
-                  id="range-custom-days"
-                  type="range" min="1" max="31"
-                  value={displayDays}
-                  onChange={e => onInputChange('custom_days', e.target.value)}
-                  className="flex-1 accent-cyan-500 h-1.5 bg-surface-800 rounded-lg appearance-none cursor-pointer"
-                />
-                <input
-                  id="input-custom-days"
-                  type="number" min="1" max="31"
-                  value={rawDays !== undefined ? rawDays : ''}
-                  placeholder="30"
-                  onChange={e => {
-                    const val = e.target.value;
-                    if (val === '') { onInputChange('custom_days', ''); }
-                    else { onInputChange('custom_days', String(Math.min(31, Math.max(1, parseInt(val) || 1)))); }
-                  }}
-                  className="w-16 rounded-lg border border-white/[0.08] bg-surface-700 text-slate-100 text-[12px] font-mono py-1 text-center"
-                />
-              </div>
-              <div className="flex justify-between text-[9px] text-slate-600 px-0.5 select-none font-medium">
-                <span>1</span><span>8</span><span>15</span><span>22</span><span>31</span>
-              </div>
+      {/* Operational Days (Daily categories only) */}
+      {!isBagiHasilMode && hasDailyModifier && (
+        <div className="mt-2 pt-4 border-t border-white/[0.06] space-y-3.5 animate-fade-in">
+          <div className="flex flex-col gap-1.5">
+            <div className="flex justify-between items-center">
+              <label htmlFor="input-custom-days" className="text-[12px] font-medium text-slate-300">
+                {isNelayan ? 'Jumlah Trip / Bulan' : 'Jumlah Hari Kerja / Bulan'}
+              </label>
+              <span className="text-[11px] font-semibold font-mono text-cyan-300 bg-cyan-500/15 px-1.5 py-0.5 rounded">
+                {displayDays} {isNelayan ? 'trip' : 'hari'}
+              </span>
             </div>
-          )}
+            <div className="flex items-center gap-3">
+              <input
+                id="range-custom-days"
+                type="range" min="1" max="31"
+                value={displayDays}
+                onChange={e => onInputChange('custom_days', e.target.value)}
+                className="flex-1 accent-cyan-500 h-1.5 bg-surface-800 rounded-lg appearance-none cursor-pointer"
+              />
+              <input
+                id="input-custom-days"
+                type="number" min="1" max="31"
+                value={rawDays !== undefined ? rawDays : ''}
+                placeholder="30"
+                onChange={e => {
+                  const val = e.target.value;
+                  if (val === '') { onInputChange('custom_days', ''); }
+                  else { onInputChange('custom_days', String(Math.min(31, Math.max(1, parseInt(val) || 1)))); }
+                }}
+                className="w-16 rounded-lg border border-white/[0.08] bg-surface-700 text-slate-100 text-[12px] font-mono py-1 text-center"
+              />
+            </div>
+            <div className="flex justify-between text-[9px] text-slate-600 px-0.5 select-none font-medium">
+              <span>1 {isNelayan ? 'trip' : 'hari'}</span>
+              <span>10 {isNelayan ? 'trip' : 'hari'}</span>
+              <span>20 {isNelayan ? 'trip' : 'hari'}</span>
+              <span>31 {isNelayan ? 'trip' : 'hari'}</span>
+            </div>
+          </div>
         </div>
       )}
 
