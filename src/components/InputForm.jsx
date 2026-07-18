@@ -1153,7 +1153,14 @@ export default function InputForm({ categoryId, inputs, onInputChange, records }
                   }
                   const sebelumKoefisien = opsiB_rawIncome * factor;
                   const kontribusiTotal = sebelumKoefisien * (revPct / 100);
-                  return (
+                  return isPencatatanRiil ? (
+                    <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1 pl-1 text-[11px] text-slate-400 font-mono tabular-nums leading-relaxed">
+                      <span>=</span>
+                      <span className="font-semibold text-emerald-400">{formatRupiah(sebelumKoefisien)}/tahun</span>
+                      <span className="text-slate-500">|</span>
+                      <span className="text-slate-500 text-[10px]">kontribusi to Total Pendapatan</span>
+                    </div>
+                  ) : (
                     <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1 pl-1 text-[11px] text-slate-400 font-mono tabular-nums leading-relaxed">
                       <span>=</span>
                       <span className="font-semibold text-slate-200">{formatRupiah(sebelumKoefisien)}/tahun</span>
@@ -1267,7 +1274,14 @@ export default function InputForm({ categoryId, inputs, onInputChange, records }
                     }
                     const sebelumKoefisien = rawIncome * factor;
                     const kontribusiTotal = sebelumKoefisien * (revPct / 100);
-                    return (
+                    return isPencatatanRiil ? (
+                      <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1 pl-1 text-[11px] text-slate-400 font-mono tabular-nums leading-relaxed">
+                        <span>=</span>
+                        <span className="font-semibold text-emerald-400">{formatRupiah(sebelumKoefisien)}/tahun</span>
+                        <span className="text-slate-500">|</span>
+                        <span className="text-slate-500 text-[10px]">kontribusi to Total Pendapatan</span>
+                      </div>
+                    ) : (
                       <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1 pl-1 text-[11px] text-slate-400 font-mono tabular-nums leading-relaxed">
                         <span>=</span>
                         <span className="font-semibold text-slate-200">{formatRupiah(sebelumKoefisien)}/tahun</span>
@@ -1939,10 +1953,12 @@ export default function InputForm({ categoryId, inputs, onInputChange, records }
 
 
       {/* ── Formula Footer Note ── */}
-      <div className="text-[11px] text-slate-500 bg-surface-800/50 border border-white/[0.04] rounded-xl px-3 py-2.5 leading-relaxed font-sans">
-        <span className="text-slate-400 font-semibold">Formula: </span>
-        {getFormulaText()}
-      </div>
+      {!isPencatatanRiil && (
+        <div className="text-[11px] text-slate-500 bg-surface-800/50 border border-white/[0.04] rounded-xl px-3 py-2.5 leading-relaxed font-sans">
+          <span className="text-slate-400 font-semibold">Formula: </span>
+          {getFormulaText()}
+        </div>
+      )}
 
       {/* ── Floating Drawer Panel (Addendum #18) ── */}
       {isGuideOpen && (
