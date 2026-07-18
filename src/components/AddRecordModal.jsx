@@ -66,8 +66,8 @@ function defaultRecordName(label) {
  */
 function getDefaultInputs(categoryId) {
   const cat = CATEGORIES.find(c => c.id === categoryId);
-  if (!cat) return {};
-  const inputs = {};
+  if (!cat) return { calculation_method: 'PENCATATAN_RIIL' };
+  const inputs = { calculation_method: 'PENCATATAN_RIIL' };
   cat.fields.forEach(f => {
     if (f.defaultValue !== undefined) inputs[f.key] = f.defaultValue;
   });

@@ -293,7 +293,7 @@ function UnitInput({ id, label, value, onChange, placeholder, suffix, tooltip })
 /**
  * Reusable percentage modifier slider linked with number input.
  */
-function PercentSlider({ id, label, value, onChange, defaultValue, tooltip, onOpenGuide }) {
+function PercentSlider({ id, label, value, onChange, defaultValue, tooltip, onOpenGuide, disabled }) {
   const displayValue = (value !== undefined && value !== '') ? value : defaultValue;
 
   return (
@@ -308,7 +308,7 @@ function PercentSlider({ id, label, value, onChange, defaultValue, tooltip, onOp
               <Info size={13} />
             </div>
           )}
-          {onOpenGuide && (
+          {onOpenGuide && !disabled && (
             <button
               id={`btn-guide-${id}`}
               type="button"
@@ -320,7 +320,7 @@ function PercentSlider({ id, label, value, onChange, defaultValue, tooltip, onOp
             </button>
           )}
         </div>
-        <span className="text-[11px] font-semibold font-mono text-indigo-300 bg-indigo-500/15 px-1.5 py-0.5 rounded">
+        <span className={`text-[11px] font-semibold font-mono ${disabled ? 'text-emerald-300 bg-emerald-500/15' : 'text-indigo-300 bg-indigo-500/15'} px-1.5 py-0.5 rounded`}>
           {displayValue}%
         </span>
       </div>
@@ -330,19 +330,21 @@ function PercentSlider({ id, label, value, onChange, defaultValue, tooltip, onOp
           type="range" min="0" max="100"
           value={displayValue}
           onChange={e => onChange(e.target.value)}
-          className="flex-1 accent-indigo-500 h-1.5 bg-surface-800 rounded-lg appearance-none cursor-pointer"
+          disabled={disabled}
+          className={`flex-1 accent-indigo-500 h-1.5 bg-surface-800 rounded-lg appearance-none ${disabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}
         />
         <input
           id={id}
           type="number" min="0" max="100"
           value={value !== undefined ? value : ''}
           placeholder={String(defaultValue)}
+          disabled={disabled}
           onChange={e => {
             const val = e.target.value;
             if (val === '') { onChange(''); }
             else { onChange(String(Math.min(100, Math.max(0, parseInt(val) || 0)))); }
           }}
-          className="w-16 rounded-lg border border-white/[0.08] bg-surface-700 text-slate-100 text-[12px] font-mono py-1 text-center"
+          className={`w-16 rounded-lg border border-white/[0.08] bg-surface-700 text-slate-100 text-[12px] font-mono py-1 text-center ${disabled ? 'cursor-not-allowed opacity-60' : ''}`}
         />
       </div>
     </div>
@@ -640,14 +642,16 @@ export default function InputForm({ categoryId, inputs, onInputChange, records }
   const displayDays = (rawDays !== undefined && rawDays !== '') ? rawDays : 30;
   const daysNum = Number(displayDays);
 
+  const isPencatatanRiil = (inputs.calculation_method || 'PENCATATAN_RIIL') === 'PENCATATAN_RIIL';
+
   // Normalize use_detail_pengeluaran toggle
   const rawToggle = inputs.use_detail_pengeluaran;
-  const isDetailPengeluaranActive = rawToggle === true || rawToggle === 1 || rawToggle === 'true' || isBagiHasilMode;
+  const isDetailPengeluaranActive = rawToggle === true || rawToggle === 1 || rawToggle === 'true' || isBagiHasilMode || isPencatatanRiil;
 
   const rataUpahPerPekerja  = parseFloat(inputs.rata_upah_per_pekerja) || 0;
   const estimasiUpahTahunan = totalPekerjaDibayar * rataUpahPerPekerja * 12;
   // Auto-mode is active when: rata_upah is filled AND dibayar > 0 AND rincian toggle is on
-  const isWageAutoMode = rataUpahPerPekerja > 0 && totalPekerjaDibayar > 0 && isDetailPengeluaranActive && !isBagiHasilMode;
+  const isWageAutoMode = rataUpahPerPekerja > 0 && totalPekerjaDibayar > 0 && isDetailPengeluaranActive && !isBagiHasilMode && !isPencatatanRiil;
 
   // Auto-sync 26a whenever the auto-mode inputs change
   useEffect(() => {
@@ -716,7 +720,7 @@ export default function InputForm({ categoryId, inputs, onInputChange, records }
 
   // Auto-proportion effect: fill eligible fields when income is known & rincian active
   useEffect(() => {
-    if (!proportionCfg || !isDetailPengeluaranActive || liveExpenseBudget <= 0 || isBagiHasilMode) return;
+    if (!proportionCfg || !isDetailPengeluaranActive || liveExpenseBudget <= 0 || isBagiHasilMode || isPencatatanRiil) return;
 
     const updates = {};
     PROPORTION_FIELDS.forEach(field => {
@@ -1361,11 +1365,12 @@ export default function InputForm({ categoryId, inputs, onInputChange, records }
             <PercentSlider
               id="input-custom-rev-pct"
               label="Koefisien Pendapatan (%)"
-              value={inputs.custom_rev_pct}
+              value={isPencatatanRiil ? '100' : inputs.custom_rev_pct}
               onChange={val => onInputChange('custom_rev_pct', val)}
               defaultValue={defaultRevPct}
               tooltip="Faktor proporsi pendapatan kotor yang diakui sebagai output bruto menurut norma sektoral BPS."
               onOpenGuide={() => setIsGuideOpen(true)}
+              disabled={isPencatatanRiil}
             />
           )}
 
@@ -1649,16 +1654,18 @@ export default function InputForm({ categoryId, inputs, onInputChange, records }
             <div className="pt-3 border-t border-white/[0.04] space-y-3.5">
               <div className="flex items-center justify-between">
                 <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Rincian Pengeluaran</span>
-                <label className={`relative inline-flex items-center select-none ${isBagiHasilMode ? 'cursor-not-allowed' : 'cursor-pointer'}`}>
+                <label className={`relative inline-flex items-center select-none ${(isBagiHasilMode || isPencatatanRiil) ? 'cursor-not-allowed' : 'cursor-pointer'}`}>
                   <input
                     type="checkbox"
                     checked={isDetailPengeluaranActive}
-                    disabled={isBagiHasilMode}
+                    disabled={isBagiHasilMode || isPencatatanRiil}
                     onChange={e => onInputChange('use_detail_pengeluaran', e.target.checked)}
                     className="sr-only peer"
                   />
-                  <div className={`w-8 h-4 bg-surface-700 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-3.5 after:w-3.5 after:transition-all peer-checked:bg-indigo-500 ${isBagiHasilMode ? 'opacity-50' : ''}`}></div>
-                  <span className="ml-2 text-[10px] font-medium text-slate-400">Gunakan Rincian</span>
+                  <div className={`w-8 h-4 bg-surface-700 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-3.5 after:w-3.5 after:transition-all peer-checked:bg-indigo-500 ${(isBagiHasilMode || isPencatatanRiil) ? 'opacity-50' : ''}`}></div>
+                  <span className="ml-2 text-[10px] font-medium text-slate-400">
+                    {isPencatatanRiil ? 'Wajib untuk Pencatatan Riil' : 'Gunakan Rincian'}
+                  </span>
                 </label>
               </div>
             </div>
@@ -1765,12 +1772,12 @@ export default function InputForm({ categoryId, inputs, onInputChange, records }
             {(() => {
               const fieldKey = 'biaya_produksi';
               const hasProportion = proportionCfg && proportionCfg[fieldKey] && !isBagiHasilMode;
-              const isAutoField = hasProportion && inputs[fieldKey + AUTO_FLAG_SUFFIX] !== false;
+              const isAutoField = hasProportion && !isPencatatanRiil && inputs[fieldKey + AUTO_FLAG_SUFFIX] !== false;
               const resetToAuto = () => onInputChange({ [fieldKey + AUTO_FLAG_SUFFIX]: true });
               return (
                 <div className="flex flex-col gap-1">
                   <div className="flex items-center gap-1.5 flex-wrap">
-                    {hasProportion && (
+                    {hasProportion && !isPencatatanRiil && (
                       isAutoField ? (
                         <span className="text-[9px] font-semibold text-cyan-300 bg-cyan-500/10 border border-cyan-500/20 px-1.5 py-0.5 rounded-md">
                           🔄 Proporsi Otomatis
@@ -1818,12 +1825,12 @@ export default function InputForm({ categoryId, inputs, onInputChange, records }
             {['kios_campuran', 'tempurung', 'arang_tempurung'].includes(categoryId) && (() => {
               const fieldKey = 'biaya_hpp';
               const hasProportion = proportionCfg && proportionCfg[fieldKey];
-              const isAutoField = hasProportion && inputs[fieldKey + AUTO_FLAG_SUFFIX] !== false;
+              const isAutoField = hasProportion && !isPencatatanRiil && inputs[fieldKey + AUTO_FLAG_SUFFIX] !== false;
               const resetToAuto = () => onInputChange({ [fieldKey + AUTO_FLAG_SUFFIX]: true });
               return (
                 <div className="flex flex-col gap-1">
                   <div className="flex items-center gap-1.5 flex-wrap">
-                    {hasProportion && (
+                    {hasProportion && !isPencatatanRiil && (
                       isAutoField ? (
                         <span className="text-[9px] font-semibold text-cyan-300 bg-cyan-500/10 border border-cyan-500/20 px-1.5 py-0.5 rounded-md">
                           🔄 Proporsi Otomatis
@@ -1857,12 +1864,12 @@ export default function InputForm({ categoryId, inputs, onInputChange, records }
             {!isBagiHasilMode && (() => {
               const fieldKey = 'biaya_operasional';
               const hasProportion = proportionCfg && proportionCfg[fieldKey];
-              const isAutoField = hasProportion && inputs[fieldKey + AUTO_FLAG_SUFFIX] !== false;
+              const isAutoField = hasProportion && !isPencatatanRiil && inputs[fieldKey + AUTO_FLAG_SUFFIX] !== false;
               const resetToAuto = () => onInputChange({ [fieldKey + AUTO_FLAG_SUFFIX]: true });
               return (
                 <div className="flex flex-col gap-1">
                   <div className="flex items-center gap-1.5 flex-wrap">
-                    {hasProportion && (
+                    {hasProportion && !isPencatatanRiil && (
                       isAutoField ? (
                         <span className="text-[9px] font-semibold text-cyan-300 bg-cyan-500/10 border border-cyan-500/20 px-1.5 py-0.5 rounded-md">
                           🔄 Proporsi Otomatis
@@ -1990,8 +1997,24 @@ export default function InputForm({ categoryId, inputs, onInputChange, records }
 
               return (
                 <div className="space-y-3.5">
-                  <div className="text-[11px] font-bold text-slate-350 uppercase tracking-widest pl-0.5">
-                    {guide.title}
+                  <div className="flex items-center justify-between pl-0.5 flex-wrap gap-2">
+                    <div className="text-[11px] font-bold text-slate-350 uppercase tracking-widest">
+                      {guide.title}
+                    </div>
+                    {isPencatatanRiil ? (
+                      <span className="text-[9.5px] font-bold px-2 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/25 text-emerald-400">
+                        🟢 Mode Pencatatan Riil Aktif
+                      </span>
+                    ) : (
+                      !guide.levels.some(level => {
+                        const currentVal = parseFloat(inputs.custom_rev_pct !== undefined && inputs.custom_rev_pct !== '' ? inputs.custom_rev_pct : defaultRevPct);
+                        return currentVal >= level.min && currentVal <= level.max;
+                      }) && (
+                        <span className="text-[9.5px] font-bold px-2 py-0.5 rounded bg-amber-500/10 border border-amber-500/25 text-amber-400">
+                          ⚠️ Tidak Sesuai / Out of Range
+                        </span>
+                      )
+                    )}
                   </div>
                   {guide.note && (
                     <div className="text-[10px] text-amber-350 bg-amber-500/10 border border-amber-500/15 rounded-xl p-2.5 leading-relaxed font-sans">

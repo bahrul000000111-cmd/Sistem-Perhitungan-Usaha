@@ -353,12 +353,47 @@ export default function RecordCard({ record, allRecords, onUpdate, onDelete, onD
         </div>
       </div>
 
-      {/* ── "Jenis Kalkulasi" dropdown (multi-formula categories) ─────────── */}
-      {expanded && formulaOptions && (
+      {/* ── "Jenis Kalkulasi" dropdown ─────────── */}
+      {expanded && (
         <div className="px-4 py-2.5 border-b border-white/[0.04] flex items-center gap-2 bg-surface-800/20">
           <div className="flex items-center gap-1.5 shrink-0 select-none">
             <span className="text-[11px] font-semibold text-slate-400">Jenis Kalkulasi:</span>
-            <div className="tooltip cursor-pointer text-slate-500 hover:text-slate-300" data-tip="Pilih pola perhitungan berdasarkan cara usaha Anda memperoleh pendapatan, bukan berdasarkan jenis barang/komoditas tertentu.">
+            <div className="tooltip cursor-pointer text-slate-500 hover:text-slate-300" data-tip="Pilih antara menggunakan pembukuan kas riil nyata Anda, atau menggunakan estimasi persentase koefisien standar BPS.">
+              <Info size={11} />
+            </div>
+          </div>
+          <FormulaDropdown
+            value={record.inputs?.calculation_method || 'PENCATATAN_RIIL'}
+            options={[
+              {
+                value: 'PENCATATAN_RIIL',
+                label: 'Pencatatan Riil (Omzet − Pengeluaran Nyata)',
+                subtext: 'Menghitung hasil usaha bersih langsung dari omzet dikurangi total pengeluaran nyata.'
+              },
+              {
+                value: 'ESTIMASI_KOEFISIEN',
+                label: 'Pendapatan Harian/Berkala × Koefisien Margin',
+                subtext: 'Estimasi hasil usaha makro menggunakan koefisien margin standar BPS.'
+              }
+            ]}
+            onChange={(val) => {
+              onUpdate(record.id, {
+                inputs: {
+                  ...record.inputs,
+                  calculation_method: val
+                }
+              });
+            }}
+          />
+        </div>
+      )}
+
+      {/* ── Formula Selection Dropdown (Only in ESTIMASI_KOEFISIEN mode for multi-formula categories) ── */}
+      {expanded && (record.inputs?.calculation_method || 'PENCATATAN_RIIL') === 'ESTIMASI_KOEFISIEN' && formulaOptions && (
+        <div className="px-4 py-2.5 border-b border-white/[0.04] flex items-center gap-2 bg-surface-800/20 animate-fade-in">
+          <div className="flex items-center gap-1.5 shrink-0 select-none">
+            <span className="text-[11px] font-semibold text-slate-400">Pola Estimasi:</span>
+            <div className="tooltip cursor-pointer text-slate-500 hover:text-slate-300" data-tip="Pilih pola perhitungan berdasarkan cara usaha Anda memperoleh pendapatan.">
               <Info size={11} />
             </div>
           </div>

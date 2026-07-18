@@ -1132,6 +1132,41 @@ console.log('\n13.3 Jasa Transportasi & Angkutan:');
 }
 
 
+// ══ SUITE 14: Addendum — Pencatatan Riil (Real Accounting Mode) ══
+console.log('\n══ SUITE 14: Addendum — Pencatatan Riil (Real Accounting Mode) ══');
+
+// 14.1 Kios Campuran - Pencatatan Riil (Omzet - Pengeluaran Nyata)
+console.log('\n14.1 Kios Campuran - Pencatatan Riil (Omzet - Pengeluaran Nyata):');
+{
+  const r = calculateRecord({
+    id: 'kios-riil-test',
+    categoryId: 'kios_campuran',
+    inputs: {
+      pemasukan_harian: '1000000',
+      pemasukan_harian_freq: 'harian',
+      custom_days: '26',
+      custom_rev_pct: '10', // should be overridden to 100
+      calculation_method: 'PENCATATAN_RIIL',
+      
+      biaya_upah: '1000000',
+      biaya_upah_freq: 'bulanan',
+      
+      biaya_hpp: '15000000',
+      biaya_hpp_freq: 'bulanan',
+      biaya_hpp_auto_proportion: true, // should be overridden to false
+      
+      biaya_operasional: '2000000',
+      biaya_operasional_freq: 'bulanan',
+      biaya_operasional_auto_proportion: true // should be overridden to false
+    }
+  }, []);
+
+  assert('Total Pendapatan Tahunan (100% Coefficient) = Rp312.000.000', r.totalPendapatanTahunan, 312_000_000);
+  assert('Total Pengeluaran Tahunan (Manual 26a+26c+26d) = Rp216.000.000', r.totalPengeluaranTahunan, 216_000_000);
+  assert('Total Hasil Usaha Bersih = Rp96.000.000', r.totalHasilUsaha, 96_000_000);
+  assert('Pendapatan per Bulan = Rp8.000.000', r.pendapatanPerBulan, 8_000_000);
+}
+
 // ─────────────────────────────────────────────────────────────────────────
 // Summary
 // ─────────────────────────────────────────────────────────────────────────

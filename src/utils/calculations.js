@@ -795,7 +795,24 @@ export function calcGeneric(inputs = {}) {
  * @returns {CalcResult}
  */
 export function calculateRecord(record, allRecords = []) {
-  const { categoryId, inputs = {} } = record;
+  const { categoryId } = record;
+  let inputs = { ...record.inputs };
+
+  const calcMethod = inputs.calculation_method || 'ESTIMASI_KOEFISIEN';
+
+  if (calcMethod === 'PENCATATAN_RIIL') {
+    // 1. Force coefficient to 100
+    inputs.custom_rev_pct = '100';
+
+    // 2. Force manual expense details (Override Detail / Rincian Manual)
+    inputs.use_detail_pengeluaran = true;
+
+    // 3. Force uncheck proportional options for all fields
+    inputs.biaya_hpp_auto_proportion = false;
+    inputs.biaya_operasional_auto_proportion = false;
+    inputs.biaya_produksi_auto_proportion = false;
+  }
+
   let result;
 
   switch (categoryId) {

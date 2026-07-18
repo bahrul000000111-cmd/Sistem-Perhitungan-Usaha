@@ -22,7 +22,12 @@ function loadFromStorage() {
     // Migrate legacy nelayan records
     let modified = false;
     const migrated = parsed.map(record => {
-      if (record.categoryId === 'nelayan_tangkap' && record.inputs) {
+      if (!record.inputs) record.inputs = {};
+      if (!record.inputs.calculation_method) {
+        record.inputs.calculation_method = 'PENCATATAN_RIIL';
+        modified = true;
+      }
+      if (record.categoryId === 'nelayan_tangkap') {
         const oldMethod = record.inputs.income_method || 'volume_harga';
         if (oldMethod === 'volume_harga') {
           record.inputs = migrateLegacyNelayanInputs(record.inputs);
