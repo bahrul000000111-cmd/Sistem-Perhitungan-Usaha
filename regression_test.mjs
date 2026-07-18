@@ -957,6 +957,110 @@ console.log('\n11.4 Usaha M3 (Kelapa) - Custom 80%:');
   assert('Pendapatan Per Bulan = Rp280.000', r.pendapatanPerBulan, 280_000);
 }
 
+// ─────────────────────────────────────────────────────────────────────────
+// SUITE 12: Addendum #20 — Standardizing M1 Revenue Input Frequency
+// ─────────────────────────────────────────────────────────────────────────
+console.log('\n══ SUITE 12: Addendum #20 — Standardizing M1 Revenue Input Frequency ══\n');
+
+// 12.1 M1 Category (Kios Campuran) - Harian (default)
+// 1.000.000 × 26 hari × 12 bulan × 10% koefisien = 31.200.000
+console.log('12.1 Kios Campuran - Harian:');
+{
+  const r = calculateRecord({
+    id: 'kios-harian',
+    categoryId: 'kios_campuran',
+    inputs: {
+      pemasukan_harian: '1000000',
+      pemasukan_harian_freq: 'harian',
+      custom_days: '26',
+      custom_rev_pct: '10',
+      custom_exp_pct: '30'
+    }
+  }, []);
+
+  assert('Total Pendapatan Tahunan = Rp31.200.000', r.totalPendapatanTahunan, 31_200_000);
+  assert('Total Hasil Usaha Bersih = Rp21.840.000', r.totalHasilUsaha, 21_840_000);
+}
+
+// 12.2 M1 Category (Kios Campuran) - Mingguan
+// 5.000.000 × 48 minggu × 10% koefisien = 24.000.000
+console.log('\n12.2 Kios Campuran - Mingguan:');
+{
+  const r = calculateRecord({
+    id: 'kios-mingguan',
+    categoryId: 'kios_campuran',
+    inputs: {
+      pemasukan_harian: '5000000',
+      pemasukan_harian_freq: 'mingguan',
+      custom_days: '26',
+      custom_rev_pct: '10',
+      custom_exp_pct: '30'
+    }
+  }, []);
+
+  assert('Total Pendapatan Tahunan = Rp24.000.000', r.totalPendapatanTahunan, 24_000_000);
+  assert('Total Hasil Usaha Bersih = Rp16.800.000', r.totalHasilUsaha, 16_800_000);
+}
+
+// 12.3 M1 Category (Restoran/Kuliner) - Bulanan
+// 20.000.000 × 12 bulan × 60% koefisien = 144.000.000
+console.log('\n12.3 Kuliner/Restoran - Bulanan:');
+{
+  const r = calculateRecord({
+    id: 'kuliner-bulanan',
+    categoryId: 'kuliner_rumah_makan',
+    inputs: {
+      pemasukan_harian: '20000000',
+      pemasukan_harian_freq: 'bulanan',
+      custom_days: '30',
+      custom_rev_pct: '60',
+      custom_exp_pct: '40'
+    }
+  }, []);
+
+  assert('Total Pendapatan Tahunan = Rp144.000.000', r.totalPendapatanTahunan, 144_000_000);
+  assert('Total Hasil Usaha Bersih = Rp86.400.000', r.totalHasilUsaha, 86_400_000);
+}
+
+// 12.4 M1 Category (Restoran/Kuliner) - Tahunan
+// 500.000.000 × 1 × 60% koefisien = 300.000.000
+console.log('\n12.4 Kuliner/Restoran - Tahunan:');
+{
+  const r = calculateRecord({
+    id: 'kuliner-tahunan',
+    categoryId: 'kuliner_rumah_makan',
+    inputs: {
+      pemasukan_harian: '500000000',
+      pemasukan_harian_freq: 'tahunan',
+      custom_days: '30',
+      custom_rev_pct: '60',
+      custom_exp_pct: '40'
+    }
+  }, []);
+
+  assert('Total Pendapatan Tahunan = Rp300.000.000', r.totalPendapatanTahunan, 300_000_000);
+  assert('Total Hasil Usaha Bersih = Rp180.000.000', r.totalHasilUsaha, 180_000_000);
+}
+
+// 12.5 Backward compatibility (existing data defaults to "harian")
+// 1.000.000 × 26 hari × 12 bulan × 10% koefisien = 31.200.000
+console.log('\n12.5 Kios Campuran - Backward compatibility:');
+{
+  const r = calculateRecord({
+    id: 'kios-legacy',
+    categoryId: 'kios_campuran',
+    inputs: {
+      pemasukan_harian: '1000000',
+      // pemasukan_harian_freq is absent, should default to harian
+      custom_days: '26',
+      custom_rev_pct: '10',
+      custom_exp_pct: '30'
+    }
+  }, []);
+
+  assert('Total Pendapatan Tahunan = Rp31.200.000', r.totalPendapatanTahunan, 31_200_000);
+}
+
 
 // ─────────────────────────────────────────────────────────────────────────
 // Summary

@@ -45,7 +45,7 @@ export const CATEGORIES = [
     mechLabel: 'Pendapatan Harian/Berkala × Koefisien Margin',
     mechSubtext: 'Cocok untuk usaha dagang dengan omzet harian & margin keuntungan relatif tetap — mis. warung, kios, toko, pedagang pasar, dan sejenisnya.',
     fields: [
-      { key: 'pemasukan_harian', label: 'Pendapatan Kotor Harian', placeholder: '500000', suffix: '/hari' }
+      { key: 'pemasukan_harian', label: 'Pendapatan Kotor', placeholder: '500000', suffix: '' }
     ],
     note: 'Koefisien normatif 10% · Faktor pengeluaran 30%'
   },
@@ -61,7 +61,7 @@ export const CATEGORIES = [
     mechLabel: 'Pendapatan Harian/Berkala × Koefisien Margin (Kuliner)',
     mechSubtext: 'Cocok untuk usaha makan-minum dengan omzet harian & koefisien pendapatan lebih tinggi — mis. warung makan, café, katering, usaha jajanan, dan sejenisnya.',
     fields: [
-      { key: 'pemasukan_harian', label: 'Pendapatan Kotor Harian', placeholder: '1000000', suffix: '/hari' }
+      { key: 'pemasukan_harian', label: 'Pendapatan Kotor', placeholder: '1000000', suffix: '' }
     ],
     note: 'Koefisien normatif 60% · Faktor pengeluaran 40%'
   },
@@ -186,7 +186,7 @@ export const CATEGORIES = [
     subSectorId: null,
     isGeneric: true,
     fields: [
-      { key: 'pemasukan_harian', label: 'Pendapatan Kotor (per periode)', placeholder: '500000', suffix: '/periode' }
+      { key: 'pemasukan_harian', label: 'Pendapatan Kotor', placeholder: '500000', suffix: '' }
     ],
     note: 'Menggunakan kalkulasi generik — sesuaikan koefisien sesuai jenis usaha Anda'
   }
@@ -365,11 +365,23 @@ export function getConversionFormula(value, frequency, daysPerMonth = 30) {
  */
 export function calcKiosCampuran(inputs = {}) {
   const ph = parseFloat(inputs.pemasukan_harian) || 0;
+  const freq = inputs.pemasukan_harian_freq || 'harian';
   const revPct = getRevPct(inputs, 10);
   const expPct = getExpPct(inputs, 30);
   const days = getDays(inputs);
 
-  const totalPendapatan = ph * days * 12 * (revPct / 100);
+  let factor = 1;
+  if (freq === 'harian') {
+    factor = days * 12;
+  } else if (freq === 'mingguan') {
+    factor = 48;
+  } else if (freq === 'bulanan') {
+    factor = 12;
+  } else if (freq === 'tahunan') {
+    factor = 1;
+  }
+
+  const totalPendapatan = ph * factor * (revPct / 100);
   const totalPengeluaran = totalPendapatan * (expPct / 100);
   const totalHasilUsaha = totalPendapatan - totalPengeluaran;
   const pendapatanPerBulan = totalHasilUsaha / 12;
@@ -381,7 +393,13 @@ export function calcKiosCampuran(inputs = {}) {
     pendapatanPerBulan,
     perPanen: null,
     setahun: null,
-    meta: { koefisien: `${revPct}%`, faktorPengeluaran: `${expPct}%`, hariKerja: days, pemasukan_harian: ph }
+    meta: {
+      koefisien: `${revPct}%`,
+      faktorPengeluaran: `${expPct}%`,
+      hariKerja: days,
+      pemasukan_harian: ph,
+      pemasukan_harian_freq: freq
+    }
   };
 }
 
@@ -391,11 +409,23 @@ export function calcKiosCampuran(inputs = {}) {
  */
 export function calcKuliner(inputs = {}) {
   const ph = parseFloat(inputs.pemasukan_harian) || 0;
+  const freq = inputs.pemasukan_harian_freq || 'harian';
   const revPct = getRevPct(inputs, 60);
   const expPct = getExpPct(inputs, 40);
   const days = getDays(inputs);
 
-  const totalPendapatan = ph * days * 12 * (revPct / 100);
+  let factor = 1;
+  if (freq === 'harian') {
+    factor = days * 12;
+  } else if (freq === 'mingguan') {
+    factor = 48;
+  } else if (freq === 'bulanan') {
+    factor = 12;
+  } else if (freq === 'tahunan') {
+    factor = 1;
+  }
+
+  const totalPendapatan = ph * factor * (revPct / 100);
   const totalPengeluaran = totalPendapatan * (expPct / 100);
   const totalHasilUsaha = totalPendapatan - totalPengeluaran;
   const pendapatanPerBulan = totalHasilUsaha / 12;
@@ -407,7 +437,13 @@ export function calcKuliner(inputs = {}) {
     pendapatanPerBulan,
     perPanen: null,
     setahun: null,
-    meta: { koefisien: `${revPct}%`, faktorPengeluaran: `${expPct}%`, hariKerja: days, pemasukan_harian: ph }
+    meta: {
+      koefisien: `${revPct}%`,
+      faktorPengeluaran: `${expPct}%`,
+      hariKerja: days,
+      pemasukan_harian: ph,
+      pemasukan_harian_freq: freq
+    }
   };
 }
 
@@ -703,11 +739,23 @@ export function calcNelayan(inputs = {}) {
  */
 export function calcGeneric(inputs = {}) {
   const ph = parseFloat(inputs.pemasukan_harian) || 0;
+  const freq = inputs.pemasukan_harian_freq || 'harian';
   const revPct = getRevPct(inputs, 20);   // neutral default (vs. 10% Kios, 60% Kuliner)
   const expPct = getExpPct(inputs, 30);
   const days = getDays(inputs);
 
-  const totalPendapatan = ph * days * 12 * (revPct / 100);
+  let factor = 1;
+  if (freq === 'harian') {
+    factor = days * 12;
+  } else if (freq === 'mingguan') {
+    factor = 48;
+  } else if (freq === 'bulanan') {
+    factor = 12;
+  } else if (freq === 'tahunan') {
+    factor = 1;
+  }
+
+  const totalPendapatan = ph * factor * (revPct / 100);
   const totalPengeluaran = totalPendapatan * (expPct / 100);
   const totalHasilUsaha = totalPendapatan - totalPengeluaran;
   const pendapatanPerBulan = totalHasilUsaha / 12;
@@ -719,7 +767,14 @@ export function calcGeneric(inputs = {}) {
     pendapatanPerBulan,
     perPanen: null,
     setahun: null,
-    meta: { koefisien: `${revPct}%`, faktorPengeluaran: `${expPct}%`, hariKerja: days, pemasukan_harian: ph, isGeneric: true }
+    meta: {
+      koefisien: `${revPct}%`,
+      faktorPengeluaran: `${expPct}%`,
+      hariKerja: days,
+      pemasukan_harian: ph,
+      pemasukan_harian_freq: freq,
+      isGeneric: true
+    }
   };
 }
 

@@ -808,8 +808,19 @@ export default function InputForm({ categoryId, inputs, onInputChange, records }
       }
       pendapatan = `Pendapatan Kotor (${freqTxt}) × ${factorDesc} × ${revPctVal}% koefisien`;
     } else if (categoryId === 'kios_campuran' || categoryId === 'kuliner_rumah_makan' || categoryId === 'generik_harian') {
-      const days = (inputs.custom_days !== undefined && inputs.custom_days !== '') ? inputs.custom_days : 30;
-      pendapatan = `Pemasukan × ${days} Hari × 12 Bulan × ${revPctVal}% koefisien`;
+      const freq = inputs.pemasukan_harian_freq || 'harian';
+      const freqTxt = INCOME_FREQ_OPTIONS.find(o => o.key === freq)?.label || 'per Hari';
+      let factorDesc = '';
+      if (freq === 'harian') {
+        factorDesc = `${daysNum} Hari × 12 Bulan`;
+      } else if (freq === 'mingguan') {
+        factorDesc = '48 Minggu';
+      } else if (freq === 'bulanan') {
+        factorDesc = '12 Bulan';
+      } else if (freq === 'tahunan') {
+        factorDesc = '1';
+      }
+      pendapatan = `Pendapatan Kotor (${freqTxt}) × ${factorDesc} × ${revPctVal}% koefisien`;
     } else if (categoryId === 'perkebunan_tahunan') {
       pendapatan = `Input langsung pendapatan (per periode) × ${revPctVal}% koefisien`;
     } else if (categoryId === 'kelapa_per3bulan') {
@@ -1191,6 +1202,85 @@ export default function InputForm({ categoryId, inputs, onInputChange, records }
         }
 
         if (isCurrency) {
+          if (field.key === 'pemasukan_harian') {
+            const rawIncome = parseFloat(val) || 0;
+            const freq = inputs.pemasukan_harian_freq || 'harian';
+            
+            return (
+              <div key={field.key} className="flex flex-col gap-2">
+                <div className="flex items-center gap-1.5">
+                  <label htmlFor="input-pemasukan_harian" className="text-[12.5px] font-semibold text-slate-300 flex-1">
+                    {field.label}
+                  </label>
+                  <div className="tooltip cursor-pointer text-slate-500 hover:text-slate-300" data-tip="Masukkan total pendapatan kotor sesuai frekuensi pencatatan Anda (harian/mingguan/bulanan/tahunan).">
+                    <Info size={13} />
+                  </div>
+                </div>
+
+                <div className="flex gap-2 items-stretch">
+                  <CurrencyInput
+                    id="input-pemasukan_harian"
+                    value={inputs.pemasukan_harian ?? ''}
+                    onChange={v => onInputChange('pemasukan_harian', v)}
+                    placeholder={field.placeholder}
+                    hideLabel={true}
+                    className="relative flex-1"
+                  />
+
+                  {/* Frequency selector */}
+                  <div className="relative shrink-0">
+                    <select
+                      id="input-pemasukan_harian-freq"
+                      value={freq}
+                      onChange={e => onInputChange('pemasukan_harian_freq', e.target.value)}
+                      className="h-full rounded-xl border border-white/[0.08] bg-surface-700 text-[11.5px] font-semibold text-indigo-300 px-2.5 pr-7 appearance-none cursor-pointer outline-none hover:border-indigo-500/30 focus:border-indigo-500/50 transition-all"
+                      style={{ minWidth: '90px' }}
+                    >
+                      {INCOME_FREQ_OPTIONS.map(opt => (
+                        <option key={opt.key} value={opt.key}>{opt.label}</option>
+                      ))}
+                    </select>
+                    <div className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2">
+                      <svg width="10" height="6" viewBox="0 0 10 6" fill="none">
+                        <path d="M1 1l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-indigo-400"/>
+                      </svg>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Conversion hint / helper */}
+                {rawIncome > 0 && (
+                  (() => {
+                    let factor = 1;
+                    if (freq === 'harian') {
+                      factor = daysNum * 12;
+                    } else if (freq === 'mingguan') {
+                      factor = 48;
+                    } else if (freq === 'bulanan') {
+                      factor = 12;
+                    } else if (freq === 'tahunan') {
+                      factor = 1;
+                    }
+                    const sebelumKoefisien = rawIncome * factor;
+                    const kontribusiTotal = sebelumKoefisien * (revPct / 100);
+                    return (
+                      <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1 pl-1 text-[11px] text-slate-400 font-mono tabular-nums leading-relaxed">
+                        <span>=</span>
+                        <span className="font-semibold text-slate-200">{formatRupiah(sebelumKoefisien)}/tahun</span>
+                        <span className="text-slate-500 text-[10px]">(sebelum koefisien)</span>
+                        <span className="text-slate-500">→</span>
+                        <span className="text-indigo-300">× {revPct}% koefisien</span>
+                        <span>=</span>
+                        <span className="font-semibold text-emerald-400">{formatRupiah(kontribusiTotal)}</span>
+                        <span className="text-slate-500 text-[10px]">kontribusi to Total Pendapatan</span>
+                      </div>
+                    );
+                  })()
+                )}
+              </div>
+            );
+          }
+
           return (
             <CurrencyInput
               key={field.key}
