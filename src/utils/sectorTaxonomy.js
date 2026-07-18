@@ -100,14 +100,44 @@ export const SECTOR_TAXONOMY = [
     icon: 'Utensils',
     // No sub-sectors.
   },
-  // ── Placeholder slots for future sectors ──────────────────────────────────
-  // Uncomment when new sectors (Jasa, Konstruksi, etc.) are added:
-  // {
-  //   sectorId: 'jasa',
-  //   sectorName: 'Jasa',
-  //   sectorLetter: 'N',
-  //   icon: 'Briefcase',
-  // },
+  {
+    sectorId: 'jasa',
+    sectorName: 'Jasa',
+    sectorLetter: 'S',
+    icon: 'Briefcase',
+    subSectors: [
+      {
+        subSectorId: 'jasa-reparasi',
+        subSectorName: 'Jasa Reparasi & Teknis',
+        divisionCode: '95',
+        icon: 'Wrench',
+      },
+      {
+        subSectorId: 'jasa-personal',
+        subSectorName: 'Jasa Personal & Kebersihan',
+        divisionCode: '96',
+        icon: 'Sparkles',
+      },
+      {
+        subSectorId: 'jasa-transportasi',
+        subSectorName: 'Jasa Transportasi & Angkutan',
+        divisionCode: '49',
+        icon: 'Truck',
+      },
+      {
+        subSectorId: 'jasa-konstruksi',
+        subSectorName: 'Jasa Konstruksi & Pertukangan',
+        divisionCode: '43',
+        icon: 'Hammer',
+      },
+      {
+        subSectorId: 'jasa-profesional',
+        subSectorName: 'Jasa Profesional/Keahlian Khusus',
+        divisionCode: '74',
+        icon: 'Award',
+      },
+    ],
+  },
 ];
 
 /**

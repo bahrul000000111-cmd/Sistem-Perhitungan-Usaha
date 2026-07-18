@@ -29,6 +29,12 @@ export const FORMULA_GROUPS = {
   'hortikultura':['generik_harian'],
   'pangan':      ['generik_harian'],
   'kehutanan':   ['generik_harian'],
+  // Jasa sub-sectors:
+  'jasa-reparasi':     ['generik_harian'],
+  'jasa-personal':     ['generik_harian'],
+  'jasa-transportasi': ['generik_harian'],
+  'jasa-konstruksi':   ['generik_harian'],
+  'jasa-profesional':  ['generik_harian'],
 };
 
 export const CATEGORIES = [

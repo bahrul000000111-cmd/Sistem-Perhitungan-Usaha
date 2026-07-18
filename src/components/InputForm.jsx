@@ -1963,7 +1963,10 @@ export default function InputForm({ categoryId, inputs, onInputChange, records }
           <div className="flex-1 overflow-y-auto p-4 space-y-4 scrollbar-none" style={{ scrollbarWidth: 'none' }}>
             {(() => {
               const getGuideKey = () => {
-                if (inputs._groupKey) return inputs._groupKey;
+                if (inputs._groupKey) {
+                  if (inputs._groupKey.startsWith('jasa-')) return 'jasa';
+                  return inputs._groupKey;
+                }
                 if (categoryId === 'kios_campuran' || categoryId === 'tempurung') return 'perdagangan';
                 if (categoryId === 'kuliner_rumah_makan') return 'akomodasi-makan-minum';
                 if (categoryId === 'perkebunan_tahunan' || categoryId === 'kelapa_per3bulan') return 'perkebunan';
@@ -1995,10 +1998,30 @@ export default function InputForm({ categoryId, inputs, onInputChange, records }
                       📌 <strong>Catatan:</strong> {guide.note}
                     </div>
                   )}
+                  {guideKey === 'perdagangan' && (
+                    <div className="text-[10.5px] text-slate-300 bg-surface-800/80 border border-white/[0.05] rounded-xl p-3 space-y-1.5 leading-relaxed font-sans">
+                      <span className="font-bold text-indigo-300">🔍 Cek 3 hal ini untuk menentukan skala toko Anda:</span>
+                      <ol className="list-decimal pl-4 space-y-1 text-slate-450">
+                        <li>Berapa omzet kotor rata-rata per hari?</li>
+                        <li>Berapa orang yang bekerja/menjaga toko (termasuk Anda)?</li>
+                        <li>Dari mana Anda kulakan barang — eceran ke pasar, atau langsung ke distributor/pabrik?</li>
+                      </ol>
+                    </div>
+                  )}
                   <div className="flex flex-col gap-3">
                     {guide.levels.map((level, idx) => {
                       const currentVal = parseFloat(inputs.custom_rev_pct !== undefined && inputs.custom_rev_pct !== '' ? inputs.custom_rev_pct : defaultRevPct);
                       const isMatch = currentVal >= level.min && currentVal <= level.max;
+                      const isSubsectorMatch = (() => {
+                        if (!inputs._groupKey) return false;
+                        if (inputs._groupKey === 'jasa-reparasi' && level.name.includes('Reparasi')) return true;
+                        if (inputs._groupKey === 'jasa-personal' && level.name.includes('Personal')) return true;
+                        if (inputs._groupKey === 'jasa-transportasi' && level.name.includes('Transportasi')) return true;
+                        if (inputs._groupKey === 'jasa-konstruksi' && level.name.includes('Konstruksi')) return true;
+                        if (inputs._groupKey === 'jasa-profesional' && level.name.includes('Profesional')) return true;
+                        return false;
+                      })();
+
                       return (
                         <div
                           key={idx}
@@ -2015,12 +2038,24 @@ export default function InputForm({ categoryId, inputs, onInputChange, records }
                               <p className="text-[10.5px] font-mono text-indigo-400 font-bold mt-0.5">
                                 Rentang: {level.min}% – {level.max}%
                               </p>
+                              {level.alasan && (
+                                <p className="text-[10px] text-indigo-300/80 italic mt-1 leading-relaxed pl-0.5 border-l-2 border-indigo-500/35 pl-1.5">
+                                  💡 {level.alasan}
+                                </p>
+                              )}
                             </div>
-                            {isMatch && (
-                              <span className="text-[8px] font-extrabold uppercase px-1.5 py-0.5 rounded bg-indigo-500 text-white shrink-0 select-none">
-                                Cocok
-                              </span>
-                            )}
+                            <div className="flex flex-col gap-1 items-end shrink-0">
+                              {isMatch && (
+                                <span className="text-[8px] font-extrabold uppercase px-1.5 py-0.5 rounded bg-indigo-500 text-white select-none">
+                                  Cocok
+                                </span>
+                              )}
+                              {isSubsectorMatch && !isMatch && (
+                                <span className="text-[8px] font-extrabold uppercase px-1.5 py-0.5 rounded bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 select-none">
+                                  Sub-sektor Anda
+                                </span>
+                              )}
+                            </div>
                           </div>
 
                           <p className="text-[11px] text-slate-400 leading-relaxed pl-0.5">

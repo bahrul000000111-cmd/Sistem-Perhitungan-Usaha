@@ -18,22 +18,27 @@ import { useState, useMemo } from 'react';
 import {
   X, Search,
   Leaf, ShoppingCart, Factory, Utensils, Fish,
-  ChevronRight,
+  ChevronRight, Briefcase,
 } from 'lucide-react';
 import { CATEGORIES, FORMULA_GROUPS } from '../utils/calculations';
 import { SECTOR_TAXONOMY } from '../utils/sectorTaxonomy';
 
 // ── Sector icon map ───────────────────────────────────────────────────────────
-const SECTOR_ICON_MAP = { Leaf, ShoppingCart, Factory, Utensils };
+const SECTOR_ICON_MAP = { Leaf, ShoppingCart, Factory, Utensils, Briefcase };
 
 // ── Sub-sector emoji icons (decorative) ──────────────────────────────────────
 const SUBSECTOR_ICONS = {
-  perikanan:    '🐟',
-  peternakan:   '🐄',
-  hortikultura: '🥬',
-  perkebunan:   '🌴',
-  pangan:       '🌾',
-  kehutanan:    '🌲',
+  perikanan:           '🐟',
+  peternakan:          '🐄',
+  hortikultura:        '🥬',
+  perkebunan:          '🌴',
+  pangan:              '🌾',
+  kehutanan:           '🌲',
+  'jasa-reparasi':     '🔧',
+  'jasa-personal':     '✂️',
+  'jasa-transportasi': '🛵',
+  'jasa-konstruksi':   '🔨',
+  'jasa-profesional':  '📷',
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────

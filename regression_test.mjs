@@ -1063,6 +1063,76 @@ console.log('\n12.5 Kios Campuran - Backward compatibility:');
 
 
 // ─────────────────────────────────────────────────────────────────────────
+// SUITE 13: Addendum #23 — Jasa Calculations & Guidelines
+// ─────────────────────────────────────────────────────────────────────────
+console.log('\n══ SUITE 13: Addendum #23 — Jasa Calculations & Guidelines ══\n');
+
+// 13.1 Jasa Reparasi & Teknis (Bengkel)
+// 500.000 * 26 * 12 * 30% koefisien = 46.800.000
+console.log('13.1 Jasa Reparasi & Teknis:');
+{
+  const r = calculateRecord({
+    id: 'jasa-reparasi-test',
+    categoryId: 'generik_harian',
+    inputs: {
+      pemasukan_harian: '500000',
+      pemasukan_harian_freq: 'harian',
+      custom_days: '26',
+      custom_rev_pct: '30',
+      custom_exp_pct: '30',
+      _groupKey: 'jasa-reparasi'
+    }
+  }, []);
+
+  assert('Total Pendapatan Tahunan = Rp46.800.000', r.totalPendapatanTahunan, 46_800_000);
+  assert('Total Pengeluaran Tahunan = Rp14.040.000', r.totalPengeluaranTahunan, 14_040_000);
+  assert('Total Hasil Usaha Bersih = Rp32.760.000', r.totalHasilUsaha, 32_760_000);
+}
+
+// 13.2 Jasa Personal & Kebersihan (Salon)
+// 300.000 * 30 * 12 * 50% koefisien = 54.000.000
+console.log('\n13.2 Jasa Personal & Kebersihan:');
+{
+  const r = calculateRecord({
+    id: 'jasa-personal-test',
+    categoryId: 'generik_harian',
+    inputs: {
+      pemasukan_harian: '300000',
+      pemasukan_harian_freq: 'harian',
+      custom_days: '30',
+      custom_rev_pct: '50',
+      custom_exp_pct: '30',
+      _groupKey: 'jasa-personal'
+    }
+  }, []);
+
+  assert('Total Pendapatan Tahunan = Rp54.000.000', r.totalPendapatanTahunan, 54_000_000);
+  assert('Total Hasil Usaha Bersih = Rp37.800.000', r.totalHasilUsaha, 37_800_000);
+}
+
+// 13.3 Jasa Transportasi & Angkutan (Ojek)
+// 200.000 * 26 * 12 * 25% koefisien = 15.600.000
+console.log('\n13.3 Jasa Transportasi & Angkutan:');
+{
+  const r = calculateRecord({
+    id: 'jasa-transportasi-test',
+    categoryId: 'generik_harian',
+    inputs: {
+      pemasukan_harian: '200000',
+      pemasukan_harian_freq: 'harian',
+      custom_days: '26',
+      custom_rev_pct: '25',
+      custom_exp_pct: '30',
+      _groupKey: 'jasa-transportasi'
+    }
+  }, []);
+
+  assert('Total Pendapatan Tahunan = Rp15.600.000', r.totalPendapatanTahunan, 15_600_000);
+  assert('Total Hasil Usaha Bersih = Rp10.920.000', r.totalHasilUsaha, 10_920_000);
+}
+
+
+// ─────────────────────────────────────────────────────────────────────────
 // Summary
 // ─────────────────────────────────────────────────────────────────────────
 console.log(`\n══ HASIL: ${pass} lulus, ${fail} gagal ══`);

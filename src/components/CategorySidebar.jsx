@@ -18,7 +18,7 @@ import {
   Store, UtensilsCrossed, Sprout, TreePalm,
   Package, Gem, Flame, Fish,
   Leaf, ShoppingCart, Factory, Utensils,
-  ChevronDown, ChevronRight, Plus,
+  ChevronDown, ChevronRight, Plus, Briefcase,
 } from 'lucide-react';
 import { CATEGORIES } from '../utils/calculations';
 import { SECTOR_TAXONOMY } from '../utils/sectorTaxonomy';
@@ -30,7 +30,7 @@ const CATEGORY_ICON_MAP = {
   Shell: Gem,
 };
 
-const SECTOR_ICON_MAP = { Leaf, ShoppingCart, Factory, Utensils };
+const SECTOR_ICON_MAP = { Leaf, ShoppingCart, Factory, Utensils, Briefcase };
 
 // ── Color variants per KBLI category (unchanged) ────────────────────────────
 const COLOR_VARIANTS = {
