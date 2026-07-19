@@ -1336,6 +1336,45 @@ console.log('\n══ SUITE 16: Addendum — Top-Down & Bottom-Up Budget Allocat
   assert('26c (HPP) = 0', r.bps.detailValues.hpp, 0);
 }
 
+// ══ SUITE 17: Addendum #24 — Live Slider Auto-Fill ══
+console.log('\n══ SUITE 17: Addendum #24 — Live Slider Auto-Fill ══');
+
+// 17.1 Kasus A: Persentase Pengeluaran masih default (30%)
+{
+  const auto = computeAutoFillPengeluaran({
+    categoryId: 'kios_campuran',
+    totalPendapatanTahunan: 360_000_000,
+    expPctNormatif: 30,
+  });
+  assert('Kasus A - HPP = 75.600.000 (70% dari 108.000.000)', auto.biaya_hpp, 75_600_000);
+  assert('Kasus A - Operasional = 32.400.000 (30% dari 108.000.000)', auto.biaya_operasional, 32_400_000);
+  assert('Kasus A - Produksi = 0', auto.biaya_produksi, 0);
+}
+
+// 17.2 Kasus B: User mengubah Persentase Pengeluaran jadi 45%
+{
+  const auto = computeAutoFillPengeluaran({
+    categoryId: 'kios_campuran',
+    totalPendapatanTahunan: 360_000_000,
+    expPctNormatif: 45,
+  });
+  assert('Kasus B - HPP = 113.400.000 (70% dari 162.000.000)', auto.biaya_hpp, 113_400_000);
+  assert('Kasus B - Operasional = 48.600.000 (30% dari 162.000.000)', auto.biaya_operasional, 48_600_000);
+  assert('Kasus B - Produksi = 0', auto.biaya_produksi, 0);
+}
+
+// 17.3 Kasus C: Uji reaktivitas dengan persentase 50%
+{
+  const auto = computeAutoFillPengeluaran({
+    categoryId: 'kios_campuran',
+    totalPendapatanTahunan: 360_000_000,
+    expPctNormatif: 50,
+  });
+  assert('Kasus C - HPP = 126.000.000 (70% dari 180.000.000)', auto.biaya_hpp, 126_000_000);
+  assert('Kasus C - Operasional = 54.000.000 (30% dari 180.000.000)', auto.biaya_operasional, 54_000_000);
+  assert('Kasus C - Produksi = 0', auto.biaya_produksi, 0);
+}
+
 // ─────────────────────────────────────────────────────────────────────────
 // Summary
 // ─────────────────────────────────────────────────────────────────────────

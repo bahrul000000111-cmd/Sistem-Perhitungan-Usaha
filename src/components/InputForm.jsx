@@ -841,11 +841,10 @@ export default function InputForm({ categoryId, inputs, onInputChange, records }
   useEffect(() => {
     if (!isPencatatanRiil || liveAnnualIncome <= 0 || isBagiHasilMode) return;
 
-    const expPctNormatif = DEFAULT_EXPENSE_PCT_NORMATIF[categoryId] || 30;
     const autoFilled = computeAutoFillPengeluaran({
       categoryId,
       totalPendapatanTahunan: liveAnnualIncome,
-      expPctNormatif
+      expPctNormatif: _expPctNum
     });
 
     const updates = {};
@@ -875,6 +874,7 @@ export default function InputForm({ categoryId, inputs, onInputChange, records }
     liveAnnualIncome,
     categoryId,
     isBagiHasilMode,
+    _expPctNum,
     inputs['26b_touched'],
     inputs['26c_touched'],
     inputs['26d_touched'],
@@ -887,11 +887,10 @@ export default function InputForm({ categoryId, inputs, onInputChange, records }
   ]);
 
   const handleReloadBps = () => {
-    const expPctNormatif = DEFAULT_EXPENSE_PCT_NORMATIF[categoryId] || 30;
     const autoFilled = computeAutoFillPengeluaran({
       categoryId,
       totalPendapatanTahunan: liveAnnualIncome,
-      expPctNormatif
+      expPctNormatif: _expPctNum
     });
     onInputChange({
       biaya_produksi: String(autoFilled.biaya_produksi),
