@@ -256,7 +256,7 @@ function CurrencyInput({
 /**
  * Reusable unit input for raw units (kg, pohon, etc.).
  */
-function UnitInput({ id, label, value, onChange, placeholder, suffix, tooltip }) {
+function UnitInput({ id, label, value, onChange, placeholder, suffix, tooltip, readOnly, disabled }) {
   return (
     <div className="flex flex-col gap-1.5">
       <div className="flex items-center gap-1.5">
@@ -281,7 +281,14 @@ function UnitInput({ id, label, value, onChange, placeholder, suffix, tooltip })
             const raw = e.target.value.replace(/[^0-9.]/g, '');
             onChange(raw);
           }}
-          className="w-full rounded-xl border border-white/[0.08] bg-surface-700 text-slate-100 text-[13px] font-mono py-2.5 pl-3 pr-16 transition-all placeholder:text-slate-600 hover:border-white/[0.12] focus:border-indigo-500/50 outline-none"
+          readOnly={readOnly}
+          disabled={disabled || readOnly}
+          className={[
+            "w-full rounded-xl border transition-all placeholder:text-slate-600 font-mono text-[13px] py-2.5 pl-3 pr-16 outline-none",
+            readOnly || disabled
+              ? "bg-surface-800/50 text-slate-450 border-dashed border-white/[0.06] cursor-not-allowed"
+              : "border-white/[0.08] bg-surface-700 text-slate-100 hover:border-white/[0.12] focus:border-indigo-500/50"
+          ].join(' ')}
         />
         {suffix && (
           <div className="absolute right-3 top-1/2 -translate-y-1/2 text-[11.5px] text-slate-500 font-semibold select-none whitespace-nowrap font-sans">
@@ -447,6 +454,70 @@ function IncomeMethodSelector({ value, onChange, options, tooltip }) {
               ].join(' ')}
             >
               {opt.label}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * SkalaUsahaSelector — Segmented control to select business scale (Kecil/Menengah/Besar)
+ * and update standard BPS expense ratios.
+ */
+function SkalaUsahaSelector({ categoryId, value, onChange, customExpPct }) {
+  const isTrading = ['kios_campuran', 'tempurung'].includes(categoryId);
+  const options = isTrading
+    ? [
+        { key: 'kecil', label: 'Kecil', pct: 70, desc: 'Omzet < Rp 1 jt/hari' },
+        { key: 'menengah', label: 'Menengah', pct: 75, desc: 'Omzet Rp 1-5 jt/hari' },
+        { key: 'besar', label: 'Besar', pct: 85, desc: 'Omzet > Rp 5 jt/hari' }
+      ]
+    : [
+        { key: 'kecil', label: 'Kecil', pct: 40, desc: 'Warung/Lapak Ikan' },
+        { key: 'menengah', label: 'Menengah', pct: 50, desc: 'Rumah Makan Sedang' },
+        { key: 'besar', label: 'Besar', pct: 60, desc: 'Cottage/Restoran Besar' }
+      ];
+
+  const activeKey = value || (isTrading
+    ? (customExpPct === 70 ? 'kecil' : customExpPct === 85 ? 'besar' : 'menengah')
+    : (customExpPct === 50 ? 'menengah' : customExpPct === 60 ? 'besar' : 'kecil')
+  );
+
+  return (
+    <div className="flex flex-col gap-2 mb-1 p-3.5 rounded-xl bg-surface-800/40 border border-white/[0.06]">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-1.5">
+          <span className="text-[10px] font-bold text-indigo-400 uppercase tracking-wider">
+            Skala Usaha BPS
+          </span>
+          <div className="tooltip cursor-pointer text-slate-500 hover:text-slate-300" data-tip="Pilih skala usaha untuk memperbarui rasio pengeluaran normatif berdasarkan standar BPS Kabupaten Donggala.">
+            <Info size={12} />
+          </div>
+        </div>
+        <span className="text-[10.5px] font-semibold text-slate-400 font-mono">
+          Rasio: <span className="text-emerald-400 font-bold">{options.find(o => o.key === activeKey)?.pct || (isTrading ? 75 : 40)}%</span>
+        </span>
+      </div>
+      <div className="flex rounded-xl border border-white/[0.08] overflow-hidden bg-surface-900/35" role="group">
+        {options.map((opt, idx) => {
+          const isActive = activeKey === opt.key;
+          return (
+            <button
+              key={opt.key}
+              type="button"
+              onClick={() => onChange(opt.key, opt.pct)}
+              className={[
+                'flex-1 px-2.5 py-1.5 text-[11px] font-semibold transition-all text-center leading-tight flex flex-col items-center justify-center gap-0.5',
+                idx === 0 ? '' : 'border-l border-white/[0.07]',
+                isActive
+                  ? 'bg-indigo-500/20 text-indigo-300 border-indigo-500/30'
+                  : 'text-slate-400 hover:text-slate-200 hover:bg-white/[0.02]'
+              ].join(' ')}
+            >
+              <span className="font-bold">{opt.label}</span>
+              <span className="text-[8.5px] font-normal text-slate-500">{opt.desc}</span>
             </button>
           );
         })}
@@ -651,6 +722,13 @@ const REFERENSI_BPS_DONGGALA = {
     defaultKoefisien: 80,
     defaultRasioPengeluaran: 25
   },
+  akomodasi_makan_minum: {
+    nama: "Penyediaan Akomodasi & Makan Minum",
+    rasioPengeluaran: "40% - 60%",
+    keterangan: "Meliputi biaya bahan baku makanan/minuman, gas/energi memasak, perlengkapan sanitasi, serta upah karyawan.",
+    defaultKoefisien: 60,
+    defaultRasioPengeluaran: 40
+  },
   industri_pengolahan: {
     nama: "Industri Pengolahan / Kerajinan Rumah Tangga",
     rasioPengeluaran: "50% - 65%",
@@ -698,7 +776,7 @@ export default function InputForm({ categoryId, inputs, onInputChange, records }
   const tempurungRecords = records.filter(r => r.categoryId === 'tempurung');
 
   const isNelayan = categoryId === 'nelayan_tangkap';
-  const incomeMethod = inputs.income_method || 'nilai_langsung';
+  const incomeMethod = isNelayan ? 'nilai_langsung' : (inputs.income_method || 'nilai_langsung');
 
   // ── Addendum #10: Wage auto-sync — compute at top level for useEffect ────
   const _hasNewWorkerKeys =
@@ -711,12 +789,12 @@ export default function InputForm({ categoryId, inputs, onInputChange, records }
   const isBagiHasilMode = isNelayan && (incomeMethod === 'bagi_hasil' || (incomeMethod === 'volume_harga' && totalPekerjaDibayar >= 2));
 
   // Determine modifiers config
-  const hasDailyModifier = ['kios_campuran', 'kuliner_rumah_makan', 'nelayan_tangkap', 'generik_harian'].includes(categoryId);
+  const hasDailyModifier = ['kios_campuran', 'kuliner_rumah_makan', 'nelayan_tangkap', 'generik_harian', 'industri_kopra'].includes(categoryId);
   const hasRevenueModifier = !isBagiHasilMode;
 
   let defaultRevPct = 100;
   let defaultExpPct = 30;
-  if (categoryId === 'kios_campuran')           { defaultRevPct = 10;  defaultExpPct = 30; }
+  if (categoryId === 'kios_campuran')           { defaultRevPct = 10;  defaultExpPct = 75; }
   else if (categoryId === 'kuliner_rumah_makan') { defaultRevPct = 60;  defaultExpPct = 40; }
   else if (categoryId === 'generik_harian')      { defaultRevPct = 20;  defaultExpPct = 30; }
   else if (categoryId === 'nelayan_tangkap')     { defaultRevPct = 10;  defaultExpPct = 30; }
@@ -733,12 +811,14 @@ export default function InputForm({ categoryId, inputs, onInputChange, records }
       if (inputs._groupKey === 'nelayan_tangkap') return 'perikanan';
       if (inputs._groupKey === 'perkebunan_tahunan' || inputs._groupKey === 'kelapa_per3bulan') return 'perkebunan';
       if (inputs._groupKey === 'industri_kopra' || inputs._groupKey === 'arang_tempurung') return 'industri_pengolahan';
+      if (inputs._groupKey === 'kuliner_rumah_makan') return 'akomodasi_makan_minum';
     }
     if (categoryId === 'kios_campuran' || categoryId === 'tempurung') return 'perdagangan';
     if (categoryId === 'nelayan_tangkap') return 'perikanan';
     if (categoryId === 'perkebunan_tahunan' || categoryId === 'kelapa_per3bulan') return 'perkebunan';
     if (categoryId === 'industri_kopra' || categoryId === 'arang_tempurung') return 'industri_pengolahan';
     if (categoryId === 'generik_harian') return 'jasa';
+    if (categoryId === 'kuliner_rumah_makan') return 'akomodasi_makan_minum';
     return null;
   };
   const activeBpsKey = getBpsDonggalaActiveKey();
@@ -1309,7 +1389,25 @@ export default function InputForm({ categoryId, inputs, onInputChange, records }
 
       {/* ── Main Inputs (non-nelayan, or never rendered for nelayan since fields above handle it) ── */}
       {!isNelayan && category.fields.map((field) => {
-        const val = inputs[field.key] ?? (field.defaultValue !== undefined ? field.defaultValue : '');
+        let val = inputs[field.key] ?? (field.defaultValue !== undefined ? field.defaultValue : '');
+        let isReadOnly = false;
+
+        if (field.key === 'berat_kopra' && categoryId === 'industri_kopra') {
+          if (inputs.pemasukan_harian !== undefined && inputs.pemasukan_harian !== '') {
+            isReadOnly = true;
+            const rawIncome = parseFloat(inputs.pemasukan_harian) || 0;
+            const freq = inputs.pemasukan_harian_freq || 'harian';
+            const days = parseInt(inputs.custom_days) || 30;
+            let factor = 1;
+            if (freq === 'harian') factor = days * 12;
+            else if (freq === 'mingguan') factor = 48;
+            else if (freq === 'bulanan') factor = 12;
+            else if (freq === 'tahunan') factor = 1;
+
+            const liveAnnualIncome = rawIncome * factor;
+            val = String(Math.round(liveAnnualIncome / 12000));
+          }
+        }
 
         if (field.type === 'boolean') {
           return (
@@ -1448,6 +1546,7 @@ export default function InputForm({ categoryId, inputs, onInputChange, records }
             onChange={v => onInputChange(field.key, v)}
             placeholder={field.placeholder}
             suffix={field.suffix}
+            readOnly={isReadOnly}
           />
         );
       })
@@ -1481,8 +1580,23 @@ export default function InputForm({ categoryId, inputs, onInputChange, records }
 
 
 
+      {/* Skala Usaha Selector (Perdagangan & Akomodasi/Kuliner only) */}
+      {['kios_campuran', 'kuliner_rumah_makan'].includes(categoryId) && (
+        <SkalaUsahaSelector
+          categoryId={categoryId}
+          value={inputs.skala_usaha}
+          onChange={(newScale, newPct) => {
+            onInputChange({
+              skala_usaha: newScale,
+              custom_exp_pct: String(newPct)
+            });
+          }}
+          customExpPct={_expPctNum}
+        />
+      )}
+
       {/* Operational Days (Daily categories only) */}
-      {!isBagiHasilMode && hasDailyModifier && !isNelayan && (
+      {!isBagiHasilMode && (hasDailyModifier || isNelayan) && (
         <div className="mt-2 pt-4 border-t border-white/[0.06] space-y-3.5 animate-fade-in">
           <div className="flex flex-col gap-1.5">
             <div className="flex justify-between items-center">

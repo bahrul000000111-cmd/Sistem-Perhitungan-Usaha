@@ -127,6 +127,7 @@ export const CATEGORIES = [
     mechSubtext: 'Cocok untuk usaha pengolahan dengan hasil produksi terukur berat/volume per siklus — mis. hasil olahan pertanian, produk olahan rumahan, pengolahan bahan mentah, dan sejenisnya.',
     hasDualMode: true,
     fields: [
+      { key: 'pemasukan_harian', label: 'Pendapatan Kotor', placeholder: '400000', suffix: '' },
       { key: 'berat_kopra', label: 'Berat Hasil Produksi Per Siklus (Kg)', placeholder: '400', suffix: 'kg', defaultValue: 400 }
     ],
     note: 'Harga: (berat ÷ 5) × Rp 15.000 · 4 siklus/tahun · Pengeluaran 30%'
@@ -542,22 +543,45 @@ export function calcKelapaPerTigaBulan(inputs = {}) {
  * Default: Exp = 30%
  */
 export function calcKopra(inputs = {}) {
-  const berat = parseFloat(inputs.berat_kopra) || 0;
   const revPct = getRevPct(inputs, 100);
   const expPct = getExpPct(inputs, 30);
 
-  // Per panen
-  const nilaiRevenuePanenKotor = (berat / 5) * 15000;
-  const nilaiRevenuePanen = nilaiRevenuePanenKotor * (revPct / 100);
-  const pengeluaranPanen = nilaiRevenuePanen * (expPct / 100);
+  let totalPendapatanKotor = 0;
+  let berat = parseFloat(inputs.berat_kopra) || 0;
+
+  if (inputs.pemasukan_harian !== undefined && inputs.pemasukan_harian !== '') {
+    const rawIncome = parseFloat(inputs.pemasukan_harian) || 0;
+    const freq = inputs.pemasukan_harian_freq || 'harian';
+    const days = parseInt(inputs.custom_days) || 30;
+    let factor = 1;
+    if (freq === 'harian') {
+      factor = days * 12;
+    } else if (freq === 'mingguan') {
+      factor = 48;
+    } else if (freq === 'bulanan') {
+      factor = 12;
+    } else if (freq === 'tahunan') {
+      factor = 1;
+    }
+    totalPendapatanKotor = rawIncome * factor;
+    // Reactively compute equivalent weight for display: 1 Kg Kopra = Rp12.000 Pendapatan Tahunan (4 panen, 15k/5kg = 3k/kg, so 4 * 3k = 12k)
+    berat = totalPendapatanKotor / 12000;
+  } else {
+    // Legacy batch weight-based calculation
+    const nilaiRevenuePanenKotor = (berat / 5) * 15000;
+    totalPendapatanKotor = nilaiRevenuePanenKotor * 4;
+  }
+
+  const totalPendapatanTahunan = totalPendapatanKotor * (revPct / 100);
+  const totalPengeluaranTahunan = totalPendapatanTahunan * (expPct / 100);
+  const totalHasilUsaha = totalPendapatanTahunan - totalPengeluaranTahunan;
+  const pendapatanPerBulan = totalHasilUsaha / 12;
+
+  // Compute equivalent perPanen values for UI details compatibility
+  const nilaiRevenuePanen = totalPendapatanTahunan / 4;
+  const pengeluaranPanen = totalPengeluaranTahunan / 4;
   const hasilPanen = nilaiRevenuePanen - pengeluaranPanen;
   const pendapatanBulanPanen = hasilPanen / 12;
-
-  // Setahun (4 panen)
-  const totalPendapatanTahunan = nilaiRevenuePanen * 4;
-  const totalPengeluaranTahunan = pengeluaranPanen * 4;
-  const totalHasilUsaha = hasilPanen * 4;
-  const pendapatanPerBulan = totalHasilUsaha / 12;
 
   return {
     totalPendapatanTahunan,
@@ -576,7 +600,14 @@ export function calcKopra(inputs = {}) {
       totalHasilUsaha,
       pendapatanPerBulan
     },
-    meta: { berat_kopra: berat, hargaPerUnit: 15000, unitPer5Kg: berat / 5, panenPerTahun: 4, koefisien: `${revPct}%`, faktorPengeluaran: `${expPct}%` }
+    meta: {
+      berat_kopra: berat,
+      hargaPerUnit: 15000,
+      unitPer5Kg: berat / 5,
+      panenPerTahun: 4,
+      koefisien: `${revPct}%`,
+      faktorPengeluaran: `${expPct}%`
+    }
   };
 }
 
