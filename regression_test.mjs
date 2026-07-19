@@ -746,6 +746,81 @@ console.log('\n7.2 Reaktivitas: Rata-rata Upah menjadi 2.000.000:');
   assert('Pendapatan per Bulan = Rp5.200.000', r.pendapatanPerBulan, 5_200_000);
 }
 
+console.log('\n7.3 Reaktivitas: Rata-rata Upah di PENCATATAN_RIIL mode (tanpa biaya_upah diisi):');
+{
+  const r = calculateRecord({
+    id: 'a12-3',
+    categoryId: 'nelayan_tangkap',
+    inputs: {
+      calculation_method: 'PENCATATAN_RIIL',
+      income_method: 'nilai_langsung',
+      pemasukan_langsung: '150000000',
+      pemasukan_langsung_freq: 'tahunan',
+      custom_days: '26',
+      
+      // Pekerja Dibayar (3 orang)
+      pekerja_dibayar_l: '2',
+      pekerja_dibayar_p: '1',
+      rata_upah_per_pekerja: '1820000',
+      
+      use_detail_pengeluaran: true,
+      
+      biaya_produksi: '50000',
+      biaya_produksi_freq: 'harian',
+      biaya_hpp: '0',
+      biaya_hpp_freq: 'tahunan',
+      biaya_operasional: '0',
+      biaya_operasional_freq: 'tahunan',
+      biaya_non_operasional: '0',
+      biaya_non_operasional_freq: 'tahunan'
+    }
+  }, []);
+
+  // 26a = 3 * 1.820.000 * 12 = 65.520.000 (auto-synced)
+  // 26b = 50.000 * 26 * 12 = 15.600.000
+  // total = 65.520.000 + 15.600.000 = 81.120.000
+  assert('Total Pengeluaran Tahunan (26f) = Rp81.120.000', r.totalPengeluaranTahunan, 81_120_000);
+}
+
+console.log('\n7.4 Reaktivitas: Manual Override 26a (dengan 26a_touched: true):');
+{
+  const r = calculateRecord({
+    id: 'a12-4',
+    categoryId: 'nelayan_tangkap',
+    inputs: {
+      calculation_method: 'PENCATATAN_RIIL',
+      income_method: 'nilai_langsung',
+      pemasukan_langsung: '150000000',
+      pemasukan_langsung_freq: 'tahunan',
+      custom_days: '26',
+      
+      // Pekerja Dibayar (3 orang) but manual override active
+      pekerja_dibayar_l: '2',
+      pekerja_dibayar_p: '1',
+      rata_upah_per_pekerja: '1820000',
+      '26a_touched': true,
+      biaya_upah: '10000000',
+      biaya_upah_freq: 'tahunan',
+      
+      use_detail_pengeluaran: true,
+      
+      biaya_produksi: '50000',
+      biaya_produksi_freq: 'harian',
+      biaya_hpp: '0',
+      biaya_hpp_freq: 'tahunan',
+      biaya_operasional: '0',
+      biaya_operasional_freq: 'tahunan',
+      biaya_non_operasional: '0',
+      biaya_non_operasional_freq: 'tahunan'
+    }
+  }, []);
+
+  // 26a = 10.000.000 (manual, not overridden by auto-sync because 26a_touched is true)
+  // 26b = 50.000 * 26 * 12 = 15.600.000
+  // total = 10.000.000 + 15.600.000 = 25.600.000
+  assert('Total Pengeluaran Tahunan (26f) = Rp25.600.000', r.totalPengeluaranTahunan, 25_600_000);
+}
+
 // ─────────────────────────────────────────────────────────────────────────
 // SUITE 8: Addendum #13 — Weekly Conversion Factor & Calculations
 // ─────────────────────────────────────────────────────────────────────────

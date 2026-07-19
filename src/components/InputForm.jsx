@@ -473,7 +473,8 @@ function ExpenseField({
   customRemark,
   onBlur,
   placeholder,
-  isEstimate
+  isEstimate,
+  onEditManual
 }) {
   const [focused, setFocused] = useState(false);
   const numVal  = parseFloat(value) || 0;
@@ -494,6 +495,15 @@ function ExpenseField({
         ) : autoModeBadge ? (
           <span className="flex items-center gap-1 text-[9.5px] font-semibold text-emerald-300 bg-emerald-500/10 border border-emerald-500/20 px-1.5 py-0.5 rounded-md">
             🔄 Otomatis dari data pekerja
+            {onEditManual && (
+              <button
+                type="button"
+                onClick={onEditManual}
+                className="ml-1.5 text-[9px] font-bold text-indigo-400 hover:text-indigo-300 underline cursor-pointer focus:outline-none"
+              >
+                ✎ Edit Manual
+              </button>
+            )}
           </span>
         ) : null}
         {tooltip && (
@@ -686,8 +696,13 @@ export default function InputForm({ categoryId, inputs, onInputChange, records }
 
   const rataUpahPerPekerja  = parseFloat(inputs.rata_upah_per_pekerja) || 0;
   const estimasiUpahTahunan = totalPekerjaDibayar * rataUpahPerPekerja * 12;
-  // Auto-mode is active when: rata_upah is filled AND dibayar > 0 AND rincian toggle is on
-  const isWageAutoMode = rataUpahPerPekerja > 0 && totalPekerjaDibayar > 0 && isDetailPengeluaranActive && !isBagiHasilMode && !isPencatatanRiil;
+  const isWageAutoMode =
+    rataUpahPerPekerja > 0 &&
+    totalPekerjaDibayar > 0 &&
+    isDetailPengeluaranActive &&
+    !isBagiHasilMode &&
+    inputs['26a_touched'] !== true &&
+    inputs['26a_touched'] !== 'true';
 
   // Auto-sync 26a whenever the auto-mode inputs change
   useEffect(() => {
@@ -696,9 +711,19 @@ export default function InputForm({ categoryId, inputs, onInputChange, records }
         biaya_upah: String(estimasiUpahTahunan),
         biaya_upah_freq: 'tahunan'
       });
+    } else {
+      const isTouched = inputs['26a_touched'] === true || inputs['26a_touched'] === 'true';
+      if (!isTouched && !isBagiHasilMode && isDetailPengeluaranActive) {
+        if (inputs.biaya_upah && inputs.biaya_upah !== '0') {
+          onInputChange({
+            biaya_upah: '',
+            biaya_upah_freq: 'tahunan'
+          });
+        }
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isWageAutoMode, totalPekerjaDibayar, rataUpahPerPekerja, estimasiUpahTahunan]);
+  }, [isWageAutoMode, totalPekerjaDibayar, rataUpahPerPekerja, estimasiUpahTahunan, inputs['26a_touched'], isBagiHasilMode, isDetailPengeluaranActive]);
 
   // ── Bagi Hasil Kapal (Punggawa-Sawi) calculations for UI ──
   const tripSat = parseFloat(inputs.satuan_kg) || 0;
@@ -842,7 +867,8 @@ export default function InputForm({ categoryId, inputs, onInputChange, records }
       '26c_touched': false,
       biaya_operasional: String(autoFilled.biaya_operasional),
       biaya_operasional_freq: 'tahunan',
-      '26d_touched': false
+      '26d_touched': false,
+      '26a_touched': false
     });
   };
   // ─────────────────────────────────────────────────────────────────────────
@@ -1824,8 +1850,9 @@ export default function InputForm({ categoryId, inputs, onInputChange, records }
                 value={inputs.biaya_upah || ''}
                 freq={inputs.biaya_upah_freq}
                 daysPerMonth={Number(displayDays)}
-                onValueChange={val => onInputChange('biaya_upah', val)}
-                onFreqChange={freq => onInputChange('biaya_upah_freq', freq)}
+                onValueChange={val => onInputChange({ biaya_upah: val, '26a_touched': true })}
+                onFreqChange={freq => onInputChange({ biaya_upah_freq: freq, '26a_touched': true })}
+                onBlur={() => onInputChange({ '26a_touched': true })}
                 tooltip="Upah pokok, bonus, natura makan/perumahan, iuran BPJS."
                 placeholder="Isi dari pembukuan Anda"
                 readOnly={isWageAutoMode || isBagiHasilMode}
@@ -1835,17 +1862,35 @@ export default function InputForm({ categoryId, inputs, onInputChange, records }
                     ? `≈ ${totalPekerjaDibayar} pekerja × ${formatRupiah(rataUpahPerPekerja)}/bln × 12 bln = ${formatRupiah(estimasiUpahTahunan)}`
                     : null
                 }
+                onEditManual={
+                  (totalPekerjaDibayar > 0 && rataUpahPerPekerja > 0 && !isBagiHasilMode)
+                    ? () => onInputChange({ '26a_touched': true })
+                    : null
+                }
                 hideFreqSelector={isBagiHasilMode}
                 customBadge={
                   isBagiHasilMode ? (
                     <span className="flex items-center gap-1 text-[9.5px] font-semibold text-emerald-300 bg-emerald-500/10 border border-emerald-500/20 px-1.5 py-0.5 rounded-md">
                       🔄 Otomatis dari Bagi Hasil Kru (Punggawa-Sawi)
                     </span>
+                  ) : (inputs['26a_touched'] === true || inputs['26a_touched'] === 'true') && (totalPekerjaDibayar > 0 && rataUpahPerPekerja > 0) ? (
+                    <span className="flex items-center gap-1.5 text-[9.5px] font-semibold text-amber-300 bg-amber-500/10 border border-amber-500/20 px-1.5 py-0.5 rounded-md">
+                      ✏️ Manual Override
+                      <button
+                        type="button"
+                        onClick={() => onInputChange({ '26a_touched': false })}
+                        className="ml-1 text-[9.5px] font-bold text-indigo-400 hover:text-indigo-300 underline cursor-pointer focus:outline-none"
+                      >
+                        ↻ Gunakan Otomatis
+                      </button>
+                    </span>
                   ) : null
                 }
                 customRemark={
                   isBagiHasilMode
                     ? `≈ Bagian Kru (${kruPct}%) dari SHU Bersih Bulanan (${formatRupiah(shuBulanan)}) × 12 bulan = ${formatRupiah(bagianKruTahunan)}`
+                    : (inputs['26a_touched'] === true || inputs['26a_touched'] === 'true') && (totalPekerjaDibayar > 0 && rataUpahPerPekerja > 0)
+                    ? `Estimasi BPS: ≈ ${totalPekerjaDibayar} pekerja × ${formatRupiah(rataUpahPerPekerja)}/bln × 12 bln = ${formatRupiah(estimasiUpahTahunan)}`
                     : null
                 }
               />

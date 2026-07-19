@@ -927,7 +927,11 @@ export function calculateRecord(record, allRecords = []) {
       prodValue = totalBiayaOperasionalTahunan;
     } else {
       const rataUpahPerPekerja = parseFloat(inputs.rata_upah_per_pekerja) || 0;
-      const isWageAutoMode = rataUpahPerPekerja > 0 && workers.totalDibayar > 0;
+      const isWageAutoMode =
+        rataUpahPerPekerja > 0 &&
+        workers.totalDibayar > 0 &&
+        inputs['26a_touched'] !== true &&
+        inputs['26a_touched'] !== 'true';
       upahValue = parseFloat(inputs.biaya_upah) || 0;
       upahFreq = inputs.biaya_upah_freq;
       if (isWageAutoMode) {
