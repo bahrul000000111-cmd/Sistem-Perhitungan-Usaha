@@ -170,16 +170,6 @@ export default function ResultCard({ result, hasDualMode = false }) {
         </div>
       )}
 
-      {/* Bagi Hasil equivalent note (Addendum #16) */}
-      {meta && meta.income_method === 'bagi_hasil' && (
-        <div className="mx-3 my-2 px-3 py-2 bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 text-[11px] rounded-xl flex items-start gap-2">
-          <Info size={14} className="text-indigo-400 shrink-0 mt-0.5" />
-          <span>
-            ℹ️ Total Hasil Usaha Bersih ini setara dengan Bagian Pemilik Kapal (setelah bagi hasil kru).
-          </span>
-        </div>
-      )}
-
       {/* Quick metrics pills */}
       <div className="px-3 py-2 flex flex-wrap gap-2">
         <div className="flex items-center gap-1.5 bg-indigo-500/10 border border-indigo-500/20 rounded-lg px-2.5 py-1.5">

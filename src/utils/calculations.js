@@ -470,7 +470,7 @@ export function calcKuliner(inputs = {}) {
 /**
  * Category 3: Perkebunan & Pertanian Tahunan
  * Default: Exp = 30%
- * Addendum #9: supports harvest_period_bulan (1–12, default 12) for M2 income conversion.
+ * Addendum #9: supports panen_per_tahun for M2 income conversion.
  */
 export function calcPerkebunanTahunan(inputs = {}) {
   const rawValue    = parseFloat(inputs.total_pendapatan_tahunan) || 0;
@@ -682,85 +682,34 @@ export function calcArangTempurung(inputs = {}, linkedNilaiHarianBox = null) {
  * Category 8: Nelayan Tangkap Ikan
  * Default: Rev = 10% | Exp = 30% | Days = 30
  *
- * Addendum #7: supports dual income-input method.
- *   income_method = 'volume_harga'   (default / Opsi A) → satuan_kg × pemasukan_harian
- *   income_method = 'nilai_langsung' (Opsi B)           → pemasukan_langsung converted to daily
- * Backward compatible: missing income_method → 'volume_harga'.
+ * Enforces nilai_langsung (Pencatatan Riil).
  */
 export function calcNelayan(inputs = {}) {
-  const method = inputs.income_method || 'volume_harga';
-  const workers = resolveWorkers(inputs);
-  const isKruMode = false;
   const revPct = getRevPct(inputs, 10);
   const expPct = getExpPct(inputs, 30);
-  const days   = getDays(inputs); // custom_days represents trips/month in Opsi A
+  const days   = getDays(inputs);
 
-  let pendapatanHarian;
-  let metaExtra = {};
-  let totalPendapatan;
-  let totalPengeluaran;
-
-  if (method === 'nilai_langsung') {
-    // Opsi B — convert raw income using direct frequency factors (Addendum #15)
-    const rawIncome = parseFloat(inputs.pemasukan_langsung) || 0;
-    const freq      = inputs.pemasukan_langsung_freq || 'harian';
-    let factor = 1;
-    if (freq === 'harian') {
-      factor = days * 12;
-    } else if (freq === 'mingguan') {
-      factor = 48;
-    } else if (freq === 'bulanan') {
-      factor = 12;
-    } else if (freq === 'tahunan') {
-      factor = 1;
-    }
-    pendapatanHarian = (rawIncome * factor) / (days * 12);
-    metaExtra = {
-      income_method: 'nilai_langsung',
-      pemasukan_langsung: rawIncome,
-      pemasukan_langsung_freq: freq,
-      pendapatanHarianDerived: pendapatanHarian,
-    };
-    totalPendapatan = pendapatanHarian * days * 12 * (revPct / 100);
-    totalPengeluaran = totalPendapatan * (expPct / 100);
-  } else {
-    // Opsi A or Bagi Hasil Kru/Trip (Trip-based)
-    const satuan = parseFloat(inputs.satuan_kg) || 0; // kg/trip
-    const ph     = parseFloat(inputs.pemasukan_harian) || 0; // Rp/kg
-    pendapatanHarian = satuan * ph; // per trip
-
-    metaExtra = {
-      income_method: method,
-      satuan_kg: satuan,
-      pemasukan_harian: ph,
-    };
-
-    if (isKruMode) {
-      // Kondisi B: Kapal Penangkap Ikan Ber-Kru
-      const kotorBulanan = satuan * ph * days;
-      totalPendapatan = kotorBulanan * 12;
-
-      const es = parseFloat(inputs.biaya_trip_es) || 0;
-      const bbm = parseFloat(inputs.biaya_trip_bbm) || 0;
-      const ransum = parseFloat(inputs.biaya_trip_ransum) || 0;
-      const umpan = parseFloat(inputs.biaya_trip_umpan) || 0;
-      const totalTripExp = es + bbm + ransum + umpan;
-      const bulananExp = totalTripExp * days;
-      const totalBiayaOperasionalTahunan = bulananExp * 12;
-
-      const shuBulanan = kotorBulanan - bulananExp;
-      const pemilikPct = inputs.bagi_hasil_pemilik !== undefined && inputs.bagi_hasil_pemilik !== '' ? parseFloat(inputs.bagi_hasil_pemilik) : 50;
-      const kruPct = 100 - pemilikPct;
-      const bagianKruBulanan = shuBulanan * (kruPct / 100);
-      const bagianKruTahunan = bagianKruBulanan * 12;
-
-      totalPengeluaran = totalBiayaOperasionalTahunan + bagianKruTahunan;
-    } else {
-      // Kondisi A: Nelayan Mandiri
-      totalPendapatan = pendapatanHarian * days * 12 * (revPct / 100);
-      totalPengeluaran = totalPendapatan * (expPct / 100);
-    }
+  const rawIncome = parseFloat(inputs.pemasukan_langsung) || 0;
+  const freq      = inputs.pemasukan_langsung_freq || 'harian';
+  let factor = 1;
+  if (freq === 'harian') {
+    factor = days * 12;
+  } else if (freq === 'mingguan') {
+    factor = 48;
+  } else if (freq === 'bulanan') {
+    factor = 12;
+  } else if (freq === 'tahunan') {
+    factor = 1;
   }
+  const pendapatanHarian = (rawIncome * factor) / (days * 12);
+  const metaExtra = {
+    income_method: 'nilai_langsung',
+    pemasukan_langsung: rawIncome,
+    pemasukan_langsung_freq: freq,
+    pendapatanHarianDerived: pendapatanHarian,
+  };
+  const totalPendapatan = pendapatanHarian * days * 12 * (revPct / 100);
+  const totalPengeluaran = totalPendapatan * (expPct / 100);
 
   const totalHasilUsaha   = totalPendapatan - totalPengeluaran;
   const pendapatanPerBulan = totalHasilUsaha / 12;
@@ -774,7 +723,7 @@ export function calcNelayan(inputs = {}) {
     setahun: null,
     meta: {
       ...metaExtra,
-      koefisien: isKruMode ? '100% (Tanpa Koefisien)' : `${revPct}%`,
+      koefisien: `${revPct}%`,
       faktorPengeluaran: `${expPct}%`,
       hariKerja: days,
       pendapatanHarian,
@@ -944,7 +893,6 @@ export function calculateRecord(record, allRecords = []) {
   // Guard: use_detail_pengeluaran can be boolean (runtime) or string (edge case) — normalize it
   let totalPengeluaran = result.totalPengeluaranTahunan;
   const rawToggle = inputs.use_detail_pengeluaran;
-  const isBagiHasilKruMode = false;
   const isDetailPengeluaranActive = rawToggle === true || rawToggle === 1 || rawToggle === 'true';
 
   let upah = 0;
@@ -969,55 +917,31 @@ export function calculateRecord(record, allRecords = []) {
     let nonOperValue = 0;
     let nonOperFreq = 'tahunan';
 
-    if (isBagiHasilKruMode) {
-      const sat = parseFloat(inputs.satuan_kg) || 0;
-      const prc = parseFloat(inputs.pemasukan_harian) || 0;
-      const trips = parseFloat(inputs.custom_days !== undefined && inputs.custom_days !== '' ? inputs.custom_days : 30);
-      const kotorBulanan = sat * prc * trips;
-
-      const es = parseFloat(inputs.biaya_trip_es) || 0;
-      const bbm = parseFloat(inputs.biaya_trip_bbm) || 0;
-      const ransum = parseFloat(inputs.biaya_trip_ransum) || 0;
-      const umpan = parseFloat(inputs.biaya_trip_umpan) || 0;
-      const totalTripExp = es + bbm + ransum + umpan;
-      const bulananExp = totalTripExp * trips;
-      const totalBiayaOperasionalTahunan = bulananExp * 12;
-
-      const shuBulanan = kotorBulanan - bulananExp;
-      const pemilikPct = inputs.bagi_hasil_pemilik !== undefined && inputs.bagi_hasil_pemilik !== '' ? parseFloat(inputs.bagi_hasil_pemilik) : 50;
-      const kruPct = 100 - pemilikPct;
-      const bagianKruBulanan = shuBulanan * (kruPct / 100);
-      const bagianKruTahunan = bagianKruBulanan * 12;
-
-      upahValue = bagianKruTahunan;
-      prodValue = totalBiayaOperasionalTahunan;
-    } else {
-      const rataUpahPerPekerja = parseFloat(inputs.rata_upah_per_pekerja) || 0;
-      const isWageAutoMode =
-        rataUpahPerPekerja > 0 &&
-        workers.totalDibayar > 0 &&
-        inputs['26a_touched'] !== true &&
-        inputs['26a_touched'] !== 'true';
-      upahValue = parseFloat(inputs.biaya_upah) || 0;
-      upahFreq = inputs.biaya_upah_freq;
-      if (isWageAutoMode) {
-        upahValue = workers.totalDibayar * rataUpahPerPekerja * 12;
-        upahFreq = 'tahunan';
-      }
-
-      // Always uses the user's manual inputs (Pencatatan Riil)
-      prodValue = parseFloat(inputs.biaya_produksi) || 0;
-      prodFreq = inputs.biaya_produksi_freq;
-
-      hppValue = parseFloat(inputs.biaya_hpp) || 0;
-      hppFreq = inputs.biaya_hpp_freq;
-
-      operValue = parseFloat(inputs.biaya_operasional) || 0;
-      operFreq = inputs.biaya_operasional_freq;
-
-      nonOperValue = parseFloat(inputs.biaya_non_operasional) || 0;
-      nonOperFreq = inputs.biaya_non_operasional_freq;
+    const rataUpahPerPekerja = parseFloat(inputs.rata_upah_per_pekerja) || 0;
+    const isWageAutoMode =
+      rataUpahPerPekerja > 0 &&
+      workers.totalDibayar > 0 &&
+      inputs['26a_touched'] !== true &&
+      inputs['26a_touched'] !== 'true';
+    upahValue = parseFloat(inputs.biaya_upah) || 0;
+    upahFreq = inputs.biaya_upah_freq;
+    if (isWageAutoMode) {
+      upahValue = workers.totalDibayar * rataUpahPerPekerja * 12;
+      upahFreq = 'tahunan';
     }
+
+    // Always uses the user's manual inputs (Pencatatan Riil)
+    prodValue = parseFloat(inputs.biaya_produksi) || 0;
+    prodFreq = inputs.biaya_produksi_freq;
+
+    hppValue = parseFloat(inputs.biaya_hpp) || 0;
+    hppFreq = inputs.biaya_hpp_freq;
+
+    operValue = parseFloat(inputs.biaya_operasional) || 0;
+    operFreq = inputs.biaya_operasional_freq;
+
+    nonOperValue = parseFloat(inputs.biaya_non_operasional) || 0;
+    nonOperFreq = inputs.biaya_non_operasional_freq;
 
     upah    = convertToAnnual(upahValue, upahFreq, daysPerMonth);
     prod    = convertToAnnual(prodValue, prodFreq, daysPerMonth);

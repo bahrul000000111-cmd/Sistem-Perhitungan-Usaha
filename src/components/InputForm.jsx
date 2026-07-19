@@ -8,7 +8,7 @@ import { useState, useEffect, useRef, useLayoutEffect } from 'react';
 import { AlertCircle, Link2, Link2Off, Info, ChevronDown, ChevronUp, Users, Calendar, DollarSign, Globe, Building2, X } from 'lucide-react';
 import { formatRupiah, formatNumberWithDots } from '../utils/formatters';
 import { CATEGORIES, getConversionFormula, convertToAnnual, convertToDaily, convertHarvestToAnnual, calculateRecord, computeAutoFillPengeluaran, DEFAULT_EXPENSE_PCT_NORMATIF, HPP_VISIBLE_CATEGORIES } from '../utils/calculations';
-import { KOEFISIEN_GUIDE_DATA } from '../utils/koefisienGuideData';
+import { KOEFISIEN_GUIDE_DATA, SKALA_USAHA_PARAMS } from '../utils/koefisienGuideData';
 
 
 /**
@@ -18,13 +18,13 @@ import { KOEFISIEN_GUIDE_DATA } from '../utils/koefisienGuideData';
  * Default period = 12 months for full backward compatibility.
  *
  * Props:
- *   id              - HTML id for the input
- *   label           - Field label text
- *   value           - Raw per-period value (string)
- *   onValueChange   - Called with new raw value string when input changes
- *   periodValue     - Current period in months (number or string, default 12)
- *   onPeriodChange  - Called with new period (string) when dropdown changes
- *   placeholder     - Input placeholder
+ *   id                    - HTML id for the input
+ *   label                 - Field label text
+ *   value                 - Raw per-period value (string)
+ *   onValueChange         - Called with new raw value string when input changes
+ *   panenPerTahun         - Current harvest times per year (number or string)
+ *   onPanenPerTahunChange - Called with new harvest frequency when dropdown changes
+ *   placeholder           - Input placeholder
  */
 function HarvestPeriodSelector({ id, label, value, onValueChange, panenPerTahun, onPanenPerTahunChange, placeholder }) {
   const [focused, setFocused] = useState(false);
@@ -819,11 +819,9 @@ export default function InputForm({ categoryId, inputs, onInputChange, records }
   const _dibayarP = parseInt(_hasNewWorkerKeys ? inputs.pekerja_dibayar_p : inputs.pekerja_p) || 0;
   const totalPekerjaDibayar = _dibayarL + _dibayarP;
 
-  const isBagiHasilMode = false;
-
   // Determine modifiers config
   const hasDailyModifier = ['kios_campuran', 'kuliner_rumah_makan', 'nelayan_tangkap', 'generik_harian', 'industri_kopra'].includes(categoryId);
-  const hasRevenueModifier = !isBagiHasilMode;
+  const hasRevenueModifier = true;
 
   let defaultRevPct = 100;
   let defaultExpPct = 30;
@@ -860,7 +858,7 @@ export default function InputForm({ categoryId, inputs, onInputChange, records }
 
   // Normalize use_detail_pengeluaran toggle
   const rawToggle = inputs.use_detail_pengeluaran;
-  const isDetailPengeluaranActive = rawToggle === true || rawToggle === 1 || rawToggle === 'true' || isBagiHasilMode || isPencatatanRiil;
+  const isDetailPengeluaranActive = rawToggle === true || rawToggle === 1 || rawToggle === 'true' || isPencatatanRiil;
 
   const rataUpahPerPekerja  = parseFloat(inputs.rata_upah_per_pekerja) || 0;
   const estimasiUpahTahunan = totalPekerjaDibayar * rataUpahPerPekerja * 12;
@@ -868,7 +866,6 @@ export default function InputForm({ categoryId, inputs, onInputChange, records }
     rataUpahPerPekerja > 0 &&
     totalPekerjaDibayar > 0 &&
     isDetailPengeluaranActive &&
-    !isBagiHasilMode &&
     inputs['26a_touched'] !== true &&
     inputs['26a_touched'] !== 'true';
 
@@ -881,7 +878,7 @@ export default function InputForm({ categoryId, inputs, onInputChange, records }
       });
     } else {
       const isTouched = inputs['26a_touched'] === true || inputs['26a_touched'] === 'true';
-      if (!isTouched && !isBagiHasilMode && isDetailPengeluaranActive) {
+      if (!isTouched && isDetailPengeluaranActive) {
         if (inputs.biaya_upah && inputs.biaya_upah !== '0') {
           onInputChange({
             biaya_upah: '',
@@ -891,44 +888,7 @@ export default function InputForm({ categoryId, inputs, onInputChange, records }
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isWageAutoMode, totalPekerjaDibayar, rataUpahPerPekerja, estimasiUpahTahunan, inputs['26a_touched'], isBagiHasilMode, isDetailPengeluaranActive]);
-
-  // ── Bagi Hasil Kapal (Punggawa-Sawi) calculations for UI ──
-  const tripSat = parseFloat(inputs.satuan_kg) || 0;
-  const tripPrc = parseFloat(inputs.pemasukan_harian) || 0;
-  const tripQty = parseFloat(inputs.custom_days !== undefined && inputs.custom_days !== '' ? inputs.custom_days : 30);
-
-  const tripEs = parseFloat(inputs.biaya_trip_es) || 0;
-  const tripBbm = parseFloat(inputs.biaya_trip_bbm) || 0;
-  const tripRansum = parseFloat(inputs.biaya_trip_ransum) || 0;
-  const tripUmpan = parseFloat(inputs.biaya_trip_umpan) || 0;
-
-  const totalBiayaTrip = tripEs + tripBbm + tripRansum + tripUmpan;
-  const totalBiayaTripBulanan = totalBiayaTrip * tripQty;
-  const totalBiayaTripTahunan = totalBiayaTripBulanan * 12;
-
-  const kotorBulanan = tripSat * tripPrc * tripQty;
-  const shuBulanan = kotorBulanan - totalBiayaTripBulanan;
-
-  const pemilikPct = inputs.bagi_hasil_pemilik !== undefined && inputs.bagi_hasil_pemilik !== '' ? parseFloat(inputs.bagi_hasil_pemilik) : 50;
-  const kruPct = 100 - pemilikPct;
-  const bagianKruBulanan = shuBulanan * (kruPct / 100);
-  const bagianKruTahunan = bagianKruBulanan * 12;
-
-  // Auto-sync 26b and 26a for Bagi Hasil Kapal
-  useEffect(() => {
-    if (isBagiHasilMode) {
-      onInputChange({
-        biaya_produksi: String(totalBiayaTripTahunan),
-        biaya_produksi_freq: 'tahunan',
-        biaya_upah: String(bagianKruTahunan),
-        biaya_upah_freq: 'tahunan',
-        biaya_operasional: '0',
-        biaya_non_operasional: '0'
-      });
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isBagiHasilMode, totalBiayaTripTahunan, bagianKruTahunan]);
+  }, [isWageAutoMode, totalPekerjaDibayar, rataUpahPerPekerja, estimasiUpahTahunan, inputs['26a_touched'], isDetailPengeluaranActive]);
   // ─────────────────────────────────────────────────────────────────────────
 
   // ── Addendum #13 — Bagian 4: Auto-proportion ─────────────────────────────
@@ -952,7 +912,7 @@ export default function InputForm({ categoryId, inputs, onInputChange, records }
 
   // ── Addendum #8: Auto-fill detailed expenses on Pencatatan Riil mode ─────
   useEffect(() => {
-    if (!isPencatatanRiil || liveAnnualIncome <= 0 || isBagiHasilMode) return;
+    if (!isPencatatanRiil || liveAnnualIncome <= 0) return;
 
     const autoFilled = computeAutoFillPengeluaran({
       categoryId,
@@ -993,7 +953,6 @@ export default function InputForm({ categoryId, inputs, onInputChange, records }
     isPencatatanRiil,
     liveAnnualIncome,
     categoryId,
-    isBagiHasilMode,
     _expPctNum,
     inputs['26b_touched'],
     inputs['26c_touched'],
@@ -1062,8 +1021,6 @@ export default function InputForm({ categoryId, inputs, onInputChange, records }
     if (isNelayan) {
       const opts = [];
       opts.push({ key: 'nilai_langsung', label: 'Nilai Pendapatan Langsung' });
-      // Addendum #16 / #17 Bagi Hasil Kru/Trip option
-      opts.push({ key: 'bagi_hasil',     label: 'Bagi Hasil Kru/Trip' });
       return opts;
     }
     return [];
@@ -1100,241 +1057,6 @@ export default function InputForm({ categoryId, inputs, onInputChange, records }
 
       {isNelayan && (
         <>
-          {/* Bagi Hasil Kru/Trip fields (shown when method = bagi_hasil or legacy volume_harga with workers >= 2) */}
-          {isBagiHasilMode && (
-            <>
-              <UnitInput
-                id="input-satuan-kg"
-                label="Satuan Tangkapan (Kg)"
-                value={inputs.satuan_kg ?? 1}
-                onChange={v => onInputChange('satuan_kg', v)}
-                placeholder="1"
-                suffix="kg/trip"
-              />
-              <CurrencyInput
-                id="input-pemasukan-harian"
-                label="Nilai Per Satuan (Rp)"
-                value={inputs.pemasukan_harian ?? ''}
-                onChange={v => onInputChange('pemasukan_harian', v)}
-                placeholder="150000"
-                tooltip="Harga jual per kg hasil tangkapan."
-              />
-
-              {/* Jumlah Trip / Bulan slider when in Bagi Hasil mode */}
-              {isBagiHasilMode && (
-                <div className="flex flex-col gap-1.5 mt-1 border-t border-white/[0.04] pt-3">
-                  <div className="flex justify-between items-center">
-                    <label htmlFor="input-custom-days-top" className="text-[12px] font-medium text-slate-300">
-                      Jumlah Trip / Bulan
-                    </label>
-                    <span className="text-[11px] font-semibold font-mono text-cyan-300 bg-cyan-500/15 px-1.5 py-0.5 rounded">
-                      {displayDays} trip
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <input
-                      id="range-custom-days-top"
-                      type="range" min="1" max="31"
-                      value={displayDays}
-                      onChange={e => onInputChange('custom_days', e.target.value)}
-                      className="flex-1 accent-cyan-500 h-1.5 bg-surface-800 rounded-lg appearance-none cursor-pointer"
-                    />
-                    <input
-                      id="input-custom-days-top-num"
-                      type="number" min="1" max="31"
-                      value={rawDays !== undefined ? rawDays : ''}
-                      placeholder="30"
-                      onChange={e => {
-                        const val = e.target.value;
-                        if (val === '') { onInputChange('custom_days', ''); }
-                        else { onInputChange('custom_days', String(Math.min(31, Math.max(1, parseInt(val) || 1)))); }
-                      }}
-                      className="w-16 rounded-lg border border-white/[0.08] bg-surface-700 text-slate-100 text-[12px] font-mono py-1 text-center"
-                    />
-                  </div>
-                  <div className="flex justify-between text-[9px] text-slate-600 px-0.5 select-none font-medium">
-                    <span>1</span><span>8</span><span>15</span><span>22</span><span>31</span>
-                  </div>
-                </div>
-              )}
-
-              {/* TAHAP A Live Calculation Preview (Bagi Hasil Mode) */}
-              {isBagiHasilMode && (() => {
-                const sat = parseFloat(inputs.satuan_kg) || 0;
-                const prc = parseFloat(inputs.pemasukan_harian) || 0;
-                const trips = parseFloat(inputs.custom_days !== undefined && inputs.custom_days !== '' ? inputs.custom_days : 30);
-                const perTrip = sat * prc;
-                const bulanan = perTrip * trips;
-                const tahunan = bulanan * 12;
-                if (tahunan > 0) {
-                  return (
-                    <div className="text-[11px] font-mono text-slate-350 bg-indigo-500/10 border border-indigo-500/20 rounded-xl p-3 space-y-1.5 mt-1">
-                      <div className="font-bold text-indigo-400 uppercase tracking-wide text-[9px] mb-1">Estimasi Pendapatan Kotor (Tahap A)</div>
-                      <div className="flex justify-between"><span>Pendapatan per Trip:</span><span className="font-semibold text-slate-200">{formatRupiah(perTrip)}</span></div>
-                      <div className="flex justify-between"><span>Total Pendapatan Kotor Bulanan:</span><span className="font-semibold text-slate-200">{formatRupiah(bulanan)}</span></div>
-                      <div className="flex justify-between border-t border-white/5 pt-1.5 mt-1"><span>Total Pendapatan Kotor Tahunan:</span><span className="font-semibold text-emerald-455">{formatRupiah(tahunan)}</span></div>
-                    </div>
-                  );
-                }
-                return null;
-              })()}
-
-              {/* TAHAP B — BIAYA OPERASIONAL PER TRIP */}
-              {isBagiHasilMode && (
-                <div className="p-4 rounded-xl bg-surface-800/40 border border-white/[0.06] space-y-3 mt-2">
-                  <div className="flex items-center gap-1.5 border-b border-white/5 pb-2 mb-1">
-                    <span className="text-[10px] font-bold text-indigo-400 uppercase tracking-wider">
-                      Tahap B — Biaya Operasional per Trip
-                    </span>
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <CurrencyInput
-                      id="input-biaya-trip-es"
-                      label="Es Balok (Rp)"
-                      value={inputs.biaya_trip_es ?? ''}
-                      onChange={v => onInputChange('biaya_trip_es', v)}
-                      placeholder="300.000"
-                    />
-                    <CurrencyInput
-                      id="input-biaya-trip-bbm"
-                      label="BBM/Solar (Rp)"
-                      value={inputs.biaya_trip_bbm ?? ''}
-                      onChange={v => onInputChange('biaya_trip_bbm', v)}
-                      placeholder="800.000"
-                    />
-                    <CurrencyInput
-                      id="input-biaya-trip-ransum"
-                      label="Ransum/Makanan Kru (Rp)"
-                      value={inputs.biaya_trip_ransum ?? ''}
-                      onChange={v => onInputChange('biaya_trip_ransum', v)}
-                      placeholder="400.000"
-                    />
-                    <CurrencyInput
-                      id="input-biaya-trip-umpan"
-                      label="Umpan (Rp)"
-                      value={inputs.biaya_trip_umpan ?? ''}
-                      onChange={v => onInputChange('biaya_trip_umpan', v)}
-                      placeholder="200.000"
-                    />
-                  </div>
-
-                  {/* TAHAP B Live Calculation Preview */}
-                  {(() => {
-                    const es = parseFloat(inputs.biaya_trip_es) || 0;
-                    const bbm = parseFloat(inputs.biaya_trip_bbm) || 0;
-                    const ransum = parseFloat(inputs.biaya_trip_ransum) || 0;
-                    const umpan = parseFloat(inputs.biaya_trip_umpan) || 0;
-                    const trips = parseFloat(inputs.custom_days !== undefined && inputs.custom_days !== '' ? inputs.custom_days : 30);
-                    const totalTrip = es + bbm + ransum + umpan;
-                    const bulanan = totalTrip * trips;
-                    const tahunan = bulanan * 12;
-                    if (totalTrip > 0) {
-                      return (
-                        <div className="text-[11px] font-mono text-slate-350 bg-surface-900/40 border border-white/[0.04] rounded-lg p-2.5 mt-2 space-y-1">
-                          <div className="flex justify-between"><span>Total Biaya per Trip:</span><span className="font-semibold text-slate-200">{formatRupiah(totalTrip)}</span></div>
-                          <div className="flex justify-between"><span>Total Biaya Bulanan:</span><span className="font-semibold text-slate-200">{formatRupiah(bulanan)}</span></div>
-                          <div className="flex justify-between border-t border-white/5 pt-1 mt-1"><span>Total Biaya Tahunan (26b):</span><span className="font-semibold text-rose-400">{formatRupiah(tahunan)}</span></div>
-                        </div>
-                      );
-                    }
-                    return null;
-                  })()}
-                </div>
-              )}
-
-              {/* TAHAP C — PEMBAGIAN HASIL USAHA (SHU) */}
-              {isBagiHasilMode && (
-                <div className="p-4 rounded-xl bg-surface-800/40 border border-white/[0.06] space-y-3.5 mt-2">
-                  <div className="flex items-center gap-1.5 border-b border-white/5 pb-2 mb-1">
-                    <span className="text-[10px] font-bold text-indigo-400 uppercase tracking-wider">
-                      Tahap C — Pembagian Hasil Usaha (SHU)
-                    </span>
-                  </div>
-                  
-                  {/* Persentase Slider */}
-                  <PercentSlider
-                    id="input-bagi-hasil-pemilik"
-                    label="Persentase Bagian Pemilik (%)"
-                    value={inputs.bagi_hasil_pemilik}
-                    onChange={val => onInputChange('bagi_hasil_pemilik', val)}
-                    defaultValue={50}
-                    tooltip="Persentase Sisa Hasil Usaha (SHU) yang menjadi hak pemilik kapal."
-                  />
-
-                  {/* Read-only Kru % */}
-                  <div className="flex flex-col gap-1.5">
-                    <label className="text-[11px] font-semibold text-slate-400">
-                      Persentase Bagian Kru (%)
-                    </label>
-                    <input
-                      type="text"
-                      readOnly
-                      value={`${kruPct}%`}
-                      className="w-full rounded-xl border border-white/[0.06] bg-surface-700/50 text-slate-350 text-[12px] font-mono py-2 px-3 outline-none cursor-not-allowed"
-                    />
-                  </div>
-
-                  {/* Jumlah Kru/ABK info */}
-                  <div className="flex flex-col gap-1">
-                    <label className="text-[11px] font-semibold text-slate-400">
-                      Jumlah Kru / ABK (Pekerja Dibayar)
-                    </label>
-                    <div className="flex items-center justify-between w-full rounded-xl border border-white/[0.06] bg-surface-700/50 text-slate-350 text-[12px] py-2 px-3">
-                      <span className="font-semibold text-slate-200">
-                        {totalPekerjaDibayar} orang
-                      </span>
-                      <span className="text-[10px] text-slate-500 italic">
-                        (diambil dari data Pekerja Dibayar)
-                      </span>
-                    </div>
-                    <p className="text-[9.5px] text-slate-500 italic mt-0.5">
-                      *Ubah jumlah kru di bagian &quot;Pekerja Dibayar&quot; pada Data Pendukung SE2026-L di bawah.
-                    </p>
-                  </div>
-
-                  {/* TAHAP C Live Calculation Preview */}
-                  {(() => {
-                    const sat = parseFloat(inputs.satuan_kg) || 0;
-                    const prc = parseFloat(inputs.pemasukan_harian) || 0;
-                    const trips = parseFloat(inputs.custom_days !== undefined && inputs.custom_days !== '' ? inputs.custom_days : 30);
-                    const kotorBulanan = sat * prc * trips;
-
-                    const es = parseFloat(inputs.biaya_trip_es) || 0;
-                    const bbm = parseFloat(inputs.biaya_trip_bbm) || 0;
-                    const ransum = parseFloat(inputs.biaya_trip_ransum) || 0;
-                    const umpan = parseFloat(inputs.biaya_trip_umpan) || 0;
-                    const totalTripExp = es + bbm + ransum + umpan;
-                    const bulananExp = totalTripExp * trips;
-
-                    const shuBulanan = kotorBulanan - bulananExp;
-                    const bagianPemilikBulanan = shuBulanan * (pemilikPct / 100);
-                    const bagianKruBulanan = shuBulanan * (kruPct / 100);
-                    const bagianPerKruBulanan = totalPekerjaDibayar > 0 ? bagianKruBulanan / totalPekerjaDibayar : 0;
-                    const bagianKruTahunan = bagianKruBulanan * 12;
-
-                    if (kotorBulanan > 0 || bulananExp > 0) {
-                      return (
-                        <div className="text-[11px] font-mono text-slate-300 bg-surface-900/40 border border-white/[0.04] rounded-lg p-2.5 mt-2 space-y-1.5">
-                          <div className="flex justify-between"><span>SHU Bersih Bulanan:</span><span className="font-semibold text-slate-205">{formatRupiah(shuBulanan)}</span></div>
-                          <div className="flex justify-between"><span>Bagian Pemilik (Bulanan):</span><span className="font-semibold text-indigo-300">{formatRupiah(bagianPemilikBulanan)}</span></div>
-                          <div className="flex justify-between"><span>Bagian Total Kru (Bulanan):</span><span className="font-semibold text-emerald-400">{formatRupiah(bagianKruBulanan)}</span></div>
-                          {totalPekerjaDibayar > 0 && (
-                            <div className="flex justify-between text-[10px] text-slate-400 italic pl-2">
-                              <span>Bagian per ABK/Kru (Bulanan):</span>
-                              <span>{formatRupiah(bagianPerKruBulanan)}</span>
-                            </div>
-                          )}
-                          <div className="flex justify-between border-t border-white/5 pt-1.5 mt-1"><span>Bagian Total Kru Tahunan (26a):</span><span className="font-semibold text-emerald-450">{formatRupiah(bagianKruTahunan)}</span></div>
-                        </div>
-                      );
-                    }
-                    return null;
-                  })()}
-                </div>
-              )}
-            </>
-          )}
-
           {/* Opsi B fields: Nilai Pendapatan Langsung (shown when method = nilai_langsung) */}
           {incomeMethod === 'nilai_langsung' && (
             <div className="flex flex-col gap-2">
@@ -1706,7 +1428,7 @@ export default function InputForm({ categoryId, inputs, onInputChange, records }
       )}
 
       {/* Operational Days (Daily categories only) */}
-      {!isBagiHasilMode && hasDailyModifier && !isNelayan && (
+      {hasDailyModifier && !isNelayan && (
         <div className="mt-2 pt-4 border-t border-white/[0.06] space-y-3.5 animate-fade-in">
           <div className="flex flex-col gap-1.5">
             <div className="flex justify-between items-center">
@@ -1967,15 +1689,15 @@ export default function InputForm({ categoryId, inputs, onInputChange, records }
             <div className="pt-3 border-t border-white/[0.04] space-y-3.5">
               <div className="flex items-center justify-between">
                 <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Rincian Pengeluaran</span>
-                <label className={`relative inline-flex items-center select-none ${(isBagiHasilMode || isPencatatanRiil) ? 'cursor-not-allowed' : 'cursor-pointer'}`}>
+                <label className={`relative inline-flex items-center select-none ${'cursor-not-allowed'}`}>
                   <input
                     type="checkbox"
                     checked={isDetailPengeluaranActive}
-                    disabled={isBagiHasilMode || isPencatatanRiil}
+                    disabled={isPencatatanRiil}
                     onChange={e => onInputChange('use_detail_pengeluaran', e.target.checked)}
                     className="sr-only peer"
                   />
-                  <div className={`w-8 h-4 bg-surface-700 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-3.5 after:w-3.5 after:transition-all peer-checked:bg-indigo-500 ${(isBagiHasilMode || isPencatatanRiil) ? 'opacity-50' : ''}`}></div>
+                  <div className={`w-8 h-4 bg-surface-700 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-3.5 after:w-3.5 after:transition-all peer-checked:bg-indigo-500 ${'opacity-50'}`}></div>
                   <span className="ml-2 text-[10px] font-medium text-slate-400">
                     {isPencatatanRiil ? 'Wajib untuk Pencatatan Riil' : 'Gunakan Rincian'}
                   </span>
@@ -1993,7 +1715,7 @@ export default function InputForm({ categoryId, inputs, onInputChange, records }
             <p className="text-[10px] font-bold text-indigo-400 uppercase tracking-wider">
               Rincian Pengeluaran (Rincian 26)
             </p>
-            {isPencatatanRiil && !isBagiHasilMode && (
+            {isPencatatanRiil && (
               <button
                 type="button"
                 onClick={handleReloadBps}
@@ -2017,7 +1739,7 @@ export default function InputForm({ categoryId, inputs, onInputChange, records }
                 onBlur={() => onInputChange({ '26a_touched': true })}
                 tooltip="Upah pokok, bonus, natura makan/perumahan, iuran BPJS."
                 placeholder="Isi dari pembukuan Anda"
-                readOnly={isWageAutoMode || isBagiHasilMode}
+                readOnly={isWageAutoMode}
                 autoModeBadge={isWageAutoMode}
                 autoModeRemark={
                   isWageAutoMode
@@ -2025,17 +1747,13 @@ export default function InputForm({ categoryId, inputs, onInputChange, records }
                     : null
                 }
                 onEditManual={
-                  (totalPekerjaDibayar > 0 && rataUpahPerPekerja > 0 && !isBagiHasilMode)
+                  (totalPekerjaDibayar > 0 && rataUpahPerPekerja > 0)
                     ? () => onInputChange({ '26a_touched': true })
                     : null
                 }
-                hideFreqSelector={isBagiHasilMode}
+                hideFreqSelector={false}
                 customBadge={
-                  isBagiHasilMode ? (
-                    <span className="flex items-center gap-1 text-[9.5px] font-semibold text-emerald-300 bg-emerald-500/10 border border-emerald-500/20 px-1.5 py-0.5 rounded-md">
-                      🔄 Otomatis dari Bagi Hasil Kru (Punggawa-Sawi)
-                    </span>
-                  ) : (inputs['26a_touched'] === true || inputs['26a_touched'] === 'true') && (totalPekerjaDibayar > 0 && rataUpahPerPekerja > 0) ? (
+                  (inputs['26a_touched'] === true || inputs['26a_touched'] === 'true') && (totalPekerjaDibayar > 0 && rataUpahPerPekerja > 0) ? (
                     <span className="flex items-center gap-1.5 text-[9.5px] font-semibold text-amber-300 bg-amber-500/10 border border-amber-500/20 px-1.5 py-0.5 rounded-md">
                       ✏️ Manual Override
                       <button
@@ -2049,16 +1767,14 @@ export default function InputForm({ categoryId, inputs, onInputChange, records }
                   ) : null
                 }
                 customRemark={
-                  isBagiHasilMode
-                    ? `≈ Bagian Kru (${kruPct}%) dari SHU Bersih Bulanan (${formatRupiah(shuBulanan)}) × 12 bulan = ${formatRupiah(bagianKruTahunan)}`
-                    : (inputs['26a_touched'] === true || inputs['26a_touched'] === 'true') && (totalPekerjaDibayar > 0 && rataUpahPerPekerja > 0)
+                  (inputs['26a_touched'] === true || inputs['26a_touched'] === 'true') && (totalPekerjaDibayar > 0 && rataUpahPerPekerja > 0)
                     ? `Estimasi BPS: ≈ ${totalPekerjaDibayar} pekerja × ${formatRupiah(rataUpahPerPekerja)}/bln × 12 bln = ${formatRupiah(estimasiUpahTahunan)}`
                     : null
                 }
               />
 
               {/* Wage widget — shown when pekerja dibayar > 0 */}
-              {totalPekerjaDibayar > 0 && !isBagiHasilMode && (
+              {totalPekerjaDibayar > 0 && (
                 <div className="mt-0.5 pl-2 border-l border-indigo-500/20 space-y-1.5 fade-in-up">
                   <div className="flex flex-col gap-1">
                     <label htmlFor="input-rata-upah" className="text-[10.5px] font-semibold text-slate-400">
@@ -2078,15 +1794,11 @@ export default function InputForm({ categoryId, inputs, onInputChange, records }
                 </div>
               )}
 
-              {totalPekerjaDibayar > 0 && isBagiHasilMode && (
-                <p className="text-[10px] text-slate-500 italic pl-2 border-l border-white/5">
-                  ℹ️ Rata-rata Upah Pekerja disembunyikan karena upah (26a) menggunakan sistem bagi hasil otomatis dari perhitungan di atas.
-                </p>
-              )}
+
 
               {/* Hint: pekerja DIBAYAR ada tapi biaya_upah masih 0 dan auto-mode off */}
               {(() => {
-                if (totalPekerjaDibayar === 0 || parseFloat(inputs.biaya_upah) > 0 || isWageAutoMode || isBagiHasilMode) return null;
+                if (totalPekerjaDibayar === 0 || parseFloat(inputs.biaya_upah) > 0 || isWageAutoMode) return null;
                 return (
                   <div className="flex items-start gap-1.5 text-[10.5px] text-amber-400 bg-amber-500/8 border border-amber-500/15 rounded-lg px-2.5 py-1.5 leading-relaxed">
                     <span className="shrink-0 mt-0.5">⚠️</span>
@@ -2113,7 +1825,7 @@ export default function InputForm({ categoryId, inputs, onInputChange, records }
             {/* 26b — Biaya Produksi */}
             {(() => {
               const fieldKey = 'biaya_produksi';
-              const hasProportion = proportionCfg && proportionCfg[fieldKey] && !isBagiHasilMode;
+              const hasProportion = proportionCfg && proportionCfg[fieldKey];
               const isAutoField = hasProportion && !isPencatatanRiil && inputs[fieldKey + AUTO_FLAG_SUFFIX] !== false;
               const resetToAuto = () => onInputChange({ [fieldKey + AUTO_FLAG_SUFFIX]: true });
               return (
@@ -2135,7 +1847,7 @@ export default function InputForm({ categoryId, inputs, onInputChange, records }
                       )
                     )}
                   </div>
-                  <ExpenseField
+                   <ExpenseField
                     id="biaya-produksi"
                     label="Biaya Bahan / Produksi (26b)"
                     value={inputs.biaya_produksi || ''}
@@ -2144,22 +1856,8 @@ export default function InputForm({ categoryId, inputs, onInputChange, records }
                     onValueChange={val => onInputChange({ biaya_produksi: val, [fieldKey + AUTO_FLAG_SUFFIX]: false, '26b_touched': true })}
                     onFreqChange={freq => onInputChange({ biaya_produksi_freq: freq, [fieldKey + AUTO_FLAG_SUFFIX]: false, '26b_touched': true })}
                     onBlur={() => onInputChange({ '26b_touched': true })}
-                    isEstimate={isPencatatanRiil && !isBagiHasilMode && inputs['26b_touched'] !== true && inputs['26b_touched'] !== 'true'}
+                    isEstimate={isPencatatanRiil && inputs['26b_touched'] !== true && inputs['26b_touched'] !== 'true'}
                     tooltip="Bahan baku, BBM produksi, bahan penolong habis pakai."
-                    readOnly={isBagiHasilMode}
-                    hideFreqSelector={isBagiHasilMode}
-                    customBadge={
-                      isBagiHasilMode ? (
-                        <span className="flex items-center gap-1 text-[9.5px] font-semibold text-rose-300 bg-rose-500/10 border border-rose-500/20 px-1.5 py-0.5 rounded-md">
-                          🔄 Otomatis dari Biaya Trip
-                        </span>
-                      ) : null
-                    }
-                    customRemark={
-                      isBagiHasilMode
-                        ? `≈ Total Biaya Trip (${formatRupiah(totalBiayaTrip)}) × ${tripQty} trip/bulan × 12 bulan = ${formatRupiah(totalBiayaTripTahunan)}`
-                        : null
-                    }
                   />
                 </div>
               );
@@ -2207,7 +1905,7 @@ export default function InputForm({ categoryId, inputs, onInputChange, records }
             })()}
 
             {/* 26d — Operasional */}
-            {!isBagiHasilMode && (() => {
+            {(() => {
               const fieldKey = 'biaya_operasional';
               const hasProportion = proportionCfg && proportionCfg[fieldKey];
               const isAutoField = hasProportion && !isPencatatanRiil && inputs[fieldKey + AUTO_FLAG_SUFFIX] !== false;
@@ -2240,7 +1938,7 @@ export default function InputForm({ categoryId, inputs, onInputChange, records }
                     onValueChange={val => onInputChange({ biaya_operasional: val, [fieldKey + AUTO_FLAG_SUFFIX]: false, '26d_touched': true })}
                     onFreqChange={freq => onInputChange({ biaya_operasional_freq: freq, [fieldKey + AUTO_FLAG_SUFFIX]: false, '26d_touched': true })}
                     onBlur={() => onInputChange({ '26d_touched': true })}
-                    isEstimate={isPencatatanRiil && !isBagiHasilMode && inputs['26d_touched'] !== true && inputs['26d_touched'] !== 'true'}
+                    isEstimate={isPencatatanRiil && inputs['26d_touched'] !== true && inputs['26d_touched'] !== 'true'}
                     tooltip="Listrik, air, internet/pulsa, sewa tempat, jasa keuangan, transisi hijau."
                   />
                 </div>
@@ -2248,7 +1946,7 @@ export default function InputForm({ categoryId, inputs, onInputChange, records }
             })()}
 
             {/* 26e — Non-Operasional */}
-            {!isBagiHasilMode && (() => {
+            {(() => {
               const fieldKey = 'biaya_non_operasional';
               const hasProportion = proportionCfg && proportionCfg[fieldKey];
               const isAutoField = hasProportion && !isPencatatanRiil && inputs[fieldKey + AUTO_FLAG_SUFFIX] !== false;
