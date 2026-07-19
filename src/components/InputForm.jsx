@@ -25,23 +25,28 @@ import { KOEFISIEN_GUIDE_DATA } from '../utils/koefisienGuideData';
  *   periodValue     - Current period in months (number or string, default 12)
  *   onPeriodChange  - Called with new period (string) when dropdown changes
  *   placeholder     - Input placeholder
- */
-function HarvestPeriodSelector({ id, label, value, onValueChange, periodValue, onPeriodChange, placeholder }) {
+function HarvestPeriodSelector({ id, label, value, onValueChange, panenPerTahun, onPanenPerTahunChange, placeholder }) {
   const [focused, setFocused] = useState(false);
   const rawNum    = parseFloat(value) || 0;
-  const period    = Math.max(1, Math.min(12, parseInt(periodValue) || 12));
-  const annualVal = convertHarvestToAnnual(rawNum, period);
-  const factor    = 12 / period;
+  const panen     = Math.max(1, Math.min(12, parseInt(panenPerTahun) || 4));
+  const annualVal = convertHarvestToAnnual(rawNum, panen);
 
-  // Only show conversion hint when period != 12 and there is a non-zero value
-  const showHint = period !== 12 && rawNum > 0;
+  // Only show conversion hint when panen !== 1 and there is a non-zero value
+  const showHint = panen !== 1 && rawNum > 0;
 
-  // Generate hint text: = Rp X /tahun (Y × 12 ÷ N bulan)
+  // Generate hint text: = Rp X /tahun (Y × N)
   const hintText = showHint
-    ? `= ${formatRupiah(annualVal)} /tahun (${formatRupiah(rawNum)} × 12 ÷ ${period} bulan)`
+    ? `= ${formatRupiah(annualVal)} /tahun (${formatRupiah(rawNum)} × ${panen})`
     : null;
 
-  const PERIOD_OPTIONS = Array.from({ length: 12 }, (_, i) => i + 1);
+  const PANEN_OPTIONS = [
+    { val: 1, label: '1× / tahun (tahunan)' },
+    { val: 2, label: '2× / tahun (± 6 bulan sekali)' },
+    { val: 3, label: '3× / tahun (± 4 bulan sekali)' },
+    { val: 4, label: '4× / tahun (± 3 bulan sekali)' },
+    { val: 6, label: '6× / tahun (± 2 bulan sekali)' },
+    { val: 12, label: '12× / tahun (bulanan)' }
+  ];
 
   return (
     <div className="flex flex-col gap-1.5">
@@ -60,25 +65,24 @@ function HarvestPeriodSelector({ id, label, value, onValueChange, periodValue, o
           onFocus={() => setFocused(true)}
           onBlur={() => setFocused(false)}
         />
-        {/* Live Rp preview when not focused and period=12 (no extra hint needed) */}
+        {/* Live Rp preview when not focused and panen=1 (no extra hint needed) */}
         {!focused && !showHint && rawNum > 0 && (
           <div className="absolute left-3 -bottom-5 text-[10.5px] text-indigo-300/70 font-mono pointer-events-none select-none">
             ≈ {formatRupiah(rawNum)}
           </div>
         )}
 
-
         {/* Period dropdown */}
         <div className="relative shrink-0">
           <select
-            id={`${id}-period`}
-            value={String(period)}
-            onChange={e => onPeriodChange(e.target.value)}
-            className="h-full rounded-xl border border-white/[0.08] bg-surface-700 text-slate-200 text-[11.5px] font-semibold pl-2.5 pr-7 py-2.5 outline-none focus:border-indigo-500/50 appearance-none cursor-pointer min-w-[112px]"
+            id={`${id}-panen`}
+            value={String(panen)}
+            onChange={e => onPanenPerTahunChange(e.target.value)}
+            className="h-full rounded-xl border border-white/[0.08] bg-surface-700 text-slate-200 text-[11.5px] font-semibold pl-2.5 pr-7 py-2.5 outline-none focus:border-indigo-500/50 appearance-none cursor-pointer min-w-[210px]"
           >
-            {PERIOD_OPTIONS.map(n => (
-              <option key={n} value={String(n)}>
-                per {n} Bulan
+            {PANEN_OPTIONS.map(opt => (
+              <option key={opt.val} value={String(opt.val)}>
+                {opt.label}
               </option>
             ))}
           </select>
@@ -86,7 +90,6 @@ function HarvestPeriodSelector({ id, label, value, onValueChange, periodValue, o
         </div>
       </div>
 
-      {/* Conversion hint row — shown when period != 12 and value > 0 */}
       {hintText && (
         <div className="flex items-center gap-1.5 text-[10.5px] text-emerald-400/80 bg-emerald-500/6 border border-emerald-500/15 rounded-lg px-2.5 py-1.5 font-mono leading-relaxed fade-in-up">
           <span className="shrink-0">🔄</span>
@@ -466,24 +469,25 @@ function IncomeMethodSelector({ value, onChange, options, tooltip }) {
  * SkalaUsahaSelector — Segmented control to select business scale (Kecil/Menengah/Besar)
  * and update standard BPS expense ratios.
  */
-function SkalaUsahaSelector({ categoryId, value, onChange, customExpPct }) {
+function SkalaUsahaSelector({ categoryId, value, onChange, customExpPct, customRevPctDisplay }) {
   const isTrading = ['kios_campuran', 'tempurung'].includes(categoryId);
-  const options = isTrading
-    ? [
-        { key: 'kecil', label: 'Kecil', pct: 70, desc: 'Omzet < Rp 1 jt/hari' },
-        { key: 'menengah', label: 'Menengah', pct: 75, desc: 'Omzet Rp 1-5 jt/hari' },
-        { key: 'besar', label: 'Besar', pct: 85, desc: 'Omzet > Rp 5 jt/hari' }
-      ]
-    : [
-        { key: 'kecil', label: 'Kecil', pct: 40, desc: 'Warung/Lapak Ikan' },
-        { key: 'menengah', label: 'Menengah', pct: 50, desc: 'Rumah Makan Sedang' },
-        { key: 'besar', label: 'Besar', pct: 60, desc: 'Cottage/Restoran Besar' }
-      ];
+  const group = isTrading ? 'perdagangan' : 'akomodasi';
+  const groupParams = SKALA_USAHA_PARAMS[group] || {};
 
-  const activeKey = value || (isTrading
-    ? (customExpPct === 70 ? 'kecil' : customExpPct === 85 ? 'besar' : 'menengah')
-    : (customExpPct === 50 ? 'menengah' : customExpPct === 60 ? 'besar' : 'kecil')
-  );
+  const options = [
+    { key: 'kecil', label: 'Kecil', pctPendapatan: groupParams.kecil?.pctPendapatan || 0, pctPengeluaran: groupParams.kecil?.pctPengeluaran || 0, desc: groupParams.kecil?.omzetDesc || '' },
+    { key: 'menengah', label: 'Menengah', pctPendapatan: groupParams.menengah?.pctPendapatan || 0, pctPengeluaran: groupParams.menengah?.pctPengeluaran || 0, desc: groupParams.menengah?.omzetDesc || '' },
+    { key: 'besar', label: 'Besar', pctPendapatan: groupParams.besar?.pctPendapatan || 0, pctPengeluaran: groupParams.besar?.pctPengeluaran || 0, desc: groupParams.besar?.omzetDesc || '' }
+  ];
+
+  const activeKey = value || 'menengah';
+  const selectedOpt = options.find(o => o.key === activeKey) || options[1];
+
+  const displayRev = customRevPctDisplay !== undefined && customRevPctDisplay !== '' ? parseFloat(customRevPctDisplay) : selectedOpt.pctPendapatan;
+  const displayExp = customExpPct !== undefined && customExpPct !== '' ? parseFloat(customExpPct) : selectedOpt.pctPengeluaran;
+
+  const isCustom = (customRevPctDisplay !== undefined && customRevPctDisplay !== '' && parseFloat(customRevPctDisplay) !== selectedOpt.pctPendapatan) ||
+                   (customExpPct !== undefined && customExpPct !== '' && parseFloat(customExpPct) !== selectedOpt.pctPengeluaran);
 
   return (
     <div className="flex flex-col gap-2 mb-1 p-3.5 rounded-xl bg-surface-800/40 border border-white/[0.06]">
@@ -496,18 +500,21 @@ function SkalaUsahaSelector({ categoryId, value, onChange, customExpPct }) {
             <Info size={12} />
           </div>
         </div>
-        <span className="text-[10.5px] font-semibold text-slate-400 font-mono">
-          Rasio: <span className="text-emerald-400 font-bold">{options.find(o => o.key === activeKey)?.pct || (isTrading ? 75 : 40)}%</span>
-        </span>
+        {isCustom && (
+          <span className="px-1.5 py-0.5 rounded text-[9.5px] font-semibold bg-amber-500/10 text-amber-400 border border-amber-500/20">
+            Kustom
+          </span>
+        )}
       </div>
-      <div className="flex rounded-xl border border-white/[0.08] overflow-hidden bg-surface-900/35" role="group">
+
+      <div className="flex rounded-xl border border-white/[0.08] overflow-hidden bg-surface-900/35 mb-2" role="group">
         {options.map((opt, idx) => {
           const isActive = activeKey === opt.key;
           return (
             <button
               key={opt.key}
               type="button"
-              onClick={() => onChange(opt.key, opt.pct)}
+              onClick={() => onChange(opt.key, opt.pctPengeluaran, opt.pctPendapatan)}
               className={[
                 'flex-1 px-2.5 py-1.5 text-[11px] font-semibold transition-all text-center leading-tight flex flex-col items-center justify-center gap-0.5',
                 idx === 0 ? '' : 'border-l border-white/[0.07]',
@@ -521,6 +528,31 @@ function SkalaUsahaSelector({ categoryId, value, onChange, customExpPct }) {
             </button>
           );
         })}
+      </div>
+
+      <div className="grid grid-cols-2 gap-2 mt-1 border-t border-white/[0.04] pt-2">
+        <div className="flex flex-col items-center justify-center p-2 rounded-lg bg-surface-900/40 border border-white/[0.02]">
+          <span className="text-[9.5px] font-medium text-slate-400 uppercase tracking-wide">
+            % Pendapatan Bersih
+          </span>
+          <span className="text-lg font-extrabold text-indigo-300 mt-0.5">
+            {displayRev}%
+          </span>
+          <span className="text-[8px] text-slate-500 text-center mt-0.5 leading-none">
+            (dari omzet kotor)
+          </span>
+        </div>
+        <div className="flex flex-col items-center justify-center p-2 rounded-lg bg-surface-900/40 border border-white/[0.02]">
+          <span className="text-[9.5px] font-medium text-slate-400 uppercase tracking-wide">
+            % Pengeluaran
+          </span>
+          <span className="text-lg font-extrabold text-emerald-400 mt-0.5">
+            {displayExp}%
+          </span>
+          <span className="text-[8px] text-slate-500 text-center mt-0.5 leading-none">
+            (dari omzet kotor)
+          </span>
+        </div>
       </div>
     </div>
   );
@@ -786,7 +818,7 @@ export default function InputForm({ categoryId, inputs, onInputChange, records }
   const _dibayarP = parseInt(_hasNewWorkerKeys ? inputs.pekerja_dibayar_p : inputs.pekerja_p) || 0;
   const totalPekerjaDibayar = _dibayarL + _dibayarP;
 
-  const isBagiHasilMode = isNelayan && (incomeMethod === 'bagi_hasil' || (incomeMethod === 'volume_harga' && totalPekerjaDibayar >= 2));
+  const isBagiHasilMode = false;
 
   // Determine modifiers config
   const hasDailyModifier = ['kios_campuran', 'kuliner_rumah_makan', 'nelayan_tangkap', 'generik_harian', 'industri_kopra'].includes(categoryId);
@@ -1382,32 +1414,106 @@ export default function InputForm({ categoryId, inputs, onInputChange, records }
                   );
                 })()
               )}
-            </div>
           )}
+
+          {/* Jumlah Hari Kerja / Bulan slider for Nelayan */}
+          <div className="flex flex-col gap-1.5 mt-2 border-t border-white/[0.04] pt-3">
+            <div className="flex justify-between items-center">
+              <label htmlFor="input-custom-days-nelayan" className="text-[12px] font-medium text-slate-350">
+                Jumlah Hari Kerja / Bulan
+              </label>
+              <span className="text-[11px] font-semibold font-mono text-cyan-300 bg-cyan-500/15 px-1.5 py-0.5 rounded">
+                {displayDays} hari
+              </span>
+            </div>
+            <div className="flex items-center gap-3">
+              <input
+                id="range-custom-days-nelayan"
+                type="range" min="1" max="31"
+                value={displayDays}
+                onChange={e => onInputChange('custom_days', e.target.value)}
+                className="flex-1 accent-cyan-500 h-1.5 bg-surface-800 rounded-lg appearance-none cursor-pointer"
+              />
+              <input
+                id="input-custom-days-nelayan-num"
+                type="number" min="1" max="31"
+                value={rawDays !== undefined ? rawDays : ''}
+                placeholder="30"
+                onChange={e => {
+                  const val = e.target.value;
+                  if (val === '') { onInputChange('custom_days', ''); }
+                  else { onInputChange('custom_days', String(Math.min(31, Math.max(1, parseInt(val) || 1)))); }
+                }}
+                className="w-16 rounded-lg border border-white/[0.08] bg-surface-700 text-slate-100 text-[12px] font-mono py-1 text-center"
+              />
+            </div>
+            <div className="flex justify-between text-[9px] text-slate-600 px-0.5 select-none font-medium">
+              <span>1</span><span>8</span><span>15</span><span>22</span><span>31</span>
+            </div>
+          </div>
         </>
       )}
 
       {/* ── Main Inputs (non-nelayan, or never rendered for nelayan since fields above handle it) ── */}
-      {!isNelayan && category.fields.map((field) => {
-        let val = inputs[field.key] ?? (field.defaultValue !== undefined ? field.defaultValue : '');
-        let isReadOnly = false;
+      {!isNelayan && (
+        <>
+          {/* Visual Toggle for Industri Kopra Mode */}
+          {categoryId === 'industri_kopra' && (
+            <div className="flex flex-col gap-2 mb-3 p-3.5 rounded-xl bg-surface-800/40 border border-white/[0.06]">
+              <span className="text-[10px] font-bold text-indigo-400 uppercase tracking-wider">
+                Metode Pencatatan Kopra
+              </span>
+              <div className="flex rounded-xl border border-white/[0.08] overflow-hidden bg-surface-900/35" role="group">
+                <button
+                  type="button"
+                  onClick={() => {
+                    onInputChange({
+                      industri_input_mode: 'berat',
+                      pemasukan_harian: ''
+                    });
+                  }}
+                  className={[
+                    'flex-1 px-3 py-2 text-[11px] font-semibold transition-all text-center leading-tight flex flex-col items-center justify-center gap-0.5',
+                    (inputs.industri_input_mode || 'berat') === 'berat'
+                      ? 'bg-indigo-500/20 text-indigo-300 border-indigo-500/30'
+                      : 'text-slate-400 hover:text-slate-200 hover:bg-white/[0.02]'
+                  ].join(' ')}
+                >
+                  <span className="font-bold">Berat Kopra (Kg)</span>
+                  <span className="text-[8.5px] font-normal text-slate-500">Berdasarkan Kg hasil produksi</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    onInputChange({
+                      industri_input_mode: 'pendapatan',
+                      berat_kopra: ''
+                    });
+                  }}
+                  className={[
+                    'flex-1 px-3 py-2 text-[11px] font-semibold transition-all text-center leading-tight flex flex-col items-center justify-center gap-0.5 border-l border-white/[0.07]',
+                    inputs.industri_input_mode === 'pendapatan'
+                      ? 'bg-indigo-500/20 text-indigo-300 border-indigo-500/30'
+                      : 'text-slate-400 hover:text-slate-200 hover:bg-white/[0.02]'
+                  ].join(' ')}
+                >
+                  <span className="font-bold">Pendapatan Kotor (Rp)</span>
+                  <span className="text-[8.5px] font-normal text-slate-500">Berdasarkan nominal rupiah</span>
+                </button>
+              </div>
+            </div>
+          )}
 
-        if (field.key === 'berat_kopra' && categoryId === 'industri_kopra') {
-          if (inputs.pemasukan_harian !== undefined && inputs.pemasukan_harian !== '') {
-            isReadOnly = true;
-            const rawIncome = parseFloat(inputs.pemasukan_harian) || 0;
-            const freq = inputs.pemasukan_harian_freq || 'harian';
-            const days = parseInt(inputs.custom_days) || 30;
-            let factor = 1;
-            if (freq === 'harian') factor = days * 12;
-            else if (freq === 'mingguan') factor = 48;
-            else if (freq === 'bulanan') factor = 12;
-            else if (freq === 'tahunan') factor = 1;
+          {category.fields.map((field) => {
+            if (field.key === 'berat_kopra' && categoryId === 'industri_kopra' && inputs.industri_input_mode === 'pendapatan') {
+              return null;
+            }
+            if (field.key === 'pemasukan_harian' && categoryId === 'industri_kopra' && (inputs.industri_input_mode || 'berat') === 'berat') {
+              return null;
+            }
 
-            const liveAnnualIncome = rawIncome * factor;
-            val = String(Math.round(liveAnnualIncome / 12000));
-          }
-        }
+            let val = inputs[field.key] ?? (field.defaultValue !== undefined ? field.defaultValue : '');
+            let isReadOnly = false;
 
         if (field.type === 'boolean') {
           return (
@@ -1431,8 +1537,8 @@ export default function InputForm({ categoryId, inputs, onInputChange, records }
               label={field.label}
               value={inputs[field.key] ?? ''}
               onValueChange={v => onInputChange(field.key, v)}
-              periodValue={inputs[field.harvestPeriodKey] ?? '12'}
-              onPeriodChange={v => onInputChange(field.harvestPeriodKey, v)}
+              panenPerTahun={inputs[field.harvestPeriodKey] ?? '4'}
+              onPanenPerTahunChange={v => onInputChange(field.harvestPeriodKey, v)}
               placeholder={field.placeholder}
             />
           );
@@ -1549,8 +1655,9 @@ export default function InputForm({ categoryId, inputs, onInputChange, records }
             readOnly={isReadOnly}
           />
         );
-      })
-      }
+          })}
+        </>
+      )}
 
       {/* For nelayan, we also need the linked tempurung selector and arang_tempurung logic below - but nelayan never uses link_tempurung, so this guard is safe */}
 
@@ -1580,31 +1687,32 @@ export default function InputForm({ categoryId, inputs, onInputChange, records }
 
 
 
-      {/* Skala Usaha Selector (Perdagangan & Akomodasi/Kuliner only) */}
-      {['kios_campuran', 'kuliner_rumah_makan'].includes(categoryId) && (
+      {['kios_campuran', 'tempurung', 'kuliner_rumah_makan'].includes(categoryId) && (
         <SkalaUsahaSelector
           categoryId={categoryId}
           value={inputs.skala_usaha}
-          onChange={(newScale, newPct) => {
+          onChange={(newScale, expPct, revPct) => {
             onInputChange({
               skala_usaha: newScale,
-              custom_exp_pct: String(newPct)
+              custom_exp_pct: String(expPct),
+              custom_rev_pct_display: String(revPct)
             });
           }}
           customExpPct={_expPctNum}
+          customRevPctDisplay={inputs.custom_rev_pct_display}
         />
       )}
 
       {/* Operational Days (Daily categories only) */}
-      {!isBagiHasilMode && (hasDailyModifier || isNelayan) && (
+      {!isBagiHasilMode && hasDailyModifier && !isNelayan && (
         <div className="mt-2 pt-4 border-t border-white/[0.06] space-y-3.5 animate-fade-in">
           <div className="flex flex-col gap-1.5">
             <div className="flex justify-between items-center">
               <label htmlFor="input-custom-days" className="text-[12px] font-medium text-slate-300">
-                {isNelayan ? 'Jumlah Trip / Bulan' : 'Jumlah Hari Kerja / Bulan'}
+                Jumlah Hari Kerja / Bulan
               </label>
               <span className="text-[11px] font-semibold font-mono text-cyan-300 bg-cyan-500/15 px-1.5 py-0.5 rounded">
-                {displayDays} {isNelayan ? 'trip' : 'hari'}
+                {displayDays} hari
               </span>
             </div>
             <div className="flex items-center gap-3">

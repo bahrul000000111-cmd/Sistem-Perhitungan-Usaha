@@ -19,24 +19,16 @@ export const KOEFISIEN_GUIDE_DATA = {
         name: "Menengah (2–10 Orang / Jaring & Bagan)",
         min: 40,
         max: 55,
-        guide: "Masukkan biaya solar genset, lampu hias/penarik, dan perbekalan. Aktifkan formula bagi hasil lokal 50% Pemilik : 50% Sawi/ABK.",
-        action: {
-          label: "Aktifkan Mode Bagi Hasil Kru/Trip",
-          type: "activate_bagi_hasil"
-        },
-        alasan: "Bukan lagi soal margin %, tapi pembagian hasil — karena upah kru dibayar dari SHU (bukan gaji tetap), semakin besar kapal semakin besar kru & biaya trip (solar, ransum), sehingga bagian yang jadi hak pemilik makin ditentukan oleh efisiensi trip, bukan persentase tetap."
+        guide: "Masukkan biaya solar genset, lampu hias/penarik, dan perbekalan trip secara detail di rincian pengeluaran.",
+        alasan: "Semakin besar kapal, semakin besar kru dan biaya trip (solar, ransum), sehingga margin bersih dihitung dari pengurangan pendapatan kotor dengan rincian pengeluaran operasional nyata."
       },
       {
         name: "Atas (Industri / Pajeko / >10 Orang)",
         min: 30,
         max: 40,
-        guide: "Gunakan Custom Formula (Indikator Ungu). Masukkan biaya solar industri massal. Potong 10% untuk kas perawatan kapal sebelum profit bersih dibagi menggunakan sistem kelembagaan Punggawa-Sawi.",
-        action: {
-          label: "Aktifkan Mode Bagi Hasil Kru/Trip",
-          type: "activate_bagi_hasil"
-        },
-        note: "Potong 10% untuk kas perawatan kapal sebelum profit bersih dibagi",
-        alasan: "Bukan lagi soal margin %, tapi pembagian hasil — karena upah kru dibayar dari SHU (bukan gaji tetap), semakin besar kapal semakin besar kru & biaya trip (solar, ransum), sehingga bagian yang jadi hak pemilik makin ditentukan oleh efisiensi trip, bukan persentase tetap."
+        guide: "Masukkan biaya solar industri massal dan perbekalan trip secara detail di rincian pengeluaran.",
+        note: "Rincian pengeluaran meliputi biaya operasional BBM, ransum, es, serta upah kru/bagi hasil.",
+        alasan: "Biaya operasional trip dan BBM solar industri mendominasi pengeluaran bulanan kapal besar."
       }
     ]
   },
@@ -207,18 +199,25 @@ export const KOEFISIEN_GUIDE_DATA = {
     title: "Penyediaan Akomodasi & Makan Minum (Warung Makan, Penginapan Pesisir)",
     levels: [
       {
-        name: "Kecil (Warung Makan/Lapak Ikan Bakar Pesisir)",
+        name: "Warung/Lapak Kecil (Lapak Ikan Bakar Pesisir)",
         min: 45,
         max: 55,
         guide: "Input perputaran kas harian. Biaya bahan baku makanan segar dibeli subuh hari. Sisa makanan tidak terjual dihitung sebagai kerugian variabel harian (0% value).",
         alasan: "Bahan baku segar dibeli harian dengan harga pasar fluktuatif, plus risiko makanan tak terjual — koefisien menengah-tinggi (45-55%) untuk mengakomodasi margin jual-masak yang relatif lebar dibanding usaha dagang murni."
       },
       {
-        name: "Menengah/Atas (Cottage Wisata/Penginapan Tanjung Karang Donggala)",
+        name: "Rumah Makan/Katering Menengah",
         min: 35,
         max: 45,
+        guide: "Masukkan biaya operasional bulanan (lpg, listrik, air, bahan baku bulanan). Input pengeluaran sewa tempat jika ada.",
+        alasan: "Komponen bahan baku bulanan dan upah pembantu mulai konstan, menurunkan margin bersih rata-rata."
+      },
+      {
+        name: "Cottage/Restoran Besar (Penginapan Tanjung Karang)",
+        min: 25,
+        max: 35,
         guide: "Masukkan biaya perawatan bangunan pantai (korosi air laut tinggi), tagihan listrik AC, laundry sprei, komisi aplikasi booking online, dan gaji staf kebersihan/resepsionis.",
-        alasan: "Biaya perawatan aset fisik (korosi air laut, AC, laundry) & komisi platform booking online mengurangi signifikan dari tarif kamar — koefisien lebih rendah (35-45%)."
+        alasan: "Biaya perawatan aset fisik (korosi air laut, AC, laundry) & komisi platform booking online mengurangi signifikan dari tarif kamar — koefisien lebih rendah (25-35%)."
       }
     ]
   },
@@ -295,4 +294,17 @@ export const CATEGORY_TO_SECTOR_PROFILE = {
   nelayan_tangkap: SECTOR_PROFILE.PRODUKSI,
   arang_tempurung: SECTOR_PROFILE.PRODUKSI,
   generik_harian: SECTOR_PROFILE.PRODUKSI,
+};
+
+export const SKALA_USAHA_PARAMS = {
+  perdagangan: {  // kios_campuran, tempurung
+    kecil:    { pctPendapatan: 22, pctPengeluaran: 78, omzetDesc: 'Omzet < Rp 1 jt/hari' },
+    menengah: { pctPendapatan: 15, pctPengeluaran: 85, omzetDesc: 'Omzet Rp 1–5 jt/hari' },
+    besar:    { pctPendapatan: 8,  pctPengeluaran: 92, omzetDesc: 'Omzet > Rp 5 jt/hari' },
+  },
+  akomodasi: {    // kuliner_rumah_makan
+    kecil:    { pctPendapatan: 50, pctPengeluaran: 50, omzetDesc: 'Warung Makan/Lapak Ikan Bakar' },
+    menengah: { pctPendapatan: 40, pctPengeluaran: 60, omzetDesc: 'Rumah Makan/Katering Sedang' },
+    besar:    { pctPendapatan: 30, pctPengeluaran: 70, omzetDesc: 'Cottage/Restoran/Penginapan Besar' },
+  },
 };

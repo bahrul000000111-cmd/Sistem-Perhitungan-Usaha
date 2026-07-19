@@ -8,7 +8,7 @@
 // ═══════════════════════════════════════════════════════════
 // IMPORTS
 // ═══════════════════════════════════════════════════════════
-import { SECTOR_PROFILE, PROPORSI_PENGELUARAN_PER_PROFIL, CATEGORY_TO_SECTOR_PROFILE } from './koefisienGuideData.js';
+import { SECTOR_PROFILE, PROPORSI_PENGELUARAN_PER_PROFIL, CATEGORY_TO_SECTOR_PROFILE, SKALA_USAHA_PARAMS } from './koefisienGuideData.js';
 
 export const HPP_VISIBLE_CATEGORIES = ['kios_campuran', 'tempurung', 'arang_tempurung'];
 
@@ -91,10 +91,10 @@ export const CATEGORIES = [
     mechLabel: 'Input Pendapatan Langsung (Tahunan)',
     mechSubtext: 'Cocok bila Anda sudah tahu total pendapatan tahunan usaha secara langsung — mis. kebun campuran, tanaman tahunan lain, usaha dengan pencatatan tahunan sederhana, dan sejenisnya.',
     fields: [
-      { key: 'total_pendapatan_tahunan', label: 'Total Pendapatan (per Periode Panen)', placeholder: '12000000', suffix: '/tahun',
-        harvestPeriodKey: 'harvest_period_bulan' }
+      { key: 'total_pendapatan_tahunan', label: 'Total Pendapatan (per Periode Panen)', placeholder: '12000000', suffix: '/panen',
+        harvestPeriodKey: 'panen_per_tahun' }
     ],
-    note: 'Input langsung pendapatan tahunan · Faktor pengeluaran 30%'
+    note: 'Input langsung pendapatan per panen × jumlah panen setahun · Faktor pengeluaran 30%'
   },
   {
     id: 'kelapa_per3bulan',
@@ -127,8 +127,8 @@ export const CATEGORIES = [
     mechSubtext: 'Cocok untuk usaha pengolahan dengan hasil produksi terukur berat/volume per siklus — mis. hasil olahan pertanian, produk olahan rumahan, pengolahan bahan mentah, dan sejenisnya.',
     hasDualMode: true,
     fields: [
-      { key: 'pemasukan_harian', label: 'Pendapatan Kotor', placeholder: '400000', suffix: '' },
-      { key: 'berat_kopra', label: 'Berat Hasil Produksi Per Siklus (Kg)', placeholder: '400', suffix: 'kg', defaultValue: 400 }
+      { key: 'berat_kopra', label: 'Berat Hasil Produksi Per Siklus (Kg)', placeholder: '400', suffix: 'kg', defaultValue: 400 },
+      { key: 'pemasukan_harian', label: 'Pendapatan Kotor', placeholder: '400000', suffix: '' }
     ],
     note: 'Harga: (berat ÷ 5) × Rp 15.000 · 4 siklus/tahun · Pengeluaran 30%'
   },
@@ -333,9 +333,15 @@ export function convertToDaily(value, frequency, daysPerMonth = 30) {
  * @param {number} periodBulan  - Harvest period in months (1–12), defaults to 12
  * @returns {number}            - Annualized value (full precision, no rounding)
  */
-export function convertHarvestToAnnual(value, periodBulan = 12) {
-  const p = Math.max(1, Math.min(12, parseInt(periodBulan) || 12));
-  return value * (12 / p);
+/**
+ * Convert per-harvest income directly to annual by multiplying with
+ * the number of harvests per year. TIDAK ADA pembagian bulan di sini.
+ * @param {number} value          - Pendapatan per satu periode panen
+ * @param {number} panenPerTahun  - Berapa kali panen dalam setahun (bulat, 1–12)
+ */
+export function convertHarvestToAnnual(value, panenPerTahun = 1) {
+  const n = Math.max(1, Math.min(12, parseInt(panenPerTahun) || 1));
+  return value * n;
 }
 
 /**
@@ -468,8 +474,8 @@ export function calcKuliner(inputs = {}) {
  */
 export function calcPerkebunanTahunan(inputs = {}) {
   const rawValue    = parseFloat(inputs.total_pendapatan_tahunan) || 0;
-  const periodBulan = parseInt(inputs.harvest_period_bulan) || 12;
-  const totalPendapatanKotor = convertHarvestToAnnual(rawValue, periodBulan);
+  const panenPerTahun = parseInt(inputs.panen_per_tahun) || 4;
+  const totalPendapatanKotor = convertHarvestToAnnual(rawValue, panenPerTahun);
   const revPct = getRevPct(inputs, 100);
   const totalPendapatan = totalPendapatanKotor * (revPct / 100);
   const expPct = getExpPct(inputs, 30);
@@ -489,8 +495,7 @@ export function calcPerkebunanTahunan(inputs = {}) {
       koefisien: `${revPct}%`,
       faktorPengeluaran: `${expPct}%`,
       rawPendapatan: rawValue,
-      periodBulan,
-      harvestFactor: 12 / periodBulan,
+      panenPerTahun,
     }
   };
 }
@@ -549,7 +554,9 @@ export function calcKopra(inputs = {}) {
   let totalPendapatanKotor = 0;
   let berat = parseFloat(inputs.berat_kopra) || 0;
 
-  if (inputs.pemasukan_harian !== undefined && inputs.pemasukan_harian !== '') {
+  const mode = inputs.industri_input_mode || 'berat';
+
+  if (mode === 'pendapatan' && inputs.pemasukan_harian !== undefined && inputs.pemasukan_harian !== '') {
     const rawIncome = parseFloat(inputs.pemasukan_harian) || 0;
     const freq = inputs.pemasukan_harian_freq || 'harian';
     const days = parseInt(inputs.custom_days) || 30;
@@ -567,7 +574,7 @@ export function calcKopra(inputs = {}) {
     // Reactively compute equivalent weight for display: 1 Kg Kopra = Rp12.000 Pendapatan Tahunan (4 panen, 15k/5kg = 3k/kg, so 4 * 3k = 12k)
     berat = totalPendapatanKotor / 12000;
   } else {
-    // Legacy batch weight-based calculation
+    // Mode berat-manual
     const nilaiRevenuePanenKotor = (berat / 5) * 15000;
     totalPendapatanKotor = nilaiRevenuePanenKotor * 4;
   }
@@ -606,7 +613,8 @@ export function calcKopra(inputs = {}) {
       unitPer5Kg: berat / 5,
       panenPerTahun: 4,
       koefisien: `${revPct}%`,
-      faktorPengeluaran: `${expPct}%`
+      faktorPengeluaran: `${expPct}%`,
+      industri_input_mode: mode,
     }
   };
 }
@@ -682,8 +690,8 @@ export function calcArangTempurung(inputs = {}, linkedNilaiHarianBox = null) {
 export function calcNelayan(inputs = {}) {
   const method = inputs.income_method || 'volume_harga';
   const workers = resolveWorkers(inputs);
-  const isKruMode = method === 'bagi_hasil' || (method === 'volume_harga' && workers.totalDibayar >= 2);
-  const revPct = isKruMode ? 100 : getRevPct(inputs, 10);
+  const isKruMode = false;
+  const revPct = getRevPct(inputs, 10);
   const expPct = getExpPct(inputs, 30);
   const days   = getDays(inputs); // custom_days represents trips/month in Opsi A
 
@@ -827,6 +835,22 @@ export function calcGeneric(inputs = {}) {
 // ═══════════════════════════════════════════════════════════
 
 /**
+ * Helper to fetch percentage revenue based on scale parameters
+ */
+function getPctPendapatanFromScale(categoryId, inputs) {
+  const group = ['kios_campuran', 'tempurung'].includes(categoryId) ? 'perdagangan' : (categoryId === 'kuliner_rumah_makan' ? 'akomodasi' : null);
+  if (!group) return null;
+  const scale = inputs.skala_usaha || 'menengah';
+  const params = SKALA_USAHA_PARAMS[group]?.[scale];
+  if (!params) return null;
+  const v = inputs.custom_rev_pct_display;
+  if (v !== undefined && v !== '') {
+    return parseFloat(v) || params.pctPendapatan;
+  }
+  return params.pctPendapatan;
+}
+
+/**
  * Calculate result for a given record.
  * @param {Object} record - A business record with categoryId and inputs
  * @param {Object[]} allRecords - All records (needed for linked categories)
@@ -835,6 +859,16 @@ export function calcGeneric(inputs = {}) {
 export function calculateRecord(record, allRecords = []) {
   const { categoryId } = record;
   let inputs = { ...record.inputs };
+
+  // Run migrations first so legacy data is automatically normalized
+  if (categoryId === 'nelayan_tangkap') {
+    inputs = migrateLegacyBagiHasilInputs(inputs);
+    inputs = migrateLegacyNelayanInputs(inputs);
+  } else if (categoryId === 'perkebunan_tahunan') {
+    inputs = migrateLegacyPerkebunanInputs(inputs);
+  } else if (categoryId === 'industri_kopra') {
+    inputs = migrateLegacyIndustriInputs(inputs);
+  }
 
   // Force Pencatatan Riil mode permanently
   inputs.calculation_method = 'PENCATATAN_RIIL';
@@ -910,8 +944,8 @@ export function calculateRecord(record, allRecords = []) {
   // Guard: use_detail_pengeluaran can be boolean (runtime) or string (edge case) — normalize it
   let totalPengeluaran = result.totalPengeluaranTahunan;
   const rawToggle = inputs.use_detail_pengeluaran;
-  const isBagiHasilKruMode = categoryId === 'nelayan_tangkap' && (inputs.income_method === 'bagi_hasil' || ((inputs.income_method || 'volume_harga') === 'volume_harga' && workers.totalDibayar >= 2));
-  const isDetailPengeluaranActive = rawToggle === true || rawToggle === 1 || rawToggle === 'true' || isBagiHasilKruMode;
+  const isBagiHasilKruMode = false;
+  const isDetailPengeluaranActive = rawToggle === true || rawToggle === 1 || rawToggle === 'true';
 
   let upah = 0;
   let prod = 0;
@@ -1004,7 +1038,7 @@ export function calculateRecord(record, allRecords = []) {
   const asetLainnya = parseFloat(inputs.aset_lainnya) || 0;
   const totalAset = asetTanahBangunan + asetLainnya;
 
-  return {
+  const returnedResult = {
     ...result,
     totalPekerja: workers.total,
     bps: {
@@ -1040,6 +1074,19 @@ export function calculateRecord(record, allRecords = []) {
     corePendapatanTahunan: totalPendapatanCore,
     corePengeluaranTahunan: result.totalPengeluaranTahunan
   };
+
+  // Inject estimasiLabaBersih based on skala_usaha if category is trading or akomodasi
+  if (['kios_campuran', 'tempurung', 'kuliner_rumah_makan'].includes(categoryId)) {
+    const pctLaba = getPctPendapatanFromScale(categoryId, inputs);
+    if (pctLaba !== null) {
+      if (!returnedResult.meta) returnedResult.meta = {};
+      returnedResult.meta.estimasiLabaBersih = totalPendapatanCore * (pctLaba / 100);
+      returnedResult.meta.pctPendapatanDisplay = pctLaba;
+      returnedResult.meta.skalaUsaha = inputs.skala_usaha || 'menengah';
+    }
+  }
+
+  return returnedResult;
 }
 
 /**
@@ -1083,27 +1130,76 @@ export function aggregateStats(records) {
  */
 export function migrateLegacyNelayanInputs(inputs = {}) {
   const method = inputs.income_method || 'volume_harga';
-  if (method === 'volume_harga') {
-    const workers = resolveWorkers(inputs);
-    const isKru = workers.totalDibayar >= 2;
-    if (isKru) {
-      return {
-        ...inputs,
-        income_method: 'bagi_hasil'
-      };
-    } else {
-      const sat = parseFloat(inputs.satuan_kg) || 0;
-      const ph = parseFloat(inputs.pemasukan_harian) || 0;
-      const calculatedIncome = sat * ph;
-      return {
-        ...inputs,
-        pemasukan_langsung: String(calculatedIncome),
-        pemasukan_langsung_freq: 'harian',
-        income_method: 'nilai_langsung'
-      };
-    }
+  if (method === 'volume_harga' || method === 'bagi_hasil') {
+    const sat = parseFloat(inputs.satuan_kg) || 0;
+    const ph = parseFloat(inputs.pemasukan_harian) || 0;
+    const calculatedIncome = sat * ph;
+    return {
+      ...inputs,
+      pemasukan_langsung: String(calculatedIncome),
+      pemasukan_langsung_freq: 'harian',
+      income_method: 'nilai_langsung'
+    };
   }
   return inputs;
+}
+
+export function migrateLegacyBagiHasilInputs(inputs = {}) {
+  const method = inputs.income_method || 'volume_harga';
+  const l = parseInt(inputs.pekerja_dibayar_l) || parseInt(inputs.pekerja_l) || 0;
+  const p = parseInt(inputs.pekerja_dibayar_p) || parseInt(inputs.pekerja_p) || 0;
+  const totalWorkers = l + p;
+  const isBagiHasil = method === 'bagi_hasil' || (method === 'volume_harga' && totalWorkers >= 2);
+
+  if (!isBagiHasil) return inputs;
+  const es = parseFloat(inputs.biaya_trip_es) || 0;
+  const bbm = parseFloat(inputs.biaya_trip_bbm) || 0;
+  const ransum = parseFloat(inputs.biaya_trip_ransum) || 0;
+  const umpan = parseFloat(inputs.biaya_trip_umpan) || 0;
+  const days = parseFloat(inputs.custom_days) || 30;
+  const totalTripExpBulanan = (es + bbm + ransum + umpan) * days;
+
+  const sat = parseFloat(inputs.satuan_kg) || 0;
+  const prc = parseFloat(inputs.pemasukan_harian) || 0;
+  const kotorBulanan = sat * prc * days;
+  const shuBulanan = kotorBulanan - totalTripExpBulanan;
+  const pemilikPct = inputs.bagi_hasil_pemilik !== undefined && inputs.bagi_hasil_pemilik !== '' ? parseFloat(inputs.bagi_hasil_pemilik) : 50;
+  const kruPct = 100 - pemilikPct;
+  const bagianKruTahunan = shuBulanan * (kruPct / 100) * 12;
+
+  return {
+    ...inputs,
+    income_method: 'nilai_langsung',
+    pemasukan_langsung: String(kotorBulanan),
+    pemasukan_langsung_freq: 'bulanan',
+    biaya_produksi: String(totalTripExpBulanan * 12),
+    biaya_produksi_freq: 'tahunan',
+    biaya_upah: String(bagianKruTahunan),
+    biaya_upah_freq: 'tahunan',
+    '26a_touched': true,
+    '26b_touched': true,
+  };
+}
+
+export function migrateLegacyPerkebunanInputs(inputs = {}) {
+  if (inputs.panen_per_tahun !== undefined) return inputs;
+  const oldPeriod = parseInt(inputs.harvest_period_bulan);
+  if (!oldPeriod) return inputs;
+  const VALID = [1,2,3,4,6,12];
+  const target = 12 / oldPeriod;
+  const closest = VALID.reduce((a,b) =>
+    Math.abs(b - target) < Math.abs(a - target) ? b : a
+  );
+  return { ...inputs, panen_per_tahun: String(closest) };
+}
+
+export function migrateLegacyIndustriInputs(inputs = {}) {
+  if (inputs.industri_input_mode !== undefined) return inputs;
+  if (inputs.pemasukan_harian !== undefined && inputs.pemasukan_harian !== '') {
+    return { ...inputs, industri_input_mode: 'pendapatan' };
+  } else {
+    return { ...inputs, industri_input_mode: 'berat' };
+  }
 }
 
 export const DEFAULT_EXPENSE_PCT_NORMATIF = {

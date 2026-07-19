@@ -4,7 +4,12 @@
  * Persists all records to localStorage and provides CRUD actions.
  */
 import { useState, useCallback, useEffect } from 'react';
-import { migrateLegacyNelayanInputs } from '../utils/calculations';
+import { 
+  migrateLegacyNelayanInputs,
+  migrateLegacyBagiHasilInputs,
+  migrateLegacyPerkebunanInputs,
+  migrateLegacyIndustriInputs 
+} from '../utils/calculations';
 
 const STORAGE_KEY = 'umk_records_v1';
 
@@ -19,7 +24,7 @@ function loadFromStorage() {
     const raw = localStorage.getItem(STORAGE_KEY);
     const parsed = raw ? JSON.parse(raw) : [];
     
-    // Migrate legacy nelayan records
+    // Migrate legacy records
     let modified = false;
     const migrated = parsed.map(record => {
       if (!record.inputs) record.inputs = {};
@@ -27,12 +32,22 @@ function loadFromStorage() {
         record.inputs.calculation_method = 'PENCATATAN_RIIL';
         modified = true;
       }
+      
+      const beforeStr = JSON.stringify(record.inputs);
+      let migratedInputs = record.inputs;
+      
       if (record.categoryId === 'nelayan_tangkap') {
-        const oldMethod = record.inputs.income_method || 'volume_harga';
-        if (oldMethod === 'volume_harga') {
-          record.inputs = migrateLegacyNelayanInputs(record.inputs);
-          modified = true;
-        }
+        migratedInputs = migrateLegacyBagiHasilInputs(migratedInputs);
+        migratedInputs = migrateLegacyNelayanInputs(migratedInputs);
+      } else if (record.categoryId === 'perkebunan_tahunan') {
+        migratedInputs = migrateLegacyPerkebunanInputs(migratedInputs);
+      } else if (record.categoryId === 'industri_kopra') {
+        migratedInputs = migrateLegacyIndustriInputs(migratedInputs);
+      }
+      
+      if (JSON.stringify(migratedInputs) !== beforeStr) {
+        record.inputs = migratedInputs;
+        modified = true;
       }
       return record;
     });
