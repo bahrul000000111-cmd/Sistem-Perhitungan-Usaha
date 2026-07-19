@@ -7,7 +7,7 @@
 import { useState, useEffect, useRef, useLayoutEffect } from 'react';
 import { AlertCircle, Link2, Link2Off, Info, ChevronDown, ChevronUp, Users, Calendar, DollarSign, Globe, Building2, X } from 'lucide-react';
 import { formatRupiah, formatNumberWithDots } from '../utils/formatters';
-import { CATEGORIES, getConversionFormula, convertToAnnual, convertToDaily, convertHarvestToAnnual, calculateRecord, computeAutoFillPengeluaran, DEFAULT_EXPENSE_PCT_NORMATIF } from '../utils/calculations';
+import { CATEGORIES, getConversionFormula, convertToAnnual, convertToDaily, convertHarvestToAnnual, calculateRecord, computeAutoFillPengeluaran, DEFAULT_EXPENSE_PCT_NORMATIF, HPP_VISIBLE_CATEGORIES } from '../utils/calculations';
 import { KOEFISIEN_GUIDE_DATA } from '../utils/koefisienGuideData';
 
 
@@ -855,6 +855,13 @@ export default function InputForm({ categoryId, inputs, onInputChange, records }
     };
 
     Object.entries(keysMap).forEach(([field, touchedKey]) => {
+      if (field === 'biaya_hpp' && !HPP_VISIBLE_CATEGORIES.includes(categoryId)) {
+        if (inputs[field] && inputs[field] !== '' && inputs[field] !== '0') {
+          updates[field] = '0';
+          updates[field + '_freq'] = 'tahunan';
+        }
+        return;
+      }
       const isTouched = inputs[touchedKey] === true || inputs[touchedKey] === 'true';
       if (!isTouched) {
         const newVal = String(autoFilled[field] ?? 0);
@@ -892,18 +899,29 @@ export default function InputForm({ categoryId, inputs, onInputChange, records }
       totalPendapatanTahunan: liveAnnualIncome,
       expPctNormatif: _expPctNum
     });
-    onInputChange({
+
+    const isHppVisible = HPP_VISIBLE_CATEGORIES.includes(categoryId);
+    const reloadPayload = {
       biaya_produksi: String(autoFilled.biaya_produksi),
       biaya_produksi_freq: 'tahunan',
       '26b_touched': false,
-      biaya_hpp: String(autoFilled.biaya_hpp),
-      biaya_hpp_freq: 'tahunan',
-      '26c_touched': false,
       biaya_operasional: String(autoFilled.biaya_operasional),
       biaya_operasional_freq: 'tahunan',
       '26d_touched': false,
       '26a_touched': false
-    });
+    };
+
+    if (isHppVisible) {
+      reloadPayload.biaya_hpp = String(autoFilled.biaya_hpp);
+      reloadPayload.biaya_hpp_freq = 'tahunan';
+      reloadPayload['26c_touched'] = false;
+    } else {
+      reloadPayload.biaya_hpp = '0';
+      reloadPayload.biaya_hpp_freq = 'tahunan';
+      reloadPayload['26c_touched'] = false;
+    }
+
+    onInputChange(reloadPayload);
   };
   // ─────────────────────────────────────────────────────────────────────────
 

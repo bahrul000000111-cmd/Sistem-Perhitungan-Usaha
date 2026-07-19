@@ -10,6 +10,8 @@
 // ═══════════════════════════════════════════════════════════
 import { SECTOR_PROFILE, PROPORSI_PENGELUARAN_PER_PROFIL, CATEGORY_TO_SECTOR_PROFILE } from './koefisienGuideData.js';
 
+export const HPP_VISIBLE_CATEGORIES = ['kios_campuran', 'tempurung', 'arang_tempurung'];
+
 // ═══════════════════════════════════════════════════════════
 // CATEGORY DEFINITIONS (metadata & config)
 // ═══════════════════════════════════════════════════════════
@@ -954,7 +956,8 @@ export function calculateRecord(record, allRecords = []) {
 
     upah    = convertToAnnual(upahValue, upahFreq, daysPerMonth);
     prod    = convertToAnnual(prodValue, prodFreq, daysPerMonth);
-    hpp     = convertToAnnual(hppValue, hppFreq, daysPerMonth);
+    const hppRaw = convertToAnnual(hppValue, hppFreq, daysPerMonth);
+    hpp     = HPP_VISIBLE_CATEGORIES.includes(categoryId) ? hppRaw : 0;
     oper    = convertToAnnual(operValue, operFreq, daysPerMonth);
     nonOper = convertToAnnual(nonOperValue, nonOperFreq, daysPerMonth);
     totalPengeluaranDetail = upah + prod + hpp + oper + nonOper;
@@ -1086,8 +1089,18 @@ export const DEFAULT_EXPENSE_PCT_NORMATIF = {
 
 export function computeAutoFillPengeluaran({ categoryId, totalPendapatanTahunan, expPctNormatif }) {
   const profile = CATEGORY_TO_SECTOR_PROFILE[categoryId] || SECTOR_PROFILE.PRODUKSI;
-  const bobot = PROPORSI_PENGELUARAN_PER_PROFIL[profile];
+  const bobot = { ...PROPORSI_PENGELUARAN_PER_PROFIL[profile] };
   const totalPengeluaranNormatif = totalPendapatanTahunan * (expPctNormatif / 100);
+
+  // Jika field HPP (26c) tidak tampil untuk kategori ini, redistribusikan bobotnya
+  // secara proporsional ke biaya_produksi & biaya_operasional supaya total tetap 100%.
+  if (!HPP_VISIBLE_CATEGORIES.includes(categoryId) && bobot.biaya_hpp_pct > 0) {
+    const sisaBobot = bobot.biaya_produksi_pct + bobot.biaya_operasional_pct;
+    const hppPct = bobot.biaya_hpp_pct;
+    bobot.biaya_produksi_pct = bobot.biaya_produksi_pct + (hppPct * (bobot.biaya_produksi_pct / sisaBobot));
+    bobot.biaya_operasional_pct = bobot.biaya_operasional_pct + (hppPct * (bobot.biaya_operasional_pct / sisaBobot));
+    bobot.biaya_hpp_pct = 0;
+  }
 
   return {
     biaya_produksi: Math.round(totalPengeluaranNormatif * (bobot.biaya_produksi_pct / 100)),

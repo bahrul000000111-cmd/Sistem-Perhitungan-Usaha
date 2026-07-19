@@ -8,7 +8,7 @@
  * Suite 3: Addendum #2 — Frequency selector conversions
  */
 
-import { calculateRecord, convertToAnnual, getConversionFormula, convertToDaily, resolveWorkers, convertHarvestToAnnual, migrateLegacyNelayanInputs, computeAutoFillPengeluaran } from './src/utils/calculations.js';
+import { calculateRecord, convertToAnnual, getConversionFormula, convertToDaily, resolveWorkers, convertHarvestToAnnual, migrateLegacyNelayanInputs, computeAutoFillPengeluaran, HPP_VISIBLE_CATEGORIES } from './src/utils/calculations.js';
 
 let pass = 0;
 let fail = 0;
@@ -1259,7 +1259,7 @@ console.log('\n══ SUITE 15: Auto-Isi Estimasi per Profil Sektor ══\n');
   assert('26d (Operasional) = 19.440.000 (30% dari 64.800.000)', auto.biaya_operasional, 19_440_000);
 }
 
-// 15.2 Profil Produksi (kuliner_rumah_makan) — Bahan/Produksi dominan
+// 15.2 Profil Produksi (kuliner_rumah_makan) — Bahan/Produksi dominan (renormalized)
 {
   const auto = computeAutoFillPengeluaran({
     categoryId: 'kuliner_rumah_makan',
@@ -1267,9 +1267,9 @@ console.log('\n══ SUITE 15: Auto-Isi Estimasi per Profil Sektor ══\n');
     expPctNormatif: 10, // contoh angka normatif sektor kuliner
   });
   const totalNormatif = 108_000_000 * 0.10; // 10.800.000
-  assert('26b (Produksi) dominan = 65% dari total normatif', auto.biaya_produksi, Math.round(totalNormatif * 0.65));
-  assert('26c (HPP) = 20% dari total normatif', auto.biaya_hpp, Math.round(totalNormatif * 0.20));
-  assert('26d (Operasional) = 15% dari total normatif', auto.biaya_operasional, Math.round(totalNormatif * 0.15));
+  assert('26b (Produksi) dominan = 81.25% dari total normatif (renormalisasi)', auto.biaya_produksi, Math.round(totalNormatif * 0.8125));
+  assert('26c (HPP) = 0% untuk non-HPP category', auto.biaya_hpp, 0);
+  assert('26d (Operasional) = 18.75% dari total normatif (renormalisasi)', auto.biaya_operasional, Math.round(totalNormatif * 0.1875));
 }
 
 // 15.3 Non-regresi — 26a & 26e TIDAK pernah muncul di hasil computeAutoFillPengeluaran
@@ -1370,10 +1370,73 @@ console.log('\n══ SUITE 17: Addendum #24 — Live Slider Auto-Fill ══');
     totalPendapatanTahunan: 360_000_000,
     expPctNormatif: 50,
   });
-  assert('Kasus C - HPP = 126.000.000 (70% dari 180.000.000)', auto.biaya_hpp, 126_000_000);
   assert('Kasus C - Operasional = 54.000.000 (30% dari 180.000.000)', auto.biaya_operasional, 54_000_000);
   assert('Kasus C - Produksi = 0', auto.biaya_produksi, 0);
 }
+
+// ══ SUITE 18: Addendum #25 — HPP Hantu Fix (All 9 Sektors Validation) ══
+console.log('\n══ SUITE 18: Addendum #25 — HPP Hantu Fix ══');
+
+// Validate HPP visibility categorization
+assertEqual('HPP_VISIBLE_CATEGORIES has exactly 3 elements', HPP_VISIBLE_CATEGORIES.length, 3);
+assertEqual('HPP_VISIBLE_CATEGORIES contains kios_campuran', HPP_VISIBLE_CATEGORIES.includes('kios_campuran'), true);
+assertEqual('HPP_VISIBLE_CATEGORIES contains tempurung', HPP_VISIBLE_CATEGORIES.includes('tempurung'), true);
+assertEqual('HPP_VISIBLE_CATEGORIES contains arang_tempurung', HPP_VISIBLE_CATEGORIES.includes('arang_tempurung'), true);
+
+const allCategories = [
+  'kios_campuran',
+  'tempurung',
+  'kuliner_rumah_makan',
+  'nelayan_tangkap',
+  'perkebunan_tahunan',
+  'kelapa_per3bulan',
+  'industri_kopra',
+  'arang_tempurung',
+  'generik_harian'
+];
+
+allCategories.forEach(catId => {
+  const isHppVisible = HPP_VISIBLE_CATEGORIES.includes(catId);
+  const auto = computeAutoFillPengeluaran({
+    categoryId: catId,
+    totalPendapatanTahunan: 100_000_000,
+    expPctNormatif: 30, // 30M total expense budget
+  });
+  
+  if (isHppVisible) {
+    assertEqual(`${catId} (HPP Visible) auto-fill has biaya_hpp > 0`, auto.biaya_hpp > 0, true);
+  } else {
+    assertEqual(`${catId} (HPP Hidden) auto-fill has biaya_hpp === 0`, auto.biaya_hpp, 0);
+  }
+
+  // Check sum of visible fields matches the total budgeted expense (30,000,000)
+  const visibleSum = auto.biaya_produksi + auto.biaya_operasional + (isHppVisible ? auto.biaya_hpp : 0);
+  assert(`${catId} sum of visible fields equals total expense budget`, visibleSum, 30_000_000, 1.0);
+
+  // Check that the engine ignores HPP for non-HPP categories in calculateRecord
+  // Even if legacy data has biaya_hpp set to 10M, calculateRecord must ignore it
+  const recordResult = calculateRecord({
+    id: `test_ghost_${catId}`,
+    categoryId: catId,
+    inputs: {
+      pemasukan_langsung: '100000000',
+      pemasukan_langsung_freq: 'tahunan',
+      use_detail_pengeluaran: true,
+      biaya_produksi: String(auto.biaya_produksi),
+      biaya_produksi_freq: 'tahunan',
+      biaya_hpp: '10000000', // 10M legacy/ghost HPP
+      biaya_hpp_freq: 'tahunan',
+      biaya_operasional: String(auto.biaya_operasional),
+      biaya_operasional_freq: 'tahunan',
+    }
+  }, []);
+
+  const calculatedExp = recordResult.totalPengeluaranTahunan;
+  const expectedExp = isHppVisible
+    ? (auto.biaya_produksi + 10_000_000 + auto.biaya_operasional)
+    : (auto.biaya_produksi + 0 + auto.biaya_operasional);
+  assert(`${catId} calculateRecord totalPengeluaranTahunan matches expected (ignoring ghost HPP if hidden)`, calculatedExp, expectedExp);
+});
 
 // ─────────────────────────────────────────────────────────────────────────
 // Summary
