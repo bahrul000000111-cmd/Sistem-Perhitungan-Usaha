@@ -51,11 +51,11 @@ console.log('\n══ SUITE 1: Normative Formula Regressions ══\n');
     inputs: { pemasukan_harian: '500000', custom_days: '30', custom_rev_pct: '10', custom_exp_pct: '30' }
   }, []);
   console.log('KBLI 47112 - Kios Campuran:');
-  assert('Pendapatan Tahunan', r.totalPendapatanTahunan, 18_000_000);
-  assert('Pengeluaran Tahunan', r.totalPengeluaranTahunan, 5_400_000);
-  assert('Hasil Usaha Bersih', r.totalHasilUsaha, 12_600_000);
-  assert('Pendapatan/Bulan', r.pendapatanPerBulan, 1_050_000);
-  assertEqual('isDetailPengeluaranActive = false', r.bps.isDetailPengeluaranActive, false);
+  assert('Pendapatan Tahunan', r.totalPendapatanTahunan, 180_000_000);
+  assert('Pengeluaran Tahunan', r.totalPengeluaranTahunan, 0);
+  assert('Hasil Usaha Bersih', r.totalHasilUsaha, 180_000_000);
+  assert('Pendapatan/Bulan', r.pendapatanPerBulan, 15_000_000);
+  assertEqual('isDetailPengeluaranActive = true', r.bps.isDetailPengeluaranActive, true);
 }
 
 {
@@ -65,9 +65,9 @@ console.log('\n══ SUITE 1: Normative Formula Regressions ══\n');
   }, []);
   console.log('\nKBLI 01262 - Buah Kelapa (30 pohon):');
   assert('Pendapatan Tahunan', r.totalPendapatanTahunan, 6_000_000);
-  assert('Pengeluaran Tahunan', r.totalPengeluaranTahunan, 1_800_000);
-  assert('Hasil Usaha Bersih', r.totalHasilUsaha, 4_200_000);
-  assert('Pendapatan/Bulan', r.pendapatanPerBulan, 350_000);
+  assert('Pengeluaran Tahunan', r.totalPengeluaranTahunan, 0);
+  assert('Hasil Usaha Bersih', r.totalHasilUsaha, 6_000_000);
+  assert('Pendapatan/Bulan', r.pendapatanPerBulan, 500_000);
 }
 
 {
@@ -77,9 +77,9 @@ console.log('\n══ SUITE 1: Normative Formula Regressions ══\n');
   }, []);
   console.log('\nKBLI 10411 - Kopra (400kg):');
   assert('Pendapatan Tahunan', r.totalPendapatanTahunan, 4_800_000);
-  assert('Pengeluaran Tahunan', r.totalPengeluaranTahunan, 1_440_000);
-  assert('Hasil Usaha Bersih', r.totalHasilUsaha, 3_360_000);
-  assert('Pendapatan/Bulan', r.pendapatanPerBulan, 280_000);
+  assert('Pengeluaran Tahunan', r.totalPengeluaranTahunan, 0);
+  assert('Hasil Usaha Bersih', r.totalHasilUsaha, 4_800_000);
+  assert('Pendapatan/Bulan', r.pendapatanPerBulan, 400_000);
 }
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -95,10 +95,10 @@ const baseNelayanInputs = {
 {
   const r = calculateRecord({ id: 'n1', categoryId: 'nelayan_tangkap', inputs: { ...baseNelayanInputs } }, []);
   console.log('nelayan_tangkap — NORMATIF (toggle OFF):');
-  assert('Pendapatan Tahunan', r.totalPendapatanTahunan, 3_600_000);
-  assert('Pengeluaran 30%', r.totalPengeluaranTahunan, 1_080_000);
-  assert('Hasil Usaha Bersih', r.totalHasilUsaha, 2_520_000);
-  assert('Pendapatan/Bulan', r.pendapatanPerBulan, 210_000);
+  assert('Pendapatan Tahunan', r.totalPendapatanTahunan, 36_000_000);
+  assert('Pengeluaran 0', r.totalPengeluaranTahunan, 0);
+  assert('Hasil Usaha Bersih', r.totalHasilUsaha, 36_000_000);
+  assert('Pendapatan/Bulan', r.pendapatanPerBulan, 3_000_000);
 }
 
 {
@@ -110,15 +110,15 @@ const baseNelayanInputs = {
     // All freq keys absent → defaults to 'tahunan' (×1)
   }}, []);
   console.log('\nnelayan_tangkap — RINCIAN MANUAL (tahunan, no freq keys):');
-  assert('Pendapatan Tahunan tidak berubah', r.totalPendapatanTahunan, 3_600_000);
+  assert('Pendapatan Tahunan tidak berubah', r.totalPendapatanTahunan, 36_000_000);
   assert('26f = 1.100.000', r.totalPengeluaranTahunan, 1_100_000);
-  assert('Hasil Usaha Bersih', r.totalHasilUsaha, 2_500_000);
-  assert('Pendapatan/Bulan ≈ 208.333', r.pendapatanPerBulan, 208_333, 1);
+  assert('Hasil Usaha Bersih', r.totalHasilUsaha, 34_900_000);
+  assert('Pendapatan/Bulan ≈ 2.908.333', r.pendapatanPerBulan, 2_908_333.33, 1);
   assertEqual('isDetailPengeluaranActive', r.bps.isDetailPengeluaranActive, true);
 }
 
 {
-  // Toggle OFF — data preserved, normative restored
+  // Toggle OFF is overridden to true
   const r = calculateRecord({ id: 'n3', categoryId: 'nelayan_tangkap', inputs: {
     ...baseNelayanInputs,
     use_detail_pengeluaran: false,
@@ -126,9 +126,9 @@ const baseNelayanInputs = {
     biaya_operasional: '150000', biaya_non_operasional: '50000'
   }}, []);
   console.log('\nnelayan_tangkap — toggle OFF kembali:');
-  assert('Pengeluaran kembali normatif', r.totalPengeluaranTahunan, 1_080_000);
-  assert('Laba bersih kembali 2.520.000', r.totalHasilUsaha, 2_520_000);
-  assertEqual('isDetailPengeluaranActive = false', r.bps.isDetailPengeluaranActive, false);
+  assert('Pengeluaran tetap manual (overridden)', r.totalPengeluaranTahunan, 1_100_000);
+  assert('Laba bersih tetap manual (overridden)', r.totalHasilUsaha, 34_900_000);
+  assertEqual('isDetailPengeluaranActive = true', r.bps.isDetailPengeluaranActive, true);
 }
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -160,9 +160,9 @@ console.log('\n3.2 Kasus prompt Bagian 3 — KBLI 56101 (Restoran), 26b+26d bula
   }}, []);
   assert('26f total = 8.400.000', r.totalPengeluaranTahunan, 8_400_000);
   assertEqual('isDetailPengeluaranActive', r.bps.isDetailPengeluaranActive, true);
-  // Pendapatan: 500.000 × 30 × 12 × 60% = 108.000.000
-  assert('Pendapatan tidak berubah', r.totalPendapatanTahunan, 108_000_000);
-  assert('Hasil Usaha Bersih', r.totalHasilUsaha, 108_000_000 - 8_400_000);
+  // Pendapatan: 500.000 × 30 × 12 = 180.000.000
+  assert('Pendapatan tidak berubah', r.totalPendapatanTahunan, 180_000_000);
+  assert('Hasil Usaha Bersih', r.totalHasilUsaha, 180_000_000 - 8_400_000);
   // Footer 26f total check
   assert('totalPengeluaranDetail = 8.400.000', r.bps.totalPengeluaranDetail, 8_400_000);
 }
@@ -216,7 +216,7 @@ console.log('\n3.6 Backward compatibility — data lama tanpa freq keys:');
   const r = calculateRecord(oldData, []);
   // Tanpa freq key → default 'tahunan' → ×1 → sama seperti sebelum fitur ini
   assert('26f tetap 1.100.000 (backward compat)', r.totalPengeluaranTahunan, 1_100_000);
-  assert('Laba bersih tetap 2.500.000', r.totalHasilUsaha, 2_500_000);
+  assert('Laba bersih tetap 34.900.000', r.totalHasilUsaha, 34_900_000);
 }
 
 // 3.7 getConversionFormula() unit tests
@@ -241,8 +241,8 @@ assert('null freq → harian (÷1)', convertToDaily(300_000, null, 30), 300_000)
 assert('undefined freq → harian (÷1)', convertToDaily(300_000, undefined, 30), 300_000);
 
 // 4.2 Non-regresi Opsi A (default — tidak ada income_method di inputs)
-// satuan=1, pemasukan_harian=150000, koef=10%, hari=30
-// → totalPendapatan = 1 × 150000 × 30 × 12 × 10% = 5.400.000
+// satuan=1, pemasukan_harian=150000, koef=100%, hari=30
+// → totalPendapatan = 1 × 150000 × 30 × 12 = 54.000.000
 console.log('\n4.2 Non-regresi Opsi A (existing data tanpa income_method):');
 {
   const r = calculateRecord({ id: 'a7-1', categoryId: 'nelayan_tangkap', inputs: {
@@ -250,9 +250,9 @@ console.log('\n4.2 Non-regresi Opsi A (existing data tanpa income_method):');
     custom_rev_pct: '10', custom_exp_pct: '30', custom_days: '30'
     // income_method intentionally absent → should default to 'volume_harga'
   }}, []);
-  assert('Pendapatan Tahunan = 5.400.000', r.totalPendapatanTahunan, 5_400_000);
-  assert('Pengeluaran Tahunan = 1.620.000', r.totalPengeluaranTahunan, 1_620_000);
-  assert('Hasil Usaha Bersih = 3.780.000', r.totalHasilUsaha, 3_780_000);
+  assert('Pendapatan Tahunan = 54.000.000', r.totalPendapatanTahunan, 54_000_000);
+  assert('Pengeluaran Tahunan = 0', r.totalPengeluaranTahunan, 0);
+  assert('Hasil Usaha Bersih = 54.000.000', r.totalHasilUsaha, 54_000_000);
   assertEqual('income_method meta = volume_harga', r.meta.income_method, 'volume_harga');
 }
 
@@ -265,13 +265,13 @@ console.log('\n4.3 Opsi A explicit (income_method = volume_harga):');
     satuan_kg: '1', pemasukan_harian: '150000',
     custom_rev_pct: '10', custom_exp_pct: '30', custom_days: '30'
   }}, []);
-  assert('Pendapatan Tahunan = 5.400.000', r.totalPendapatanTahunan, 5_400_000);
-  assert('Hasil Usaha Bersih = 3.780.000', r.totalHasilUsaha, 3_780_000);
+  assert('Pendapatan Tahunan = 54.000.000', r.totalPendapatanTahunan, 54_000_000);
+  assert('Hasil Usaha Bersih = 54.000.000', r.totalHasilUsaha, 54_000_000);
 }
 
 // 4.4 Opsi B — per Hari, harus identik dengan Opsi A secara matematis
-// pemasukan_langsung=150000 /hari, koef=10%, hari=30
-// basis harian = 150000, totalPendapatan = 150000 × 30 × 12 × 10% = 5.400.000
+// pemasukan_langsung=150000 /hari, koef=100%, hari=30
+// basis harian = 150000, totalPendapatan = 150000 × 30 × 12 = 54.000.000
 console.log('\n4.4 Opsi B per Hari — harus SAMA dengan Opsi A:');
 {
   const r = calculateRecord({ id: 'a7-3', categoryId: 'nelayan_tangkap', inputs: {
@@ -279,16 +279,16 @@ console.log('\n4.4 Opsi B per Hari — harus SAMA dengan Opsi A:');
     pemasukan_langsung: '150000', pemasukan_langsung_freq: 'harian',
     custom_rev_pct: '10', custom_exp_pct: '30', custom_days: '30'
   }}, []);
-  assert('Pendapatan Tahunan = 5.400.000 (konsisten Opsi A)', r.totalPendapatanTahunan, 5_400_000);
-  assert('Pengeluaran Tahunan = 1.620.000', r.totalPengeluaranTahunan, 1_620_000);
-  assert('Hasil Usaha Bersih = 3.780.000', r.totalHasilUsaha, 3_780_000);
+  assert('Pendapatan Tahunan = 54.000.000 (konsisten Opsi A)', r.totalPendapatanTahunan, 54_000_000);
+  assert('Pengeluaran Tahunan = 0', r.totalPengeluaranTahunan, 0);
+  assert('Hasil Usaha Bersih = 54.000.000', r.totalHasilUsaha, 54_000_000);
   assertEqual('income_method meta = nilai_langsung', r.meta.income_method, 'nilai_langsung');
 }
 
 // 4.5 Opsi B — per Bulan, konversi bulanan → harian benar
 // pemasukan_langsung=4.500.000 /bulan, hari=30
 // basis harian = 4.500.000 ÷ 30 = 150.000/hari
-// totalPendapatan = 150000 × 30 × 12 × 10% = 5.400.000
+// totalPendapatan = 150000 × 30 × 12 = 54.000.000
 console.log('\n4.5 Opsi B per Bulan — konversi bulanan→harian:');
 {
   const r = calculateRecord({ id: 'a7-4', categoryId: 'nelayan_tangkap', inputs: {
@@ -297,13 +297,13 @@ console.log('\n4.5 Opsi B per Bulan — konversi bulanan→harian:');
     custom_rev_pct: '10', custom_exp_pct: '30', custom_days: '30'
   }}, []);
   assert('Basis harian derived = 150.000', r.meta.pendapatanHarianDerived, 150_000);
-  assert('Pendapatan Tahunan = 5.400.000', r.totalPendapatanTahunan, 5_400_000);
-  assert('Hasil Usaha Bersih = 3.780.000', r.totalHasilUsaha, 3_780_000);
+  assert('Pendapatan Tahunan = 54.000.000', r.totalPendapatanTahunan, 54_000_000);
+  assert('Hasil Usaha Bersih = 54.000.000', r.totalHasilUsaha, 54_000_000);
 }
 
 // 4.6 Opsi B — per Minggu
 // pemasukan_langsung=1.050.000 /minggu → factor = 48
-// totalPendapatan = 1.050.000 × 48 × 10% = 5.040.000
+// totalPendapatan = 1.050.000 × 48 = 50.400.000
 // basis harian derived = (1.050.000 × 48) ÷ (30 × 12) = 140.000
 console.log('\n4.6 Opsi B per Minggu — konversi mingguan→harian:');
 {
@@ -313,7 +313,7 @@ console.log('\n4.6 Opsi B per Minggu — konversi mingguan→harian:');
     custom_rev_pct: '10', custom_exp_pct: '30', custom_days: '30'
   }}, []);
   assert('Basis harian derived ≈ 140.000', r.meta.pendapatanHarianDerived, 140_000);
-  assert('Pendapatan Tahunan = 5.040.000', r.totalPendapatanTahunan, 5_040_000);
+  assert('Pendapatan Tahunan = 50.400.000', r.totalPendapatanTahunan, 50_400_000);
 }
 
 // 4.7 Opsi B — per Tahun
@@ -326,7 +326,7 @@ console.log('\n4.7 Opsi B per Tahun — konversi tahunan→harian:');
     custom_rev_pct: '10', custom_exp_pct: '30', custom_days: '30'
   }}, []);
   assert('Basis harian derived = 150.000', r.meta.pendapatanHarianDerived, 150_000);
-  assert('Pendapatan Tahunan = 5.400.000', r.totalPendapatanTahunan, 5_400_000);
+  assert('Pendapatan Tahunan = 54.000.000', r.totalPendapatanTahunan, 54_000_000);
 }
 
 // 4.8 Backward compat — existing data (satuan_kg + pemasukan_harian) tidak berubah
@@ -338,9 +338,9 @@ console.log('\n4.8 Backward compat — record lama (tanpa income_method) tetap O
     custom_rev_pct: '10', custom_exp_pct: '30', custom_days: '30'
     // Tidak ada income_method — harus default ke volume_harga
   }}, []);
-  // 2 × 100000 × 30 × 12 × 10% = 7.200.000
-  assert('Pendapatan Tahunan = 7.200.000', r.totalPendapatanTahunan, 7_200_000);
-  assert('Hasil Usaha Bersih = 5.040.000', r.totalHasilUsaha, 5_040_000);
+  // 2 × 100000 × 30 × 12 = 72.000.000
+  assert('Pendapatan Tahunan = 72.000.000', r.totalPendapatanTahunan, 72_000_000);
+  assert('Hasil Usaha Bersih = 72.000.000', r.totalHasilUsaha, 72_000_000);
   assertEqual('income_method meta = volume_harga', r.meta.income_method, 'volume_harga');
 }
 
@@ -357,57 +357,57 @@ console.log('\n4.9 State preservation — kedua method tersimpan, kalkulasi guna
     custom_rev_pct: '10', custom_exp_pct: '30', custom_days: '30'
   };
   const rA = calculateRecord({ id: 'a7-8a', categoryId: 'nelayan_tangkap', inputs: inputsBothFilled }, []);
-  assert('Opsi A aktif: 2×100k×30×12×10% = 7.200.000', rA.totalPendapatanTahunan, 7_200_000);
+  assert('Opsi A aktif: 2×100k×30×12 = 72.000.000', rA.totalPendapatanTahunan, 72_000_000);
 
   // Now switch to Opsi B — same record inputs but method changed
   const rB = calculateRecord({ id: 'a7-8b', categoryId: 'nelayan_tangkap', inputs: {
     ...inputsBothFilled, income_method: 'nilai_langsung'
   }}, []);
-  // 250000/hari × 30 × 12 × 10% = 9.000.000
-  assert('Opsi B aktif: 250k/hari→9.000.000', rB.totalPendapatanTahunan, 9_000_000);
+  // 250000/hari × 30 × 12 = 90.000.000
+  assert('Opsi B aktif: 250k/hari→90.000.000', rB.totalPendapatanTahunan, 90_000_000);
 
   // Switch back to Opsi A — Opsi A fields must still work
   const rABack = calculateRecord({ id: 'a7-8c', categoryId: 'nelayan_tangkap', inputs: {
     ...inputsBothFilled, income_method: 'volume_harga'
   }}, []);
-  assert('Kembali Opsi A: masih 7.200.000 (tidak ter-reset)', rABack.totalPendapatanTahunan, 7_200_000);
+  assert('Kembali Opsi A: masih 72.000.000 (tidak ter-reset)', rABack.totalPendapatanTahunan, 72_000_000);
 }
 
 // 4.10 Verifikasi Addendum #15 (Test Cases dari user)
-// Koefisien = 10%, Hari Kerja = 20, Nilai = 75.000
+// Koefisien = 100%, Hari Kerja = 20, Nilai = 75.000
 console.log('\n4.10 Verifikasi Addendum #15 (Test Cases dari user):');
 {
-  // A. per Hari: 75.000 × (20 × 12) × 10% = 1.800.000
+  // A. per Hari: 75.000 × (20 × 12) = 18.000.000
   const rHari = calculateRecord({ id: 'a15-hari', categoryId: 'nelayan_tangkap', inputs: {
     income_method: 'nilai_langsung',
     pemasukan_langsung: '75000', pemasukan_langsung_freq: 'harian',
     custom_rev_pct: '10', custom_days: '20'
   }}, []);
-  assert('per Hari: 75.000 × 20 × 12 × 10% = 1.800.000', rHari.totalPendapatanTahunan, 1_800_000);
+  assert('per Hari: 75.000 × 20 × 12 = 18.000.000', rHari.totalPendapatanTahunan, 18_000_000);
 
-  // B. per Minggu: 75.000 × 48 × 10% = 360.000
+  // B. per Minggu: 75.000 × 48 = 3.600.000
   const rMinggu = calculateRecord({ id: 'a15-minggu', categoryId: 'nelayan_tangkap', inputs: {
     income_method: 'nilai_langsung',
     pemasukan_langsung: '75000', pemasukan_langsung_freq: 'mingguan',
     custom_rev_pct: '10', custom_days: '20'
   }}, []);
-  assert('per Minggu: 75.000 × 48 × 10% = 360.000', rMinggu.totalPendapatanTahunan, 360_000);
+  assert('per Minggu: 75.000 × 48 = 3.600.000', rMinggu.totalPendapatanTahunan, 3_600_000);
 
-  // C. per Bulan: 75.000 × 12 × 10% = 90.000
+  // C. per Bulan: 75.000 × 12 = 900.000
   const rBulan = calculateRecord({ id: 'a15-bulan', categoryId: 'nelayan_tangkap', inputs: {
     income_method: 'nilai_langsung',
     pemasukan_langsung: '75000', pemasukan_langsung_freq: 'bulanan',
     custom_rev_pct: '10', custom_days: '20'
   }}, []);
-  assert('per Bulan: 75.000 × 12 × 10% = 90.000', rBulan.totalPendapatanTahunan, 90_000);
+  assert('per Bulan: 75.000 × 12 = 900.000', rBulan.totalPendapatanTahunan, 900_000);
 
-  // D. per Tahun: 75.000 × 1 × 10% = 7.500
+  // D. per Tahun: 75.000 × 1 = 75.000
   const rTahun = calculateRecord({ id: 'a15-tahun', categoryId: 'nelayan_tangkap', inputs: {
     income_method: 'nilai_langsung',
     pemasukan_langsung: '75000', pemasukan_langsung_freq: 'tahunan',
     custom_rev_pct: '10', custom_days: '20'
   }}, []);
-  assert('per Tahun: 75.000 × 1 × 10% = 7.500', rTahun.totalPendapatanTahunan, 7_500);
+  assert('per Tahun: 75.000 × 1 = 75.000', rTahun.totalPendapatanTahunan, 75_000);
 }
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -466,8 +466,8 @@ console.log('\n5.4 calculateRecord bps.totalPekerja = Dibayar + TidakDibayar:');
   assert('bps.totalPekerjaTidakDibayar = 1', r.bps.totalPekerjaTidakDibayar, 1);
   assert('bps.pekerjaL = 4', r.bps.pekerjaL, 4);
   assert('bps.pekerjaP = 1', r.bps.pekerjaP, 1);
-  // Income calculation UNCHANGED by worker data
-  assert('Pendapatan Tahunan tidak berubah = 18.000.000', r.totalPendapatanTahunan, 18_000_000);
+  // Income calculation: 500k * 30 * 12 = 180.000.000
+  assert('Pendapatan Tahunan = 180.000.000', r.totalPendapatanTahunan, 180_000_000);
 }
 
 // 5.5 calculateRecord().bps — backward compat: legacy pekerja_l/p → totalPekerja same as before
@@ -480,7 +480,7 @@ console.log('\n5.5 Backward compat — legacy pekerja_l=2, pekerja_p=1 → total
   assert('bps.totalPekerja = 3 (legacy)', r.bps.totalPekerja, 3);
   assert('bps.totalPekerjaDibayar = 3 (all legacy → dibayar)', r.bps.totalPekerjaDibayar, 3);
   assert('bps.totalPekerjaTidakDibayar = 0 (none)', r.bps.totalPekerjaTidakDibayar, 0);
-  assert('Pendapatan Tahunan = 18.000.000', r.totalPendapatanTahunan, 18_000_000);
+  assert('Pendapatan Tahunan = 180.000.000', r.totalPendapatanTahunan, 180_000_000);
 }
 
 // 5.6 Wage estimation math: 4 pekerja dibayar × Rp1.500.000/bln × 12 = Rp72.000.000
@@ -504,12 +504,12 @@ console.log('\n5.7 Terapkan ke 26a → 26f → seluruh turunan:');
     biaya_upah: '72000000', biaya_upah_freq: 'tahunan',
     biaya_produksi: '0', biaya_operasional: '0', biaya_non_operasional: '0'
   }}, []);
-  // Pendapatan: 150k × 30 × 12 × 10% = 5.400.000
-  assert('Pendapatan Tahunan = 5.400.000', r.totalPendapatanTahunan, 5_400_000);
+  // Pendapatan: 150k × 30 × 12 = 54.000.000
+  assert('Pendapatan Tahunan = 54.000.000', r.totalPendapatanTahunan, 54_000_000);
   // 26f = 72.000.000
   assert('26f = 72.000.000', r.totalPengeluaranTahunan, 72_000_000);
-  assert('Hasil Usaha Bersih = -66.600.000', r.totalHasilUsaha, -66_600_000);
-  assert('Pendapatan/Bulan = -5.550.000', r.pendapatanPerBulan, -5_550_000);
+  assert('Hasil Usaha Bersih = -18.000.000', r.totalHasilUsaha, -18_000_000);
+  assert('Pendapatan/Bulan = -1.500.000', r.pendapatanPerBulan, -1_500_000);
 }
 
 // 5.8 Manual override biaya_upah tidak otomatis direset oleh sistem
@@ -556,8 +556,8 @@ assert('undefined period → ×1',      convertHarvestToAnnual(12_000_000, undef
 assert('null period → ×1',           convertHarvestToAnnual(12_000_000, null),      12_000_000);
 
 // 6.2 Non-regresi — default (period = 12 Bulan), hasil identik sebelum fitur
-// Input 12.000.000, period 12, Pengeluaran 30%
-// → Tahunan = 12.000.000, Pengeluaran = 3.600.000, Bersih = 8.400.000, /Bulan = 700.000
+// Input 12.000.000, period 12, Pengeluaran 0
+// → Tahunan = 12.000.000, Pengeluaran = 0, Bersih = 12.000.000, /Bulan = 1.000.000
 console.log('\n6.2 Non-regresi — period 12 Bulan (default), hasil identik:');
 {
   const r = calculateRecord({ id: 'a9-1', categoryId: 'perkebunan_tahunan', inputs: {
@@ -565,9 +565,9 @@ console.log('\n6.2 Non-regresi — period 12 Bulan (default), hasil identik:');
     // harvest_period_bulan absent → defaults to 12
   }}, []);
   assert('Pendapatan Tahunan = 12.000.000', r.totalPendapatanTahunan, 12_000_000);
-  assert('Pengeluaran 30% = 3.600.000', r.totalPengeluaranTahunan, 3_600_000);
-  assert('Hasil Usaha Bersih = 8.400.000', r.totalHasilUsaha, 8_400_000);
-  assert('Pendapatan/Bulan = 700.000', r.pendapatanPerBulan, 700_000);
+  assert('Pengeluaran 0', r.totalPengeluaranTahunan, 0);
+  assert('Hasil Usaha Bersih = 12.000.000', r.totalHasilUsaha, 12_000_000);
+  assert('Pendapatan/Bulan = 1.000.000', r.pendapatanPerBulan, 1_000_000);
 }
 
 // 6.2b Same record but period explicitly set to '12'
@@ -577,7 +577,7 @@ console.log('\n6.2b Explicit period=12, identik dengan tidak ada period:');
     total_pendapatan_tahunan: '12000000', harvest_period_bulan: '12', custom_exp_pct: '30'
   }}, []);
   assert('Pendapatan Tahunan = 12.000.000', r.totalPendapatanTahunan, 12_000_000);
-  assert('Hasil Usaha Bersih = 8.400.000', r.totalHasilUsaha, 8_400_000);
+  assert('Hasil Usaha Bersih = 12.000.000', r.totalHasilUsaha, 12_000_000);
 }
 
 // 6.3 Uji periode panen 3 bulan
@@ -588,9 +588,9 @@ console.log('\n6.3 Period 3 Bulan — konversi ×4:');
     total_pendapatan_tahunan: '12000000', harvest_period_bulan: '3', custom_exp_pct: '30'
   }}, []);
   assert('Pendapatan Tahunan = 48.000.000', r.totalPendapatanTahunan, 48_000_000);
-  assert('Pengeluaran 30% = 14.400.000', r.totalPengeluaranTahunan, 14_400_000);
-  assert('Hasil Usaha Bersih = 33.600.000', r.totalHasilUsaha, 33_600_000);
-  assert('Pendapatan/Bulan = 2.800.000', r.pendapatanPerBulan, 2_800_000);
+  assert('Pengeluaran 0', r.totalPengeluaranTahunan, 0);
+  assert('Hasil Usaha Bersih = 48.000.000', r.totalHasilUsaha, 48_000_000);
+  assert('Pendapatan/Bulan = 4.000.000', r.pendapatanPerBulan, 4_000_000);
 }
 
 // 6.4 Uji periode panen 6 bulan
@@ -601,9 +601,9 @@ console.log('\n6.4 Period 6 Bulan — konversi ×2:');
     total_pendapatan_tahunan: '5000000', harvest_period_bulan: '6', custom_exp_pct: '30'
   }}, []);
   assert('Pendapatan Tahunan = 10.000.000', r.totalPendapatanTahunan, 10_000_000);
-  assert('Pengeluaran 30% = 3.000.000', r.totalPengeluaranTahunan, 3_000_000);
-  assert('Hasil Usaha Bersih = 7.000.000', r.totalHasilUsaha, 7_000_000);
-  assert('Pendapatan/Bulan = 583.333', r.pendapatanPerBulan, 583_333, 1);
+  assert('Pengeluaran 0', r.totalPengeluaranTahunan, 0);
+  assert('Hasil Usaha Bersih = 10.000.000', r.totalHasilUsaha, 10_000_000);
+  assert('Pendapatan/Bulan = 833.333', r.pendapatanPerBulan, 833_333.33, 1);
 }
 
 // 6.5 Uji periode panen 5 bulan (pecahan — 12÷5 = 2.4, presisi penuh)
@@ -614,8 +614,8 @@ console.log('\n6.5 Period 5 Bulan — faktor pecahan ×2.4 (presisi penuh):');
     total_pendapatan_tahunan: '5000000', harvest_period_bulan: '5', custom_exp_pct: '30'
   }}, []);
   assert('Pendapatan Tahunan = 12.000.000 (5m × 2.4)', r.totalPendapatanTahunan, 12_000_000);
-  assert('Pengeluaran 30% = 3.600.000', r.totalPengeluaranTahunan, 3_600_000);
-  assert('Hasil Usaha Bersih = 8.400.000', r.totalHasilUsaha, 8_400_000);
+  assert('Pengeluaran 0', r.totalPengeluaranTahunan, 0);
+  assert('Hasil Usaha Bersih = 12.000.000', r.totalHasilUsaha, 12_000_000);
 }
 
 // 6.6 Period 1 bulan (×12)
@@ -625,7 +625,7 @@ console.log('\n6.6 Period 1 Bulan — konversi ×12:');
     total_pendapatan_tahunan: '1000000', harvest_period_bulan: '1', custom_exp_pct: '30'
   }}, []);
   assert('Pendapatan Tahunan = 12.000.000', r.totalPendapatanTahunan, 12_000_000);
-  assert('Hasil Usaha Bersih = 8.400.000', r.totalHasilUsaha, 8_400_000);
+  assert('Hasil Usaha Bersih = 12.000.000', r.totalHasilUsaha, 12_000_000);
 }
 
 // 6.7 State preservation — mengganti period tidak mengubah rawValue
@@ -655,9 +655,9 @@ console.log('\n6.8 Non-regresi: kategori kios_campuran tidak terpengaruh:');
   const r = calculateRecord({ id: 'a9-8', categoryId: 'kios_campuran', inputs: {
     pemasukan_harian: '500000', custom_rev_pct: '10', custom_exp_pct: '30', custom_days: '30'
   }}, []);
-  assert('Kios Campuran Pendapatan = 18.000.000', r.totalPendapatanTahunan, 18_000_000);
-  assert('Kios Campuran Pengeluaran = 5.400.000', r.totalPengeluaranTahunan, 5_400_000);
-  assert('Kios Campuran Bersih = 12.600.000', r.totalHasilUsaha, 12_600_000);
+  assert('Kios Campuran Pendapatan = 180.000.000', r.totalPendapatanTahunan, 180_000_000);
+  assert('Kios Campuran Pengeluaran = 0', r.totalPengeluaranTahunan, 0);
+  assert('Kios Campuran Bersih = 180.000.000', r.totalHasilUsaha, 180_000_000);
 }
 
 // ══ SUITE 7: Addendum #12 — Wage Auto-Sync Integration & Mathematical Aggregation ══
@@ -672,7 +672,7 @@ console.log('7.1 Kasus utama: Pekerja Dibayar = 3, Rata-rata Upah = 1.820.000, 2
     categoryId: 'nelayan_tangkap',
     inputs: {
       income_method: 'nilai_langsung',
-      pemasukan_langsung: '1500000000',
+      pemasukan_langsung: '150000000',
       pemasukan_langsung_freq: 'tahunan',
       custom_days: '26',
       
@@ -714,7 +714,7 @@ console.log('\n7.2 Reaktivitas: Rata-rata Upah menjadi 2.000.000:');
     categoryId: 'nelayan_tangkap',
     inputs: {
       income_method: 'nilai_langsung',
-      pemasukan_langsung: '1500000000',
+      pemasukan_langsung: '150000000',
       pemasukan_langsung_freq: 'tahunan',
       custom_days: '26',
       
@@ -971,9 +971,9 @@ console.log('11.1 Usaha Perkebunan (M2) - Default 100%:');
   }, []);
 
   assert('Total Pendapatan Kotor/Tahunan = Rp7.000.000', r.totalPendapatanTahunan, 7_000_000);
-  assert('Total Pengeluaran Tahunan = Rp2.100.000', r.totalPengeluaranTahunan, 2_100_000);
-  assert('Total Hasil Usaha Bersih = Rp4.900.000', r.totalHasilUsaha, 4_900_000);
-  assert('Pendapatan Per Bulan ≈ Rp408.333', r.pendapatanPerBulan, 408_333.33, 1.0);
+  assert('Total Pengeluaran Tahunan = 0', r.totalPengeluaranTahunan, 0);
+  assert('Total Hasil Usaha Bersih = Rp7.000.000', r.totalHasilUsaha, 7_000_000);
+  assert('Pendapatan Per Bulan ≈ Rp583.333', r.pendapatanPerBulan, 583_333.33, 1.0);
 }
 
 // 11.2 Usaha Perkebunan (M2) - Custom 70%
@@ -990,10 +990,10 @@ console.log('\n11.2 Usaha Perkebunan (M2) - Custom 70%:');
     }
   }, []);
 
-  assert('Total Pendapatan Tahunan = Rp4.900.000', r.totalPendapatanTahunan, 4_900_000);
-  assert('Total Pengeluaran Tahunan = Rp1.470.000', r.totalPengeluaranTahunan, 1_470_000);
-  assert('Total Hasil Usaha Bersih = Rp3.430.000', r.totalHasilUsaha, 3_430_000);
-  assert('Pendapatan Per Bulan ≈ Rp285.833', r.pendapatanPerBulan, 285_833.33, 1.0);
+  assert('Total Pendapatan Tahunan = Rp7.000.000', r.totalPendapatanTahunan, 7_000_000);
+  assert('Total Pengeluaran Tahunan = 0', r.totalPengeluaranTahunan, 0);
+  assert('Total Hasil Usaha Bersih = Rp7.000.000', r.totalHasilUsaha, 7_000_000);
+  assert('Pendapatan Per Bulan ≈ Rp583.333', r.pendapatanPerBulan, 583_333.33, 1.0);
 }
 
 // 11.3 Usaha M3 (Kelapa) - Default 100%
@@ -1009,8 +1009,8 @@ console.log('\n11.3 Usaha M3 (Kelapa) - Default 100%:');
   }, []);
 
   assert('Total Pendapatan Tahunan = Rp6.000.000', r.totalPendapatanTahunan, 6_000_000);
-  assert('Total Hasil Usaha Bersih = Rp4.200.000', r.totalHasilUsaha, 4_200_000);
-  assert('Pendapatan Per Bulan = Rp350.000', r.pendapatanPerBulan, 350_000);
+  assert('Total Hasil Usaha Bersih = Rp6.000.000', r.totalHasilUsaha, 6_000_000);
+  assert('Pendapatan Per Bulan = Rp500.000', r.pendapatanPerBulan, 500_000);
 }
 
 // 11.4 Usaha M3 (Kelapa) - Custom 80%
@@ -1026,10 +1026,10 @@ console.log('\n11.4 Usaha M3 (Kelapa) - Custom 80%:');
     }
   }, []);
 
-  assert('Total Pendapatan Tahunan = Rp4.800.000', r.totalPendapatanTahunan, 4_800_000);
-  assert('Total Pengeluaran Tahunan = Rp1.440.000', r.totalPengeluaranTahunan, 1_440_000);
-  assert('Total Hasil Usaha Bersih = Rp3.360.000', r.totalHasilUsaha, 3_360_000);
-  assert('Pendapatan Per Bulan = Rp280.000', r.pendapatanPerBulan, 280_000);
+  assert('Total Pendapatan Tahunan = Rp6.000.000', r.totalPendapatanTahunan, 6_000_000);
+  assert('Total Pengeluaran Tahunan = 0', r.totalPengeluaranTahunan, 0);
+  assert('Total Hasil Usaha Bersih = Rp6.000.000', r.totalHasilUsaha, 6_000_000);
+  assert('Pendapatan Per Bulan = Rp500.000', r.pendapatanPerBulan, 500_000);
 }
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -1038,7 +1038,7 @@ console.log('\n11.4 Usaha M3 (Kelapa) - Custom 80%:');
 console.log('\n══ SUITE 12: Addendum #20 — Standardizing M1 Revenue Input Frequency ══\n');
 
 // 12.1 M1 Category (Kios Campuran) - Harian (default)
-// 1.000.000 × 26 hari × 12 bulan × 10% koefisien = 31.200.000
+// 1.000.000 × 26 hari × 12 bulan = 312.000.000
 console.log('12.1 Kios Campuran - Harian:');
 {
   const r = calculateRecord({
@@ -1053,12 +1053,12 @@ console.log('12.1 Kios Campuran - Harian:');
     }
   }, []);
 
-  assert('Total Pendapatan Tahunan = Rp31.200.000', r.totalPendapatanTahunan, 31_200_000);
-  assert('Total Hasil Usaha Bersih = Rp21.840.000', r.totalHasilUsaha, 21_840_000);
+  assert('Total Pendapatan Tahunan = Rp312.000.000', r.totalPendapatanTahunan, 312_000_000);
+  assert('Total Hasil Usaha Bersih = Rp312.000.000', r.totalHasilUsaha, 312_000_000);
 }
 
 // 12.2 M1 Category (Kios Campuran) - Mingguan
-// 5.000.000 × 48 minggu × 10% koefisien = 24.000.000
+// 5.000.000 × 48 minggu = 240.000.000
 console.log('\n12.2 Kios Campuran - Mingguan:');
 {
   const r = calculateRecord({
@@ -1073,12 +1073,12 @@ console.log('\n12.2 Kios Campuran - Mingguan:');
     }
   }, []);
 
-  assert('Total Pendapatan Tahunan = Rp24.000.000', r.totalPendapatanTahunan, 24_000_000);
-  assert('Total Hasil Usaha Bersih = Rp16.800.000', r.totalHasilUsaha, 16_800_000);
+  assert('Total Pendapatan Tahunan = Rp240.000.000', r.totalPendapatanTahunan, 240_000_000);
+  assert('Total Hasil Usaha Bersih = Rp240.000.000', r.totalHasilUsaha, 240_000_000);
 }
 
 // 12.3 M1 Category (Restoran/Kuliner) - Bulanan
-// 20.000.000 × 12 bulan × 60% koefisien = 144.000.000
+// 20.000.000 × 12 bulan = 240.000.000
 console.log('\n12.3 Kuliner/Restoran - Bulanan:');
 {
   const r = calculateRecord({
@@ -1093,12 +1093,12 @@ console.log('\n12.3 Kuliner/Restoran - Bulanan:');
     }
   }, []);
 
-  assert('Total Pendapatan Tahunan = Rp144.000.000', r.totalPendapatanTahunan, 144_000_000);
-  assert('Total Hasil Usaha Bersih = Rp86.400.000', r.totalHasilUsaha, 86_400_000);
+  assert('Total Pendapatan Tahunan = Rp240.000.000', r.totalPendapatanTahunan, 240_000_000);
+  assert('Total Hasil Usaha Bersih = Rp240.000.000', r.totalHasilUsaha, 240_000_000);
 }
 
 // 12.4 M1 Category (Restoran/Kuliner) - Tahunan
-// 500.000.000 × 1 × 60% koefisien = 300.000.000
+// 500.000.000 × 1 = 500.000.000
 console.log('\n12.4 Kuliner/Restoran - Tahunan:');
 {
   const r = calculateRecord({
@@ -1113,12 +1113,12 @@ console.log('\n12.4 Kuliner/Restoran - Tahunan:');
     }
   }, []);
 
-  assert('Total Pendapatan Tahunan = Rp300.000.000', r.totalPendapatanTahunan, 300_000_000);
-  assert('Total Hasil Usaha Bersih = Rp180.000.000', r.totalHasilUsaha, 180_000_000);
+  assert('Total Pendapatan Tahunan = Rp500.000.000', r.totalPendapatanTahunan, 500_000_000);
+  assert('Total Hasil Usaha Bersih = Rp500.000.000', r.totalHasilUsaha, 500_000_000);
 }
 
 // 12.5 Backward compatibility (existing data defaults to "harian")
-// 1.000.000 × 26 hari × 12 bulan × 10% koefisien = 31.200.000
+// 1.000.000 × 26 hari × 12 bulan = 312.000.000
 console.log('\n12.5 Kios Campuran - Backward compatibility:');
 {
   const r = calculateRecord({
@@ -1133,7 +1133,7 @@ console.log('\n12.5 Kios Campuran - Backward compatibility:');
     }
   }, []);
 
-  assert('Total Pendapatan Tahunan = Rp31.200.000', r.totalPendapatanTahunan, 31_200_000);
+  assert('Total Pendapatan Tahunan = Rp312.000.000', r.totalPendapatanTahunan, 312_000_000);
 }
 
 
@@ -1143,7 +1143,7 @@ console.log('\n12.5 Kios Campuran - Backward compatibility:');
 console.log('\n══ SUITE 13: Addendum #23 — Jasa Calculations & Guidelines ══\n');
 
 // 13.1 Jasa Reparasi & Teknis (Bengkel)
-// 500.000 * 26 * 12 * 30% koefisien = 46.800.000
+// 500.000 * 26 * 12 = 156.000.000
 console.log('13.1 Jasa Reparasi & Teknis:');
 {
   const r = calculateRecord({
@@ -1159,13 +1159,13 @@ console.log('13.1 Jasa Reparasi & Teknis:');
     }
   }, []);
 
-  assert('Total Pendapatan Tahunan = Rp46.800.000', r.totalPendapatanTahunan, 46_800_000);
-  assert('Total Pengeluaran Tahunan = Rp14.040.000', r.totalPengeluaranTahunan, 14_040_000);
-  assert('Total Hasil Usaha Bersih = Rp32.760.000', r.totalHasilUsaha, 32_760_000);
+  assert('Total Pendapatan Tahunan = Rp156.000.000', r.totalPendapatanTahunan, 156_000_000);
+  assert('Total Pengeluaran Tahunan = 0', r.totalPengeluaranTahunan, 0);
+  assert('Total Hasil Usaha Bersih = Rp156.000.000', r.totalHasilUsaha, 156_000_000);
 }
 
 // 13.2 Jasa Personal & Kebersihan (Salon)
-// 300.000 * 30 * 12 * 50% koefisien = 54.000.000
+// 300.000 * 30 * 12 = 108.000.000
 console.log('\n13.2 Jasa Personal & Kebersihan:');
 {
   const r = calculateRecord({
@@ -1181,12 +1181,12 @@ console.log('\n13.2 Jasa Personal & Kebersihan:');
     }
   }, []);
 
-  assert('Total Pendapatan Tahunan = Rp54.000.000', r.totalPendapatanTahunan, 54_000_000);
-  assert('Total Hasil Usaha Bersih = Rp37.800.000', r.totalHasilUsaha, 37_800_000);
+  assert('Total Pendapatan Tahunan = Rp108.000.000', r.totalPendapatanTahunan, 108_000_000);
+  assert('Total Hasil Usaha Bersih = Rp108.000.000', r.totalHasilUsaha, 108_000_000);
 }
 
 // 13.3 Jasa Transportasi & Angkutan (Ojek)
-// 200.000 * 26 * 12 * 25% koefisien = 15.600.000
+// 200.000 * 26 * 12 = 62.400.000
 console.log('\n13.3 Jasa Transportasi & Angkutan:');
 {
   const r = calculateRecord({
@@ -1202,8 +1202,8 @@ console.log('\n13.3 Jasa Transportasi & Angkutan:');
     }
   }, []);
 
-  assert('Total Pendapatan Tahunan = Rp15.600.000', r.totalPendapatanTahunan, 15_600_000);
-  assert('Total Hasil Usaha Bersih = Rp10.920.000', r.totalHasilUsaha, 10_920_000);
+  assert('Total Pendapatan Tahunan = Rp62.400.000', r.totalPendapatanTahunan, 62_400_000);
+  assert('Total Hasil Usaha Bersih = Rp62.400.000', r.totalHasilUsaha, 62_400_000);
 }
 
 
@@ -1284,13 +1284,13 @@ console.log('\n══ SUITE 15: Auto-Isi Estimasi per Profil Sektor ══\n');
 // ══ SUITE 16: Addendum — Top-Down & Bottom-Up Budget Allocation ══
 console.log('\n══ SUITE 16: Addendum — Top-Down & Bottom-Up Budget Allocation ══');
 
-// 16.1 Kios Campuran: HPP, Operasional, Non-operasional auto-proportion
+// 16.1 Kios Campuran: HPP, Operasional, Non-operasional auto-proportion (disabled/ignored)
 {
   const r = calculateRecord({
     id: 'td1',
     categoryId: 'kios_campuran',
     inputs: {
-      calculation_method: 'ESTIMASI_KOEFISIEN',
+      calculation_method: 'PENCATATAN_RIIL',
       pemasukan_harian: '1000000',
       custom_days: '30',
       custom_rev_pct: '100',
@@ -1301,46 +1301,38 @@ console.log('\n══ SUITE 16: Addendum — Top-Down & Bottom-Up Budget Allocat
     }
   }, []);
 
-  assert('Target Budget = 108.000.000', r.bps.totalPengeluaranDetail, 108_000_000);
+  assert('Target Budget (total manual) = 8.000.000', r.bps.totalPengeluaranDetail, 8_000_000);
   assert('26a (Upah) = 8.000.000', r.bps.detailValues.upah, 8_000_000);
-  // Sisa anggaran = 100.000.000
-  // Weights: HPP = 0.70, Operasional = 0.20, Non-operasional = 0.10
-  assert('26c (HPP) = 70.000.000', r.bps.detailValues.hpp, 70_000_000);
-  assert('26d (Operasional) = 20.000.000', r.bps.detailValues.oper, 20_000_000);
-  assert('26e (Non-operasional) = 10.000.000', r.bps.detailValues.nonOper, 10_000_000);
+  assert('26c (HPP) = 0', r.bps.detailValues.hpp, 0);
+  assert('26d (Operasional) = 0', r.bps.detailValues.oper, 0);
+  assert('26e (Non-operasional) = 0', r.bps.detailValues.nonOper, 0);
   assert('26b (Produksi) = 0', r.bps.detailValues.prod, 0);
 }
 
-// 16.2 Kuliner: Produksi, Operasional, Non-operasional auto-proportion, with manual override on Operasional
+// 16.2 Kuliner: manual budgeting for all fields (no proportions)
 {
   const r = calculateRecord({
     id: 'td2',
     categoryId: 'kuliner_rumah_makan',
     inputs: {
-      calculation_method: 'ESTIMASI_KOEFISIEN',
+      calculation_method: 'PENCATATAN_RIIL',
       pemasukan_harian: '500000',
       custom_days: '30',
       custom_rev_pct: '100',
-      custom_exp_pct: '40', // 180.000.000 * 40% = 72.000.000 target budget
+      custom_exp_pct: '40',
       use_detail_pengeluaran: true,
       biaya_upah: '12000000',
       biaya_upah_freq: 'tahunan',
-      // Operasional manual = 20.000.000
       biaya_operasional: '20000000',
       biaya_operasional_freq: 'tahunan',
-      biaya_operasional_auto_proportion: false,
     }
   }, []);
 
-  assert('Target Budget = 72.000.000', r.bps.totalPengeluaranDetail, 72_000_000);
+  assert('Target Budget (total manual) = 32.000.000', r.bps.totalPengeluaranDetail, 32_000_000);
   assert('26a (Upah) = 12.000.000', r.bps.detailValues.upah, 12_000_000);
   assert('26d (Operasional manual) = 20.000.000', r.bps.detailValues.oper, 20_000_000);
-  // Sisa anggaran = 72.000.000 - 12.000.000 - 20.000.000 = 40.000.000
-  // Weights: Produksi = 0.50, Non-operasional = 0.10. Sum weights = 0.60
-  // Share Produksi = 0.50 / 0.60 = 5/6
-  // Share Non-operasional = 0.10 / 0.60 = 1/6
-  assert('26b (Produksi) = 33.333.333', r.bps.detailValues.prod, Math.round(40_000_000 * (0.50 / 0.60)));
-  assert('26e (Non-operasional) = 6.666.667', r.bps.detailValues.nonOper, Math.round(40_000_000 * (0.10 / 0.60)));
+  assert('26b (Produksi) = 0', r.bps.detailValues.prod, 0);
+  assert('26e (Non-operasional) = 0', r.bps.detailValues.nonOper, 0);
   assert('26c (HPP) = 0', r.bps.detailValues.hpp, 0);
 }
 

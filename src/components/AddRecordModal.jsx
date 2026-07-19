@@ -66,10 +66,7 @@ function defaultRecordName(label) {
  */
 function getDefaultInputs(categoryId, groupKey) {
   const cat = CATEGORIES.find(c => c.id === categoryId);
-  const isJasaOrGenerik =
-    (groupKey && groupKey.startsWith('jasa-')) ||
-    categoryId === 'generik_harian';
-  const defaultMethod = isJasaOrGenerik ? 'ESTIMASI_KOEFISIEN' : 'PENCATATAN_RIIL';
+  const defaultMethod = 'PENCATATAN_RIIL';
 
   if (!cat) return { calculation_method: defaultMethod };
   const inputs = { calculation_method: defaultMethod };
