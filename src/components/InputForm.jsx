@@ -25,6 +25,7 @@ import { KOEFISIEN_GUIDE_DATA } from '../utils/koefisienGuideData';
  *   periodValue     - Current period in months (number or string, default 12)
  *   onPeriodChange  - Called with new period (string) when dropdown changes
  *   placeholder     - Input placeholder
+ */
 function HarvestPeriodSelector({ id, label, value, onValueChange, panenPerTahun, onPanenPerTahunChange, placeholder }) {
   const [focused, setFocused] = useState(false);
   const rawNum    = parseFloat(value) || 0;
@@ -1414,6 +1415,7 @@ export default function InputForm({ categoryId, inputs, onInputChange, records }
                   );
                 })()
               )}
+            </div>
           )}
 
           {/* Jumlah Hari Kerja / Bulan slider for Nelayan */}
