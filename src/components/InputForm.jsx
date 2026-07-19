@@ -983,7 +983,13 @@ export default function InputForm({ categoryId, inputs, onInputChange, records }
       {isNelayan && nelayanOptions.length > 1 && (
         <IncomeMethodSelector
           value={incomeMethod}
-          onChange={v => onInputChange('income_method', v)}
+          onChange={v => {
+            if (v === 'nilai_langsung') {
+              onInputChange({ income_method: v, custom_days: '' });
+            } else {
+              onInputChange('income_method', v);
+            }
+          }}
           options={nelayanOptions}
           tooltip="Pilih cara Anda mencatat pendapatan — langsung total pendapatan atau bagi hasil kru/trip."
         />
@@ -1544,7 +1550,7 @@ export default function InputForm({ categoryId, inputs, onInputChange, records }
       )}
 
       {/* Operational Days (Daily categories only) */}
-      {!isBagiHasilMode && hasDailyModifier && (
+      {!isBagiHasilMode && hasDailyModifier && !isNelayan && (
         <div className="mt-2 pt-4 border-t border-white/[0.06] space-y-3.5 animate-fade-in">
           <div className="flex flex-col gap-1.5">
             <div className="flex justify-between items-center">
