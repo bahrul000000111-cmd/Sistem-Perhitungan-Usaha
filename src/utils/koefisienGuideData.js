@@ -263,3 +263,36 @@ export const KOEFISIEN_GUIDE_DATA = {
     ]
   }
 };
+
+export const SECTOR_PROFILE = {
+  PRODUKSI: 'PRODUKSI',       // makanan, industri, pertanian/perkebunan, perikanan
+  PERDAGANGAN: 'PERDAGANGAN', // kios, toko, retail
+};
+
+// Bobot distribusi (harus selalu berjumlah 100%) untuk field 26b/26c/26d SAJA.
+// 26a & 26e sengaja TIDAK dimasukkan tabel ini — keduanya selalu manual.
+export const PROPORSI_PENGELUARAN_PER_PROFIL = {
+  [SECTOR_PROFILE.PRODUKSI]: {
+    biaya_produksi_pct: 65,   // 26b — dominan
+    biaya_hpp_pct: 20,        // 26c
+    biaya_operasional_pct: 15,// 26d
+  },
+  [SECTOR_PROFILE.PERDAGANGAN]: {
+    biaya_produksi_pct: 0,    // 26b — hampir tidak relevan untuk pedagang murni
+    biaya_hpp_pct: 70,        // 26c — dominan (barang dagangan)
+    biaya_operasional_pct: 30,// 26d
+  },
+};
+
+// Pemetaan categoryId → profil sektor.
+export const CATEGORY_TO_SECTOR_PROFILE = {
+  kios_campuran: SECTOR_PROFILE.PERDAGANGAN,
+  tempurung: SECTOR_PROFILE.PERDAGANGAN,
+  kuliner_rumah_makan: SECTOR_PROFILE.PRODUKSI,
+  kelapa_per3bulan: SECTOR_PROFILE.PRODUKSI,
+  industri_kopra: SECTOR_PROFILE.PRODUKSI,
+  perkebunan_tahunan: SECTOR_PROFILE.PRODUKSI,
+  nelayan_tangkap: SECTOR_PROFILE.PRODUKSI,
+  arang_tempurung: SECTOR_PROFILE.PRODUKSI,
+  generik_harian: SECTOR_PROFILE.PRODUKSI,
+};

@@ -8,7 +8,7 @@
  * Suite 3: Addendum #2 — Frequency selector conversions
  */
 
-import { calculateRecord, convertToAnnual, getConversionFormula, convertToDaily, resolveWorkers, convertHarvestToAnnual, migrateLegacyNelayanInputs } from './src/utils/calculations.js';
+import { calculateRecord, convertToAnnual, getConversionFormula, convertToDaily, resolveWorkers, convertHarvestToAnnual, migrateLegacyNelayanInputs, computeAutoFillPengeluaran } from './src/utils/calculations.js';
 
 let pass = 0;
 let fail = 0;
@@ -1165,6 +1165,45 @@ console.log('\n14.1 Kios Campuran - Pencatatan Riil (Omzet - Pengeluaran Nyata):
   assert('Total Pengeluaran Tahunan (Manual 26a+26c+26d) = Rp216.000.000', r.totalPengeluaranTahunan, 216_000_000);
   assert('Total Hasil Usaha Bersih = Rp96.000.000', r.totalHasilUsaha, 96_000_000);
   assert('Pendapatan per Bulan = Rp8.000.000', r.pendapatanPerBulan, 8_000_000);
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// SUITE 15: Addendum #8 — Auto-Isi Estimasi 26b/26c/26d Berbasis Profil Sektor
+// ─────────────────────────────────────────────────────────────────────────
+console.log('\n══ SUITE 15: Auto-Isi Estimasi per Profil Sektor ══\n');
+
+// 15.1 Profil Perdagangan (kios_campuran) — HPP dominan, identik pola screenshot
+{
+  const auto = computeAutoFillPengeluaran({
+    categoryId: 'kios_campuran',
+    totalPendapatanTahunan: 2_160_000_000,
+    expPctNormatif: 3.0,
+  });
+  assert('26b (Produksi) = 0 untuk profil Perdagangan', auto.biaya_produksi, 0);
+  assert('26c (HPP) = 45.360.000 (70% dari 64.800.000)', auto.biaya_hpp, 45_360_000);
+  assert('26d (Operasional) = 19.440.000 (30% dari 64.800.000)', auto.biaya_operasional, 19_440_000);
+}
+
+// 15.2 Profil Produksi (kuliner_rumah_makan) — Bahan/Produksi dominan
+{
+  const auto = computeAutoFillPengeluaran({
+    categoryId: 'kuliner_rumah_makan',
+    totalPendapatanTahunan: 108_000_000,
+    expPctNormatif: 10, // contoh angka normatif sektor kuliner
+  });
+  const totalNormatif = 108_000_000 * 0.10; // 10.800.000
+  assert('26b (Produksi) dominan = 65% dari total normatif', auto.biaya_produksi, Math.round(totalNormatif * 0.65));
+  assert('26c (HPP) = 20% dari total normatif', auto.biaya_hpp, Math.round(totalNormatif * 0.20));
+  assert('26d (Operasional) = 15% dari total normatif', auto.biaya_operasional, Math.round(totalNormatif * 0.15));
+}
+
+// 15.3 Non-regresi — 26a & 26e TIDAK pernah muncul di hasil computeAutoFillPengeluaran
+{
+  const auto = computeAutoFillPengeluaran({
+    categoryId: 'kios_campuran', totalPendapatanTahunan: 100_000_000, expPctNormatif: 5,
+  });
+  assertEqual('biaya_upah tidak ada di hasil auto-isi', auto.biaya_upah, undefined);
+  assertEqual('biaya_non_operasional tidak ada di hasil auto-isi', auto.biaya_non_operasional, undefined);
 }
 
 // ─────────────────────────────────────────────────────────────────────────

@@ -6,6 +6,11 @@
  */
 
 // ═══════════════════════════════════════════════════════════
+// IMPORTS
+// ═══════════════════════════════════════════════════════════
+import { SECTOR_PROFILE, PROPORSI_PENGELUARAN_PER_PROFIL, CATEGORY_TO_SECTOR_PROFILE } from './koefisienGuideData.js';
+
+// ═══════════════════════════════════════════════════════════
 // CATEGORY DEFINITIONS (metadata & config)
 // ═══════════════════════════════════════════════════════════
 
@@ -1054,4 +1059,28 @@ export function migrateLegacyNelayanInputs(inputs = {}) {
     }
   }
   return inputs;
+}
+
+export const DEFAULT_EXPENSE_PCT_NORMATIF = {
+  kios_campuran: 30,
+  tempurung: 10,
+  kuliner_rumah_makan: 40,
+  nelayan_tangkap: 30,
+  perkebunan_tahunan: 30,
+  kelapa_per3bulan: 30,
+  industri_kopra: 30,
+  arang_tempurung: 10,
+  generik_harian: 30,
+};
+
+export function computeAutoFillPengeluaran({ categoryId, totalPendapatanTahunan, expPctNormatif }) {
+  const profile = CATEGORY_TO_SECTOR_PROFILE[categoryId] || SECTOR_PROFILE.PRODUKSI;
+  const bobot = PROPORSI_PENGELUARAN_PER_PROFIL[profile];
+  const totalPengeluaranNormatif = totalPendapatanTahunan * (expPctNormatif / 100);
+
+  return {
+    biaya_produksi: Math.round(totalPengeluaranNormatif * (bobot.biaya_produksi_pct / 100)),
+    biaya_hpp: Math.round(totalPengeluaranNormatif * (bobot.biaya_hpp_pct / 100)),
+    biaya_operasional: Math.round(totalPengeluaranNormatif * (bobot.biaya_operasional_pct / 100)),
+  };
 }

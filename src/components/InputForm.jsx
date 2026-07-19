@@ -7,7 +7,7 @@
 import { useState, useEffect, useRef, useLayoutEffect } from 'react';
 import { AlertCircle, Link2, Link2Off, Info, ChevronDown, ChevronUp, Users, Calendar, DollarSign, Globe, Building2, X } from 'lucide-react';
 import { formatRupiah, formatNumberWithDots } from '../utils/formatters';
-import { CATEGORIES, getConversionFormula, convertToAnnual, convertToDaily, convertHarvestToAnnual, calculateRecord } from '../utils/calculations';
+import { CATEGORIES, getConversionFormula, convertToAnnual, convertToDaily, convertHarvestToAnnual, calculateRecord, computeAutoFillPengeluaran, DEFAULT_EXPENSE_PCT_NORMATIF } from '../utils/calculations';
 import { KOEFISIEN_GUIDE_DATA } from '../utils/koefisienGuideData';
 
 
@@ -112,7 +112,8 @@ function CurrencyInput({
   hideLabel,
   className,
   onFocus,
-  onBlur
+  onBlur,
+  isEstimate
 }) {
   const [focused, setFocused] = useState(false);
   const inputRef = useRef(null);
@@ -236,7 +237,9 @@ function CurrencyInput({
           className={`w-full rounded-xl border text-[13px] font-mono py-2.5 pl-9 pr-3 transition-all placeholder:text-slate-600 outline-none ${
             readOnly
               ? 'border-emerald-500/25 bg-emerald-500/6 text-emerald-200 cursor-default select-none'
-              : 'border-white/[0.08] bg-surface-700 text-slate-100 hover:border-white/[0.12] focus:border-indigo-500/50'
+              : isEstimate
+                ? 'border-indigo-500/20 bg-indigo-500/5 text-slate-300 hover:border-indigo-500/35 focus:border-indigo-500/50'
+                : 'border-white/[0.08] bg-surface-700 text-slate-100 hover:border-white/[0.12] focus:border-indigo-500/50'
           }`}
         />
       </div>
@@ -452,7 +455,26 @@ function IncomeMethodSelector({ value, onChange, options, tooltip }) {
   );
 }
 
-function ExpenseField({ id, label, value, freq, daysPerMonth, onValueChange, onFreqChange, tooltip, showHpp, readOnly, autoModeBadge, autoModeRemark, hideFreqSelector, customBadge, customRemark }) {
+function ExpenseField({
+  id,
+  label,
+  value,
+  freq,
+  daysPerMonth,
+  onValueChange,
+  onFreqChange,
+  tooltip,
+  showHpp,
+  readOnly,
+  autoModeBadge,
+  autoModeRemark,
+  hideFreqSelector,
+  customBadge,
+  customRemark,
+  onBlur,
+  placeholder,
+  isEstimate
+}) {
   const [focused, setFocused] = useState(false);
   const numVal  = parseFloat(value) || 0;
   const freqKey = freq || 'tahunan';
@@ -488,12 +510,16 @@ function ExpenseField({ id, label, value, freq, daysPerMonth, onValueChange, onF
           id={id}
           value={value}
           onChange={onValueChange}
-          placeholder="0"
+          placeholder={placeholder || "0"}
           readOnly={readOnly}
           hideLabel={true}
           className="relative flex-1"
           onFocus={() => setFocused(true)}
-          onBlur={() => setFocused(false)}
+          onBlur={(e) => {
+            setFocused(false);
+            if (onBlur) onBlur(e);
+          }}
+          isEstimate={isEstimate}
         />
 
         {/* Frequency selector */}
@@ -502,7 +528,10 @@ function ExpenseField({ id, label, value, freq, daysPerMonth, onValueChange, onF
             <select
               id={`${id}-freq`}
               value={freqKey}
-              onChange={e => onFreqChange(e.target.value)}
+              onChange={e => {
+                onFreqChange(e.target.value);
+                if (onBlur) onBlur(e);
+              }}
               className="h-full rounded-xl border border-white/[0.08] bg-surface-700 text-[11.5px] font-semibold text-indigo-300 px-2.5 pr-7 appearance-none cursor-pointer outline-none hover:border-indigo-500/30 focus:border-indigo-500/50 transition-all"
               style={{ minWidth: '90px' }}
             >
@@ -519,6 +548,13 @@ function ExpenseField({ id, label, value, freq, daysPerMonth, onValueChange, onF
           </div>
         )}
       </div>
+
+      {/* Estimate indicator */}
+      {isEstimate && (
+        <div className="text-[10px] text-slate-500 font-sans pl-1 italic">
+          ~ estimasi BPS
+        </div>
+      )}
 
       {/* Conversion helper text — only shown when frequency ≠ tahunan */}
       {!hideFreqSelector && freqKey !== 'tahunan' && (
@@ -739,6 +775,76 @@ export default function InputForm({ categoryId, inputs, onInputChange, records }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isDetailPengeluaranActive, liveExpenseBudget, proportionCfg?.group]);
+  // ─────────────────────────────────────────────────────────────────────────
+
+  // ── Addendum #8: Auto-fill detailed expenses on Pencatatan Riil mode ─────
+  useEffect(() => {
+    if (!isPencatatanRiil || liveAnnualIncome <= 0 || isBagiHasilMode) return;
+
+    const expPctNormatif = DEFAULT_EXPENSE_PCT_NORMATIF[categoryId] || 30;
+    const autoFilled = computeAutoFillPengeluaran({
+      categoryId,
+      totalPendapatanTahunan: liveAnnualIncome,
+      expPctNormatif
+    });
+
+    const updates = {};
+    const keysMap = {
+      biaya_produksi: '26b_touched',
+      biaya_hpp: '26c_touched',
+      biaya_operasional: '26d_touched'
+    };
+
+    Object.entries(keysMap).forEach(([field, touchedKey]) => {
+      const isTouched = inputs[touchedKey] === true || inputs[touchedKey] === 'true';
+      if (!isTouched) {
+        const newVal = String(autoFilled[field] ?? 0);
+        const newFreq = 'tahunan';
+        if (inputs[field] !== newVal || inputs[field + '_freq'] !== newFreq) {
+          updates[field] = newVal;
+          updates[field + '_freq'] = newFreq;
+        }
+      }
+    });
+
+    if (Object.keys(updates).length > 0) {
+      onInputChange(updates);
+    }
+  }, [
+    isPencatatanRiil,
+    liveAnnualIncome,
+    categoryId,
+    isBagiHasilMode,
+    inputs['26b_touched'],
+    inputs['26c_touched'],
+    inputs['26d_touched'],
+    inputs.biaya_produksi,
+    inputs.biaya_hpp,
+    inputs.biaya_operasional,
+    inputs.biaya_produksi_freq,
+    inputs.biaya_hpp_freq,
+    inputs.biaya_operasional_freq
+  ]);
+
+  const handleReloadBps = () => {
+    const expPctNormatif = DEFAULT_EXPENSE_PCT_NORMATIF[categoryId] || 30;
+    const autoFilled = computeAutoFillPengeluaran({
+      categoryId,
+      totalPendapatanTahunan: liveAnnualIncome,
+      expPctNormatif
+    });
+    onInputChange({
+      biaya_produksi: String(autoFilled.biaya_produksi),
+      biaya_produksi_freq: 'tahunan',
+      '26b_touched': false,
+      biaya_hpp: String(autoFilled.biaya_hpp),
+      biaya_hpp_freq: 'tahunan',
+      '26c_touched': false,
+      biaya_operasional: String(autoFilled.biaya_operasional),
+      biaya_operasional_freq: 'tahunan',
+      '26d_touched': false
+    });
+  };
   // ─────────────────────────────────────────────────────────────────────────
 
   // ── Bagian 4.6: Anomaly check — 26f > totalPendapatanTahunan ─────────────
@@ -1695,10 +1801,19 @@ export default function InputForm({ categoryId, inputs, onInputChange, records }
       {/* ── Section 4: RINCIAN PENGELUARAN ── */}
       {isDetailPengeluaranActive && (
         <div className="mt-2 pt-4 border-t border-white/[0.06] space-y-4">
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center justify-between gap-1.5">
             <p className="text-[10px] font-bold text-indigo-400 uppercase tracking-wider">
               Rincian Pengeluaran (Rincian 26)
             </p>
+            {isPencatatanRiil && !isBagiHasilMode && (
+              <button
+                type="button"
+                onClick={handleReloadBps}
+                className="text-[9.5px] font-semibold text-slate-400 bg-slate-500/10 border border-slate-500/20 px-2 py-0.5 rounded-lg hover:text-indigo-300 hover:border-indigo-500/30 transition-all flex items-center gap-1"
+              >
+                <span>↻ Isi Ulang dari Estimasi BPS</span>
+              </button>
+            )}
           </div>
           <div className="space-y-3.5 pl-2 border-l border-indigo-500/20 fade-in-up">
             {/* 26a — Upah (Addendum #10: auto-syncs from wage widget when rata_upah > 0) */}
@@ -1712,6 +1827,7 @@ export default function InputForm({ categoryId, inputs, onInputChange, records }
                 onValueChange={val => onInputChange('biaya_upah', val)}
                 onFreqChange={freq => onInputChange('biaya_upah_freq', freq)}
                 tooltip="Upah pokok, bonus, natura makan/perumahan, iuran BPJS."
+                placeholder="Isi dari pembukuan Anda"
                 readOnly={isWageAutoMode || isBagiHasilMode}
                 autoModeBadge={isWageAutoMode}
                 autoModeRemark={
@@ -1818,8 +1934,10 @@ export default function InputForm({ categoryId, inputs, onInputChange, records }
                     value={inputs.biaya_produksi || ''}
                     freq={inputs.biaya_produksi_freq}
                     daysPerMonth={Number(displayDays)}
-                    onValueChange={val => onInputChange({ biaya_produksi: val, [fieldKey + AUTO_FLAG_SUFFIX]: false })}
-                    onFreqChange={freq => onInputChange({ biaya_produksi_freq: freq, [fieldKey + AUTO_FLAG_SUFFIX]: false })}
+                    onValueChange={val => onInputChange({ biaya_produksi: val, [fieldKey + AUTO_FLAG_SUFFIX]: false, '26b_touched': true })}
+                    onFreqChange={freq => onInputChange({ biaya_produksi_freq: freq, [fieldKey + AUTO_FLAG_SUFFIX]: false, '26b_touched': true })}
+                    onBlur={() => onInputChange({ '26b_touched': true })}
+                    isEstimate={isPencatatanRiil && !isBagiHasilMode && inputs['26b_touched'] !== true && inputs['26b_touched'] !== 'true'}
                     tooltip="Bahan baku, BBM produksi, bahan penolong habis pakai."
                     readOnly={isBagiHasilMode}
                     hideFreqSelector={isBagiHasilMode}
@@ -1871,8 +1989,10 @@ export default function InputForm({ categoryId, inputs, onInputChange, records }
                     value={inputs.biaya_hpp || ''}
                     freq={inputs.biaya_hpp_freq}
                     daysPerMonth={Number(displayDays)}
-                    onValueChange={val => onInputChange({ biaya_hpp: val, [fieldKey + AUTO_FLAG_SUFFIX]: false })}
-                    onFreqChange={freq => onInputChange({ biaya_hpp_freq: freq, [fieldKey + AUTO_FLAG_SUFFIX]: false })}
+                    onValueChange={val => onInputChange({ biaya_hpp: val, [fieldKey + AUTO_FLAG_SUFFIX]: false, '26c_touched': true })}
+                    onFreqChange={freq => onInputChange({ biaya_hpp_freq: freq, [fieldKey + AUTO_FLAG_SUFFIX]: false, '26c_touched': true })}
+                    onBlur={() => onInputChange({ '26c_touched': true })}
+                    isEstimate={isPencatatanRiil && inputs['26c_touched'] !== true && inputs['26c_touched'] !== 'true'}
                     tooltip="Khusus perdagangan: Nilai barang yang dibeli untuk dijual kembali (HPP)."
                   />
                 </div>
@@ -1910,8 +2030,10 @@ export default function InputForm({ categoryId, inputs, onInputChange, records }
                     value={inputs.biaya_operasional || ''}
                     freq={inputs.biaya_operasional_freq}
                     daysPerMonth={Number(displayDays)}
-                    onValueChange={val => onInputChange({ biaya_operasional: val, [fieldKey + AUTO_FLAG_SUFFIX]: false })}
-                    onFreqChange={freq => onInputChange({ biaya_operasional_freq: freq, [fieldKey + AUTO_FLAG_SUFFIX]: false })}
+                    onValueChange={val => onInputChange({ biaya_operasional: val, [fieldKey + AUTO_FLAG_SUFFIX]: false, '26d_touched': true })}
+                    onFreqChange={freq => onInputChange({ biaya_operasional_freq: freq, [fieldKey + AUTO_FLAG_SUFFIX]: false, '26d_touched': true })}
+                    onBlur={() => onInputChange({ '26d_touched': true })}
+                    isEstimate={isPencatatanRiil && !isBagiHasilMode && inputs['26d_touched'] !== true && inputs['26d_touched'] !== 'true'}
                     tooltip="Listrik, air, internet/pulsa, sewa tempat, jasa keuangan, transisi hijau."
                   />
                 </div>
@@ -1929,6 +2051,7 @@ export default function InputForm({ categoryId, inputs, onInputChange, records }
                 onValueChange={val => onInputChange('biaya_non_operasional', val)}
                 onFreqChange={freq => onInputChange('biaya_non_operasional_freq', freq)}
                 tooltip="Bunga pinjaman, donasi, kerugian revaluasi aset, pajak ijin usaha."
+                placeholder="Isi dari pembukuan Anda"
               />
             )}
 
