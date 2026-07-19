@@ -622,6 +622,34 @@ const PROPORTION_CONFIG = {
 // Fields eligible for auto-proportion (26a and 26e are always excluded)
 const PROPORTION_FIELDS = ['biaya_produksi', 'biaya_hpp', 'biaya_operasional'];
 
+const REFERENSI_BPS_DONGGALA = {
+  perdagangan: {
+    nama: "Perdagangan Eceran / Kelontong",
+    rasioPengeluaran: "70% - 85%",
+    keterangan: "Didominasi oleh HPP (Harga Pokok Penjualan) barang dagangan. Margin bersih rata-rata di wilayah Donggala berkisar antara 15% - 30%."
+  },
+  perikanan: {
+    nama: "Perikanan Tangkap & Budidaya",
+    rasioPengeluaran: "40% - 60%",
+    keterangan: "Komponen pengeluaran terbesar ada pada bahan bakar (solar) kapal, logistik trip, dan pemeliharaan alat tangkap/jaring di wilayah pesisir Donggala."
+  },
+  perkebunan: {
+    nama: "Perkebunan (Kelapa Dalam, Cengkeh, Kakao)",
+    rasioPengeluaran: "25% - 40%",
+    keterangan: "Biaya operasional cenderung rendah di luar musim panen. Pengeluaran terkonsentrasi pada pupuk, obat-obatan, dan upah buruh petik musiman."
+  },
+  jasa: {
+    nama: "Jasa Reparasi, Teknis & Personal",
+    rasioPengeluaran: "20% - 35%",
+    keterangan: "Rasio pengeluaran rendah karena nilai utama bertumpu pada keahlian (human capital). Pengeluaran umumnya hanya untuk suku cadang minor atau alat kerja."
+  },
+  industri_pengolahan: {
+    nama: "Industri Pengolahan / Kerajinan Rumah Tangga",
+    rasioPengeluaran: "50% - 65%",
+    keterangan: "Meliputi pembelian bahan baku mentah dan biaya energi proses produksi skala mikro-kecil."
+  }
+};
+
 // Key suffix used to mark a field as "still in auto mode" vs "manually overridden"
 // Stored in inputs as e.g. biaya_produksi_auto_proportion = true
 const AUTO_FLAG_SUFFIX = '_auto_proportion';
@@ -630,6 +658,7 @@ export default function InputForm({ categoryId, inputs, onInputChange, records }
 
   const [showBps, setShowBps] = useState(false);
   const [isGuideOpen, setIsGuideOpen] = useState(false);
+  const [isBpsDonggalaOpen, setIsBpsDonggalaOpen] = useState(false);
   const guideRef = useRef(null);
 
   // Close guide drawer when clicking outside, excluding form elements and sliders
@@ -687,6 +716,23 @@ export default function InputForm({ categoryId, inputs, onInputChange, records }
   const rawDays = inputs.custom_days;
   const displayDays = (rawDays !== undefined && rawDays !== '') ? rawDays : 30;
   const daysNum = Number(displayDays);
+
+  const getBpsDonggalaActiveKey = () => {
+    if (inputs._groupKey) {
+      if (inputs._groupKey.startsWith('jasa-') || inputs._groupKey === 'jasa') return 'jasa';
+      if (inputs._groupKey === 'kios_campuran' || inputs._groupKey === 'tempurung') return 'perdagangan';
+      if (inputs._groupKey === 'nelayan_tangkap') return 'perikanan';
+      if (inputs._groupKey === 'perkebunan_tahunan' || inputs._groupKey === 'kelapa_per3bulan') return 'perkebunan';
+      if (inputs._groupKey === 'industri_kopra' || inputs._groupKey === 'arang_tempurung') return 'industri_pengolahan';
+    }
+    if (categoryId === 'kios_campuran' || categoryId === 'tempurung') return 'perdagangan';
+    if (categoryId === 'nelayan_tangkap') return 'perikanan';
+    if (categoryId === 'perkebunan_tahunan' || categoryId === 'kelapa_per3bulan') return 'perkebunan';
+    if (categoryId === 'industri_kopra' || categoryId === 'arang_tempurung') return 'industri_pengolahan';
+    if (categoryId === 'generik_harian') return 'jasa';
+    return null;
+  };
+  const activeBpsKey = getBpsDonggalaActiveKey();
 
   const isPencatatanRiil = (inputs.calculation_method || 'PENCATATAN_RIIL') === 'PENCATATAN_RIIL';
 
@@ -1505,10 +1551,10 @@ export default function InputForm({ categoryId, inputs, onInputChange, records }
             <button
               id="btn-trigger-guide"
               type="button"
-              onClick={() => setIsGuideOpen(true)}
+              onClick={() => setIsBpsDonggalaOpen(true)}
               className="flex items-center gap-1 text-[10.5px] font-semibold text-amber-400 hover:text-amber-300 transition-colors cursor-pointer"
             >
-              <span>💡 Panduan Koefisien</span>
+              <span>💡 Panduan Koefisien &amp; Pengeluaran</span>
             </button>
           </div>
 
@@ -1521,22 +1567,23 @@ export default function InputForm({ categoryId, inputs, onInputChange, records }
               onChange={val => onInputChange('custom_rev_pct', val)}
               defaultValue={defaultRevPct}
               tooltip="Faktor proporsi pendapatan kotor yang diakui sebagai output bruto menurut norma sektoral BPS."
-              onOpenGuide={() => setIsGuideOpen(true)}
+              onOpenGuide={() => setIsBpsDonggalaOpen(true)}
               disabled={isPencatatanRiil}
             />
           )}
 
-          {/* Expense Modifier (Hidden if detail expense override is active) */}
-          {!isDetailPengeluaranActive ? (
-            <PercentSlider
-              id="input-custom-exp-pct"
-              label="Persentase Pengeluaran (%)"
-              value={inputs.custom_exp_pct}
-              onChange={val => onInputChange('custom_exp_pct', val)}
-              defaultValue={defaultExpPct}
-              tooltip="Norma persentase pengeluaran terhadap pendapatan untuk mengestimasi biaya usaha."
-            />
-          ) : (
+          {/* Expense Modifier */}
+          <PercentSlider
+            id="input-custom-exp-pct"
+            label="Persentase Pengeluaran (%)"
+            value={inputs.custom_exp_pct}
+            onChange={val => onInputChange('custom_exp_pct', val)}
+            defaultValue={defaultExpPct}
+            tooltip="Proporsi pengeluaran operasional usaha terhadap total pendapatan yang diakui menurut norma BPS."
+            onOpenGuide={() => setIsBpsDonggalaOpen(true)}
+            disabled={isDetailPengeluaranActive}
+          />
+          {isDetailPengeluaranActive && (
             <div className="text-[11.5px] text-slate-400 bg-surface-800/40 border border-white/[0.05] rounded-xl px-3 py-2 flex flex-col gap-1">
               <div className="flex items-center justify-between">
                 <span>Faktor Pengeluaran (%)</span>
@@ -2320,6 +2367,74 @@ export default function InputForm({ categoryId, inputs, onInputChange, records }
             <p className="text-[9.5px] text-slate-500 text-center leading-normal">
               Nilai Koefisien Pendapatan (%) dapat disesuaikan secara bebas sesuai kondisi riil usaha di lapangan.
             </p>
+          </div>
+        </div>
+      )}
+
+      {/* ── Modal BPS Donggala ── */}
+      {isBpsDonggalaOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-surface-955/80 backdrop-blur-md p-4 no-print fade-in">
+          <div className="glass w-full max-w-md rounded-2xl border border-white/[0.08] flex flex-col overflow-hidden shadow-2xl scale-in">
+            
+            {/* Header */}
+            <div className="px-5 py-4 border-b border-white/[0.06] flex items-center justify-between bg-surface-900/50">
+              <div className="flex items-center gap-2">
+                <span className="text-base">📍</span>
+                <div>
+                  <h3 className="text-[13px] font-bold text-yellow-400">Panduan Rasio BPS — Kabupaten Donggala</h3>
+                  <p className="text-[9.5px] text-slate-400 font-light mt-0.5">Referensi nilai makro sektoral wilayah Sulawesi Tengah</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsBpsDonggalaOpen(false)}
+                className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-white hover:bg-surface-800 transition-colors cursor-pointer"
+              >
+                <X size={15} />
+              </button>
+            </div>
+
+            {/* Scrollable Content */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-3 max-h-[60vh]">
+              {Object.entries(REFERENSI_BPS_DONGGALA).map(([key, data]) => {
+                const isCurrent = activeBpsKey === key;
+                return (
+                  <div 
+                    key={key} 
+                    className={`p-3.5 rounded-xl border transition-all flex flex-col gap-2 ${
+                      isCurrent 
+                        ? 'bg-amber-950/40 border-amber-500 shadow-[0_0_12px_rgba(245,158,11,0.15)] animate-fade-in' 
+                        : 'bg-surface-800/40 border-white/[0.06] hover:bg-surface-800/60'
+                    }`}
+                  >
+                    <div className="flex justify-between items-center mb-1">
+                      <span className="text-[12px] font-bold text-white">{data.nama}</span>
+                      <span className={`text-[11px] font-bold ${isCurrent ? 'text-amber-400 bg-amber-500/15' : 'text-emerald-400 bg-emerald-500/15'} px-2.5 py-0.5 rounded font-mono`}>
+                        {data.rasioPengeluaran}
+                      </span>
+                    </div>
+                    <p className="text-[10.5px] text-slate-350 leading-relaxed font-sans">{data.keterangan}</p>
+                    {isCurrent && (
+                      <span className="text-[10px] text-amber-400 flex items-center gap-1 mt-1 font-bold">
+                        ★ Cocok dengan usaha yang sedang Anda input
+                      </span>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Footer */}
+            <div className="px-5 py-3 border-t border-white/[0.05] bg-surface-850 flex justify-end">
+              <button
+                type="button"
+                onClick={() => setIsBpsDonggalaOpen(false)}
+                className="px-4 py-1.5 rounded-lg bg-surface-700 hover:bg-surface-600 text-slate-200 hover:text-white transition-all text-[11px] font-bold border border-white/[0.04] cursor-pointer"
+              >
+                Tutup
+              </button>
+            </div>
+
           </div>
         </div>
       )}
