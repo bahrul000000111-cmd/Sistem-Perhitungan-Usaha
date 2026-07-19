@@ -1281,6 +1281,69 @@ console.log('\n══ SUITE 15: Auto-Isi Estimasi per Profil Sektor ══\n');
   assertEqual('biaya_non_operasional tidak ada di hasil auto-isi', auto.biaya_non_operasional, undefined);
 }
 
+// ══ SUITE 16: Addendum — Top-Down & Bottom-Up Budget Allocation ══
+console.log('\n══ SUITE 16: Addendum — Top-Down & Bottom-Up Budget Allocation ══');
+
+// 16.1 Kios Campuran: HPP, Operasional, Non-operasional auto-proportion
+{
+  const r = calculateRecord({
+    id: 'td1',
+    categoryId: 'kios_campuran',
+    inputs: {
+      calculation_method: 'ESTIMASI_KOEFISIEN',
+      pemasukan_harian: '1000000',
+      custom_days: '30',
+      custom_rev_pct: '100',
+      custom_exp_pct: '30',
+      use_detail_pengeluaran: true,
+      biaya_upah: '8000000',
+      biaya_upah_freq: 'tahunan',
+    }
+  }, []);
+
+  assert('Target Budget = 108.000.000', r.bps.totalPengeluaranDetail, 108_000_000);
+  assert('26a (Upah) = 8.000.000', r.bps.detailValues.upah, 8_000_000);
+  // Sisa anggaran = 100.000.000
+  // Weights: HPP = 0.70, Operasional = 0.20, Non-operasional = 0.10
+  assert('26c (HPP) = 70.000.000', r.bps.detailValues.hpp, 70_000_000);
+  assert('26d (Operasional) = 20.000.000', r.bps.detailValues.oper, 20_000_000);
+  assert('26e (Non-operasional) = 10.000.000', r.bps.detailValues.nonOper, 10_000_000);
+  assert('26b (Produksi) = 0', r.bps.detailValues.prod, 0);
+}
+
+// 16.2 Kuliner: Produksi, Operasional, Non-operasional auto-proportion, with manual override on Operasional
+{
+  const r = calculateRecord({
+    id: 'td2',
+    categoryId: 'kuliner_rumah_makan',
+    inputs: {
+      calculation_method: 'ESTIMASI_KOEFISIEN',
+      pemasukan_harian: '500000',
+      custom_days: '30',
+      custom_rev_pct: '100',
+      custom_exp_pct: '40', // 180.000.000 * 40% = 72.000.000 target budget
+      use_detail_pengeluaran: true,
+      biaya_upah: '12000000',
+      biaya_upah_freq: 'tahunan',
+      // Operasional manual = 20.000.000
+      biaya_operasional: '20000000',
+      biaya_operasional_freq: 'tahunan',
+      biaya_operasional_auto_proportion: false,
+    }
+  }, []);
+
+  assert('Target Budget = 72.000.000', r.bps.totalPengeluaranDetail, 72_000_000);
+  assert('26a (Upah) = 12.000.000', r.bps.detailValues.upah, 12_000_000);
+  assert('26d (Operasional manual) = 20.000.000', r.bps.detailValues.oper, 20_000_000);
+  // Sisa anggaran = 72.000.000 - 12.000.000 - 20.000.000 = 40.000.000
+  // Weights: Produksi = 0.50, Non-operasional = 0.10. Sum weights = 0.60
+  // Share Produksi = 0.50 / 0.60 = 5/6
+  // Share Non-operasional = 0.10 / 0.60 = 1/6
+  assert('26b (Produksi) = 33.333.333', r.bps.detailValues.prod, Math.round(40_000_000 * (0.50 / 0.60)));
+  assert('26e (Non-operasional) = 6.666.667', r.bps.detailValues.nonOper, Math.round(40_000_000 * (0.10 / 0.60)));
+  assert('26c (HPP) = 0', r.bps.detailValues.hpp, 0);
+}
+
 // ─────────────────────────────────────────────────────────────────────────
 // Summary
 // ─────────────────────────────────────────────────────────────────────────

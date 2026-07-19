@@ -887,6 +887,12 @@ export function calculateRecord(record, allRecords = []) {
   const isBagiHasilKruMode = categoryId === 'nelayan_tangkap' && (inputs.income_method === 'bagi_hasil' || ((inputs.income_method || 'volume_harga') === 'volume_harga' && workers.totalDibayar >= 2));
   const isDetailPengeluaranActive = rawToggle === true || rawToggle === 1 || rawToggle === 'true' || isBagiHasilKruMode;
 
+  let upah = 0;
+  let prod = 0;
+  let hpp = 0;
+  let oper = 0;
+  let nonOper = 0;
+
   let totalPengeluaranDetail = 0;
   if (isDetailPengeluaranActive) {
     // getDays reads custom_days from inputs (same as income side), fallback 30
@@ -939,24 +945,100 @@ export function calculateRecord(record, allRecords = []) {
         upahFreq = 'tahunan';
       }
 
-      prodValue = parseFloat(inputs.biaya_produksi) || 0;
-      prodFreq = inputs.biaya_produksi_freq;
+      // Check if we are in Estimasi Koefisien (not Pencatatan Riil)
+      const isPencatatanRiil = (inputs.calculation_method || 'PENCATATAN_RIIL') === 'PENCATATAN_RIIL';
 
-      hppValue = parseFloat(inputs.biaya_hpp) || 0;
-      hppFreq = inputs.biaya_hpp_freq;
+      if (!isPencatatanRiil) {
+        // --- DYNAMIC PROPORTION ALLOCATION (ADDENDUM) ---
+        // 1. Calculate Target Budget
+        const totalPendapatanTahunan = result.totalPendapatanTahunan;
+        const defaultExpPct = DEFAULT_EXPENSE_PCT_NORMATIF[categoryId] || 30;
+        const expPct = getExpPct(inputs, defaultExpPct);
+        const targetBudget = totalPendapatanTahunan * (expPct / 100);
 
-      operValue = parseFloat(inputs.biaya_operasional) || 0;
-      operFreq = inputs.biaya_operasional_freq;
+        const upah = convertToAnnual(upahValue, upahFreq, daysPerMonth);
 
-      nonOperValue = parseFloat(inputs.biaya_non_operasional) || 0;
-      nonOperFreq = inputs.biaya_non_operasional_freq;
+        // Find which fields are auto vs manual
+        const isProdAuto = inputs.biaya_produksi_auto_proportion !== false;
+        const isHppAuto = inputs.biaya_hpp_auto_proportion !== false;
+        const isOperAuto = inputs.biaya_operasional_auto_proportion !== false;
+        const isNonOperAuto = inputs.biaya_non_operasional_auto_proportion !== false;
+
+        const manualProd = !isProdAuto ? convertToAnnual(parseFloat(inputs.biaya_produksi) || 0, inputs.biaya_produksi_freq, daysPerMonth) : 0;
+        const manualHpp = !isHppAuto ? convertToAnnual(parseFloat(inputs.biaya_hpp) || 0, inputs.biaya_hpp_freq, daysPerMonth) : 0;
+        const manualOper = !isOperAuto ? convertToAnnual(parseFloat(inputs.biaya_operasional) || 0, inputs.biaya_operasional_freq, daysPerMonth) : 0;
+        const manualNonOper = !isNonOperAuto ? convertToAnnual(parseFloat(inputs.biaya_non_operasional) || 0, inputs.biaya_non_operasional_freq, daysPerMonth) : 0;
+
+        const sisaAnggaran = Math.max(0, targetBudget - upah - manualProd - manualHpp - manualOper - manualNonOper);
+
+        // Weights
+        let wProd = 0;
+        let wHpp = 0;
+        let wOper = 0;
+        let wNonOper = 0;
+
+        if (categoryId === 'kios_campuran' || categoryId === 'tempurung') {
+          wHpp = 0.70;
+          wOper = 0.20;
+          wNonOper = 0.10;
+        } else if (categoryId === 'kuliner_rumah_makan') {
+          wProd = 0.50;
+          wOper = 0.40;
+          wNonOper = 0.10;
+        } else {
+          wProd = 0.60;
+          wOper = 0.30;
+          wNonOper = 0.10;
+        }
+
+        const activeWProd = isProdAuto ? wProd : 0;
+        const activeWHpp = isHppAuto ? wHpp : 0;
+        const activeWOper = isOperAuto ? wOper : 0;
+        const activeWNonOper = isNonOperAuto ? wNonOper : 0;
+        const sumWeights = activeWProd + activeWHpp + activeWOper + activeWNonOper;
+
+        let annualProd = manualProd;
+        let annualHpp = manualHpp;
+        let annualOper = manualOper;
+        let annualNonOper = manualNonOper;
+
+        if (sumWeights > 0) {
+          if (isProdAuto) annualProd = Math.round(sisaAnggaran * (wProd / sumWeights));
+          if (isHppAuto) annualHpp = Math.round(sisaAnggaran * (wHpp / sumWeights));
+          if (isOperAuto) annualOper = Math.round(sisaAnggaran * (wOper / sumWeights));
+          if (isNonOperAuto) annualNonOper = Math.round(sisaAnggaran * (wNonOper / sumWeights));
+        }
+
+        prodValue = annualProd;
+        prodFreq = 'tahunan';
+        hppValue = annualHpp;
+        hppFreq = 'tahunan';
+        operValue = annualOper;
+        operFreq = 'tahunan';
+        nonOperValue = annualNonOper;
+        nonOperFreq = 'tahunan';
+        upahValue = upah;
+        upahFreq = 'tahunan';
+      } else {
+        prodValue = parseFloat(inputs.biaya_produksi) || 0;
+        prodFreq = inputs.biaya_produksi_freq;
+
+        hppValue = parseFloat(inputs.biaya_hpp) || 0;
+        hppFreq = inputs.biaya_hpp_freq;
+
+        operValue = parseFloat(inputs.biaya_operasional) || 0;
+        operFreq = inputs.biaya_operasional_freq;
+
+        nonOperValue = parseFloat(inputs.biaya_non_operasional) || 0;
+        nonOperFreq = inputs.biaya_non_operasional_freq;
+      }
     }
 
-    const upah    = convertToAnnual(upahValue, upahFreq, daysPerMonth);
-    const prod    = convertToAnnual(prodValue, prodFreq, daysPerMonth);
-    const hpp     = convertToAnnual(hppValue, hppFreq, daysPerMonth);
-    const oper    = convertToAnnual(operValue, operFreq, daysPerMonth);
-    const nonOper = convertToAnnual(nonOperValue, nonOperFreq, daysPerMonth);
+    upah    = convertToAnnual(upahValue, upahFreq, daysPerMonth);
+    prod    = convertToAnnual(prodValue, prodFreq, daysPerMonth);
+    hpp     = convertToAnnual(hppValue, hppFreq, daysPerMonth);
+    oper    = convertToAnnual(operValue, operFreq, daysPerMonth);
+    nonOper = convertToAnnual(nonOperValue, nonOperFreq, daysPerMonth);
     totalPengeluaranDetail = upah + prod + hpp + oper + nonOper;
     totalPengeluaran = totalPengeluaranDetail;
   }
@@ -986,6 +1068,13 @@ export function calculateRecord(record, allRecords = []) {
       pendapatanLainnya,
       isDetailPengeluaranActive,
       totalPengeluaranDetail,
+      detailValues: {
+        upah,
+        prod,
+        hpp,
+        oper,
+        nonOper
+      },
       onlinePct: parseFloat(inputs.online_pct) || 0,
       asetTanahBangunan,
       asetLainnya,

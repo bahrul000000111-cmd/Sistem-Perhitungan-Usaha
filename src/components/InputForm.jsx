@@ -608,45 +608,55 @@ function ExpenseField({
  *   'kuliner'           → 26b (Produksi) 60%, 26d (Operasional) 40%
  */
 const PROPORTION_CONFIG = {
-  kios_campuran:         { group: 'perdagangan',   biaya_hpp: 0.70, biaya_operasional: 0.30 },
-  tempurung:             { group: 'perdagangan',   biaya_hpp: 0.70, biaya_operasional: 0.30 },
-  kuliner_rumah_makan:   { group: 'kuliner',       biaya_produksi: 0.60, biaya_operasional: 0.40 },
-  nelayan_tangkap:       { group: 'pertanian',     biaya_produksi: 0.65, biaya_operasional: 0.35 },
-  perkebunan_tahunan:    { group: 'pertanian',     biaya_produksi: 0.65, biaya_operasional: 0.35 },
-  kelapa_per3bulan:      { group: 'pertanian',     biaya_produksi: 0.65, biaya_operasional: 0.35 },
-  industri_kopra:        { group: 'industri',      biaya_produksi: 0.65, biaya_operasional: 0.35 },
-  arang_tempurung:       { group: 'industri',      biaya_produksi: 0.65, biaya_operasional: 0.35 },
-  generik_harian:        { group: 'pertanian',     biaya_produksi: 0.65, biaya_operasional: 0.35 },
+  kios_campuran:         { group: 'perdagangan',   biaya_hpp: 0.70, biaya_operasional: 0.20, biaya_non_operasional: 0.10 },
+  tempurung:             { group: 'perdagangan',   biaya_hpp: 0.70, biaya_operasional: 0.20, biaya_non_operasional: 0.10 },
+  kuliner_rumah_makan:   { group: 'kuliner',       biaya_produksi: 0.50, biaya_operasional: 0.40, biaya_non_operasional: 0.10 },
+  nelayan_tangkap:       { group: 'pertanian',     biaya_produksi: 0.60, biaya_operasional: 0.30, biaya_non_operasional: 0.10 },
+  perkebunan_tahunan:    { group: 'pertanian',     biaya_produksi: 0.60, biaya_operasional: 0.30, biaya_non_operasional: 0.10 },
+  kelapa_per3bulan:      { group: 'pertanian',     biaya_produksi: 0.60, biaya_operasional: 0.30, biaya_non_operasional: 0.10 },
+  industri_kopra:        { group: 'industri',      biaya_produksi: 0.60, biaya_operasional: 0.30, biaya_non_operasional: 0.10 },
+  arang_tempurung:       { group: 'industri',      biaya_produksi: 0.60, biaya_operasional: 0.30, biaya_non_operasional: 0.10 },
+  generik_harian:        { group: 'pertanian',     biaya_produksi: 0.60, biaya_operasional: 0.30, biaya_non_operasional: 0.10 },
 };
 
-// Fields eligible for auto-proportion (26a and 26e are always excluded)
-const PROPORTION_FIELDS = ['biaya_produksi', 'biaya_hpp', 'biaya_operasional'];
+// Fields eligible for auto-proportion (26a is always excluded)
+const PROPORTION_FIELDS = ['biaya_produksi', 'biaya_hpp', 'biaya_operasional', 'biaya_non_operasional'];
 
 const REFERENSI_BPS_DONGGALA = {
   perdagangan: {
     nama: "Perdagangan Eceran / Kelontong",
     rasioPengeluaran: "70% - 85%",
-    keterangan: "Didominasi oleh HPP (Harga Pokok Penjualan) barang dagangan. Margin bersih rata-rata di wilayah Donggala berkisar antara 15% - 30%."
+    keterangan: "Didominasi oleh HPP (Harga Pokok Penjualan) barang dagangan. Margin bersih rata-rata di wilayah Donggala berkisar antara 15% - 30%.",
+    defaultKoefisien: 20,
+    defaultRasioPengeluaran: 75
   },
   perikanan: {
     nama: "Perikanan Tangkap & Budidaya",
     rasioPengeluaran: "40% - 60%",
-    keterangan: "Komponen pengeluaran terbesar ada pada bahan bakar (solar) kapal, logistik trip, dan pemeliharaan alat tangkap/jaring di wilayah pesisir Donggala."
+    keterangan: "Komponen pengeluaran terbesar ada pada bahan bakar (solar) kapal, logistik trip, dan pemeliharaan alat tangkap/jaring di wilayah pesisir Donggala.",
+    defaultKoefisien: 48,
+    defaultRasioPengeluaran: 50
   },
   perkebunan: {
     nama: "Perkebunan (Kelapa Dalam, Cengkeh, Kakao)",
     rasioPengeluaran: "25% - 40%",
-    keterangan: "Biaya operasional cenderung rendah di luar musim panen. Pengeluaran terkonsentrasi pada pupuk, obat-obatan, dan upah buruh petik musiman."
+    keterangan: "Biaya operasional cenderung rendah di luar musim panen. Pengeluaran terkonsentrasi pada pupuk, obat-obatan, dan upah buruh petik musiman.",
+    defaultKoefisien: 70,
+    defaultRasioPengeluaran: 30
   },
   jasa: {
     nama: "Jasa Reparasi, Teknis & Personal",
     rasioPengeluaran: "20% - 35%",
-    keterangan: "Rasio pengeluaran rendah karena nilai utama bertumpu pada keahlian (human capital). Pengeluaran umumnya hanya untuk suku cadang minor atau alat kerja."
+    keterangan: "Rasio pengeluaran rendah karena nilai utama bertumpu pada keahlian (human capital). Pengeluaran umumnya hanya untuk suku cadang minor atau alat kerja.",
+    defaultKoefisien: 80,
+    defaultRasioPengeluaran: 25
   },
   industri_pengolahan: {
     nama: "Industri Pengolahan / Kerajinan Rumah Tangga",
     rasioPengeluaran: "50% - 65%",
-    keterangan: "Meliputi pembelian bahan baku mentah dan biaya energi proses produksi skala mikro-kecil."
+    keterangan: "Meliputi pembelian bahan baku mentah dan biaya energi proses produksi skala mikro-kecil.",
+    defaultKoefisien: 40,
+    defaultRasioPengeluaran: 55
   }
 };
 
@@ -829,23 +839,63 @@ export default function InputForm({ categoryId, inputs, onInputChange, records }
   useEffect(() => {
     if (!proportionCfg || !isDetailPengeluaranActive || liveExpenseBudget <= 0 || isBagiHasilMode || isPencatatanRiil) return;
 
-    const updates = {};
+    const dm = Number(displayDays);
+
+    // 1. Get Upah (26a)
+    const upah26a = isWageAutoMode
+      ? estimasiUpahTahunan
+      : convertToAnnual(parseFloat(inputs.biaya_upah) || 0, inputs.biaya_upah_freq, dm);
+
+    // 2. Identify manual fields and auto fields
+    const activeAutoFields = [];
+    let manualSum = 0;
+
     PROPORTION_FIELDS.forEach(field => {
       const weight = proportionCfg[field];
-      if (!weight) return; // This field not in this category's proportion config
-      const isAutoMode = inputs[field + AUTO_FLAG_SUFFIX] !== false; // default: auto unless explicitly overridden
-      if (!isAutoMode) return; // User manually overrode this field — don't touch it
-      const proportionValue = Math.round(liveExpenseBudget * weight);
-      updates[field] = String(proportionValue);
-      updates[field + '_freq'] = 'tahunan';
-      updates[field + AUTO_FLAG_SUFFIX] = true; // mark as auto-filled
+      if (weight === undefined) return;
+
+      const isAuto = inputs[field + AUTO_FLAG_SUFFIX] !== false;
+      if (isAuto) {
+        activeAutoFields.push(field);
+      } else {
+        const val = convertToAnnual(parseFloat(inputs[field]) || 0, inputs[field + '_freq'], dm);
+        manualSum += val;
+      }
+    });
+
+    // Sisa anggaran
+    const sisaAnggaran = Math.max(0, liveExpenseBudget - upah26a - manualSum);
+
+    // Sum weights of active auto fields
+    let totalWeight = 0;
+    activeAutoFields.forEach(field => {
+      totalWeight += proportionCfg[field] || 0;
+    });
+
+    const updates = {};
+    activeAutoFields.forEach(field => {
+      const weight = proportionCfg[field] || 0;
+      const share = totalWeight > 0 ? (weight / totalWeight) : 0;
+      const val = Math.round(sisaAnggaran * share);
+      
+      // Update field if value is different to avoid infinite render loops
+      if (String(val) !== String(inputs[field]) || inputs[field + '_freq'] !== 'tahunan' || inputs[field + AUTO_FLAG_SUFFIX] !== true) {
+        updates[field] = String(val);
+        updates[field + '_freq'] = 'tahunan';
+        updates[field + AUTO_FLAG_SUFFIX] = true;
+      }
     });
 
     if (Object.keys(updates).length > 0) {
       onInputChange(updates);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isDetailPengeluaranActive, liveExpenseBudget, proportionCfg?.group]);
+  }, [isDetailPengeluaranActive, liveExpenseBudget, proportionCfg?.group, 
+      inputs.biaya_upah, inputs.biaya_upah_freq, isWageAutoMode, estimasiUpahTahunan,
+      inputs.biaya_produksi, inputs.biaya_produksi_freq, inputs.biaya_produksi_auto_proportion,
+      inputs.biaya_hpp, inputs.biaya_hpp_freq, inputs.biaya_hpp_auto_proportion,
+      inputs.biaya_operasional, inputs.biaya_operasional_freq, inputs.biaya_operasional_auto_proportion,
+      inputs.biaya_non_operasional, inputs.biaya_non_operasional_freq, inputs.biaya_non_operasional_auto_proportion]);
   // ─────────────────────────────────────────────────────────────────────────
 
   // ── Addendum #8: Auto-fill detailed expenses on Pencatatan Riil mode ─────
@@ -2138,20 +2188,47 @@ export default function InputForm({ categoryId, inputs, onInputChange, records }
               );
             })()}
 
-            {/* 26e — Non-Operasional (always manual) */}
-            {!isBagiHasilMode && (
-              <ExpenseField
-                id="biaya-non-operasional"
-                label="Biaya Non-Operasional (26e)"
-                value={inputs.biaya_non_operasional || ''}
-                freq={inputs.biaya_non_operasional_freq}
-                daysPerMonth={Number(displayDays)}
-                onValueChange={val => onInputChange('biaya_non_operasional', val)}
-                onFreqChange={freq => onInputChange('biaya_non_operasional_freq', freq)}
-                tooltip="Bunga pinjaman, donasi, kerugian revaluasi aset, pajak ijin usaha."
-                placeholder="Isi dari pembukuan Anda"
-              />
-            )}
+            {/* 26e — Non-Operasional */}
+            {!isBagiHasilMode && (() => {
+              const fieldKey = 'biaya_non_operasional';
+              const hasProportion = proportionCfg && proportionCfg[fieldKey];
+              const isAutoField = hasProportion && !isPencatatanRiil && inputs[fieldKey + AUTO_FLAG_SUFFIX] !== false;
+              const resetToAuto = () => onInputChange({ [fieldKey + AUTO_FLAG_SUFFIX]: true });
+              return (
+                <div className="flex flex-col gap-1">
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    {hasProportion && !isPencatatanRiil && (
+                      isAutoField ? (
+                        <span className="text-[9px] font-semibold text-cyan-300 bg-cyan-500/10 border border-cyan-500/20 px-1.5 py-0.5 rounded-md">
+                          🔄 Proporsi Otomatis
+                        </span>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={resetToAuto}
+                          className="text-[9px] font-semibold text-slate-400 bg-slate-500/10 border border-slate-500/20 px-1.5 py-0.5 rounded-md hover:text-cyan-300 hover:border-cyan-500/30 transition-all"
+                        >
+                          ↺ Kembalikan ke Proporsi Otomatis
+                        </button>
+                      )
+                    )}
+                  </div>
+                  <ExpenseField
+                    id="biaya-non-operasional"
+                    label="Biaya Non-Operasional (26e)"
+                    value={inputs.biaya_non_operasional || ''}
+                    freq={inputs.biaya_non_operasional_freq}
+                    daysPerMonth={Number(displayDays)}
+                    onValueChange={val => onInputChange({ biaya_non_operasional: val, [fieldKey + AUTO_FLAG_SUFFIX]: false, '26e_touched': true })}
+                    onFreqChange={freq => onInputChange({ biaya_non_operasional_freq: freq, [fieldKey + AUTO_FLAG_SUFFIX]: false, '26e_touched': true })}
+                    onBlur={() => onInputChange({ '26e_touched': true })}
+                    isEstimate={isPencatatanRiil && inputs['26e_touched'] !== true && inputs['26e_touched'] !== 'true'}
+                    tooltip="Bunga pinjaman, donasi, kerugian revaluasi aset, pajak ijin usaha."
+                    placeholder="Isi dari pembukuan Anda"
+                  />
+                </div>
+              );
+            })()}
 
             {/* Live 26f total summary — uses live26fForAnomaly for accuracy with wage auto-mode */}
             {live26fForAnomaly > 0 && (
@@ -2401,24 +2478,40 @@ export default function InputForm({ categoryId, inputs, onInputChange, records }
                 return (
                   <div 
                     key={key} 
-                    className={`p-3.5 rounded-xl border transition-all flex flex-col gap-2 ${
+                    onClick={() => {
+                      onInputChange({
+                        custom_rev_pct: String(data.defaultKoefisien),
+                        custom_exp_pct: String(data.defaultRasioPengeluaran)
+                      });
+                      setIsBpsDonggalaOpen(false);
+                    }}
+                    className={`group p-3.5 rounded-xl border transition-all flex flex-col gap-2 cursor-pointer ${
                       isCurrent 
                         ? 'bg-amber-950/40 border-amber-500 shadow-[0_0_12px_rgba(245,158,11,0.15)] animate-fade-in' 
-                        : 'bg-surface-800/40 border-white/[0.06] hover:bg-surface-800/60'
+                        : 'bg-surface-800/40 border-white/[0.06] hover:bg-surface-800/60 hover:border-white/[0.12]'
                     }`}
                   >
                     <div className="flex justify-between items-center mb-1">
-                      <span className="text-[12px] font-bold text-white">{data.nama}</span>
+                      <span className="text-[12px] font-bold text-white group-hover:text-amber-300 transition-colors">{data.nama}</span>
                       <span className={`text-[11px] font-bold ${isCurrent ? 'text-amber-400 bg-amber-500/15' : 'text-emerald-400 bg-emerald-500/15'} px-2.5 py-0.5 rounded font-mono`}>
                         {data.rasioPengeluaran}
                       </span>
                     </div>
                     <p className="text-[10.5px] text-slate-350 leading-relaxed font-sans">{data.keterangan}</p>
-                    {isCurrent && (
-                      <span className="text-[10px] text-amber-400 flex items-center gap-1 mt-1 font-bold">
-                        ★ Cocok dengan usaha yang sedang Anda input
+                    <div className="flex items-center justify-between mt-1 pt-1.5 border-t border-white/[0.03]">
+                      {isCurrent ? (
+                        <span className="text-[10px] text-amber-400 flex items-center gap-1 font-bold">
+                          ★ Sesuai Kategori
+                        </span>
+                      ) : (
+                        <span className="text-[9.5px] text-slate-500 group-hover:text-amber-400/80 transition-colors">
+                          🖱️ Klik untuk terapkan
+                        </span>
+                      )}
+                      <span className="text-[9.5px] text-slate-500 font-mono">
+                        Koef: {data.defaultKoefisien}% | Kel: {data.defaultRasioPengeluaran}%
                       </span>
-                    )}
+                    </div>
                   </div>
                 );
               })}
