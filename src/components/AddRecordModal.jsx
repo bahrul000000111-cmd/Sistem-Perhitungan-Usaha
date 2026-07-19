@@ -64,10 +64,15 @@ function defaultRecordName(label) {
 /**
  * Get default inputs for a category (honour defaultValue fields).
  */
-function getDefaultInputs(categoryId) {
+function getDefaultInputs(categoryId, groupKey) {
   const cat = CATEGORIES.find(c => c.id === categoryId);
-  if (!cat) return { calculation_method: 'PENCATATAN_RIIL' };
-  const inputs = { calculation_method: 'PENCATATAN_RIIL' };
+  const isJasaOrGenerik =
+    (groupKey && groupKey.startsWith('jasa-')) ||
+    categoryId === 'generik_harian';
+  const defaultMethod = isJasaOrGenerik ? 'ESTIMASI_KOEFISIEN' : 'PENCATATAN_RIIL';
+
+  if (!cat) return { calculation_method: defaultMethod };
+  const inputs = { calculation_method: defaultMethod };
   cat.fields.forEach(f => {
     if (f.defaultValue !== undefined) inputs[f.key] = f.defaultValue;
   });
@@ -171,7 +176,7 @@ export default function AddRecordModal({ onConfirm, onClose }) {
   const handleSelect = (item) => {
     const categoryId = resolveDefaultCategoryId(item.groupKey);
     const name       = defaultRecordName(item.label);
-    const inputs     = getDefaultInputs(categoryId);
+    const inputs     = getDefaultInputs(categoryId, item.groupKey);
     // subSectorGroupKey: stored on record so RecordCard knows which badge/dropdown to show
     onConfirm(categoryId, name, { ...inputs, _groupKey: item.groupKey });
     onClose();

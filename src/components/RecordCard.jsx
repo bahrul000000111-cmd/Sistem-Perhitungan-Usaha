@@ -10,7 +10,7 @@
  *     Record name is NOT reset when formula changes.
  *   • Generic template label ("Menggunakan kalkulasi generik...") for generik_harian records.
  */
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import {
   Trash2, Copy, ChevronDown, ChevronUp,
   Edit3, Check, X, Clock, Store, Info,
@@ -83,7 +83,7 @@ function resolveFormulaOptions(record) {
 }
 
 // ── Custom Dropdown for rich option titles + subtexts (Addendum #5) ──────────
-function FormulaDropdown({ value, options, onChange }) {
+function FormulaDropdown({ value, options, onChange, disabled }) {
   const [isOpen, setIsOpen] = useState(false);
   const selectedOpt = options.find(opt => opt.value === value) || options[0];
 
@@ -92,11 +92,14 @@ function FormulaDropdown({ value, options, onChange }) {
       {/* Trigger Button */}
       <button
         type="button"
-        onClick={() => setIsOpen(!isOpen)}
-        className="w-full flex items-center justify-between rounded-xl border border-white/[0.08] bg-surface-700 text-slate-200 text-[11.5px] font-semibold px-3 py-2 outline-none hover:border-indigo-500/30 focus:border-indigo-500/50 transition-all text-left"
+        disabled={disabled}
+        onClick={() => !disabled && setIsOpen(!isOpen)}
+        className={`w-full flex items-center justify-between rounded-xl border border-white/[0.08] bg-surface-700 text-slate-200 text-[11.5px] font-semibold px-3 py-2 outline-none transition-all text-left ${
+          disabled ? 'opacity-50 cursor-not-allowed' : 'hover:border-indigo-500/30 focus:border-indigo-500/50'
+        }`}
       >
         <span className="truncate">{selectedOpt.label}</span>
-        <ChevronDown size={14} className={`text-slate-400 shrink-0 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+        {!disabled && <ChevronDown size={14} className={`text-slate-400 shrink-0 transition-transform ${isOpen ? 'rotate-180' : ''}`} />}
       </button>
 
       {/* Overlay Backdrop to close on click outside */}
@@ -160,6 +163,23 @@ export default function RecordCard({ record, allRecords, onUpdate, onDelete, onD
     () => calculateRecord(record, allRecords),
     [record, allRecords]
   );
+
+  const isJasaOrGenerik =
+    (record.inputs?._groupKey && (record.inputs._groupKey.startsWith('jasa-') || record.inputs._groupKey === 'jasa')) ||
+    record.categoryId === 'generik_harian';
+
+  useEffect(() => {
+    if (isJasaOrGenerik) {
+      if (record.inputs?.calculation_method !== 'ESTIMASI_KOEFISIEN') {
+        onUpdate(record.id, {
+          inputs: {
+            ...record.inputs,
+            calculation_method: 'ESTIMASI_KOEFISIEN'
+          }
+        });
+      }
+    }
+  }, [isJasaOrGenerik, record.id, record.inputs?.calculation_method, onUpdate]);
 
   // ── Handlers ────────────────────────────────────────────────────────────────
 
@@ -364,6 +384,7 @@ export default function RecordCard({ record, allRecords, onUpdate, onDelete, onD
           </div>
           <FormulaDropdown
             value={record.inputs?.calculation_method || 'PENCATATAN_RIIL'}
+            disabled={isJasaOrGenerik}
             options={[
               {
                 value: 'PENCATATAN_RIIL',

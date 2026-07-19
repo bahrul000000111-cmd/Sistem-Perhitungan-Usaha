@@ -24,7 +24,12 @@ function loadFromStorage() {
     const migrated = parsed.map(record => {
       if (!record.inputs) record.inputs = {};
       if (!record.inputs.calculation_method) {
-        record.inputs.calculation_method = 'PENCATATAN_RIIL';
+        const groupKey = record.inputs._groupKey || '';
+        const isJasaOrGenerik =
+          groupKey.startsWith('jasa-') ||
+          groupKey === 'jasa' ||
+          record.categoryId === 'generik_harian';
+        record.inputs.calculation_method = isJasaOrGenerik ? 'ESTIMASI_KOEFISIEN' : 'PENCATATAN_RIIL';
         modified = true;
       }
       if (record.categoryId === 'nelayan_tangkap') {
