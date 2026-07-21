@@ -152,7 +152,7 @@ export default function RecordCard({ record, allRecords, onUpdate, onDelete, onD
 
   const category    = CATEGORIES.find(c => c.id === record.categoryId);
   const gradClass   = ICON_COLORS[category?.color] || ICON_COLORS.indigo;
-  const hasDualMode = Boolean(category?.hasDualMode);
+  const hasDualMode = Boolean(category?.hasDualMode) || (record.categoryId === 'perkebunan_tahunan' && record.inputs?.income_method_perkebunan === 'PER_POHON');
   const isGeneric   = record.categoryId === 'generik_harian';
 
   const badge          = useMemo(() => resolveBadge(record),          [record]);

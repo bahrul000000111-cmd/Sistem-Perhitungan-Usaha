@@ -1178,6 +1178,19 @@ export default function InputForm({ categoryId, inputs, onInputChange, records }
       {/* ── Main Inputs (non-nelayan, or never rendered for nelayan since fields above handle it) ── */}
       {!isNelayan && (
         <>
+          {/* Visual Toggle for Perkebunan Tahunan Mode (Addendum #10) */}
+          {categoryId === 'perkebunan_tahunan' && (
+            <IncomeMethodSelector
+              value={inputs.income_method_perkebunan || 'PER_PERIODE'}
+              onChange={v => onInputChange('income_method_perkebunan', v)}
+              options={[
+                { key: 'PER_PERIODE', label: 'Per Periode Panen' },
+                { key: 'PER_POHON', label: 'Per Pohon' }
+              ]}
+              tooltip="Pilih metode pencatatan: berdasarkan nominal total per periode panen atau berdasarkan jumlah pohon."
+            />
+          )}
+
           {/* Visual Toggle for Industri Kopra Mode */}
           {categoryId === 'industri_kopra' && (
             <div className="flex flex-col gap-2 mb-3 p-3.5 rounded-xl bg-surface-800/40 border border-white/[0.06]">
@@ -1226,6 +1239,9 @@ export default function InputForm({ categoryId, inputs, onInputChange, records }
           )}
 
           {category.fields.map((field) => {
+            if (field.key === 'total_pendapatan_tahunan' && categoryId === 'perkebunan_tahunan' && inputs.income_method_perkebunan === 'PER_POHON') {
+              return null;
+            }
             if (field.key === 'berat_kopra' && categoryId === 'industri_kopra' && inputs.industri_input_mode === 'pendapatan') {
               return null;
             }
@@ -1377,6 +1393,25 @@ export default function InputForm({ categoryId, inputs, onInputChange, records }
           />
         );
           })}
+
+          {categoryId === 'perkebunan_tahunan' && inputs.income_method_perkebunan === 'PER_POHON' && (
+            <div className="flex flex-col gap-2 mt-1">
+              <UnitInput
+                id="input-jumlah_pohon"
+                label="Jumlah Pohon / Tanaman"
+                value={inputs.jumlah_pohon ?? 30}
+                onChange={v => onInputChange('jumlah_pohon', v)}
+                placeholder="30"
+                suffix="pohon"
+              />
+              <div className="text-[10.5px] text-slate-400 bg-surface-800/60 border border-white/[0.06] rounded-xl px-3 py-2 leading-relaxed flex items-start gap-2">
+                <Info size={13} className="text-emerald-400 shrink-0 mt-0.5" />
+                <span>
+                  <strong className="text-emerald-400">Metode Per Pohon:</strong> 25 buah × Rp 2.000 × 4 panen/tahun = <strong className="text-slate-200">Rp 200.000 / pohon / tahun</strong> (sesuai standar normatif sektor perkebunan).
+                </span>
+              </div>
+            </div>
+          )}
         </>
       )}
 

@@ -473,6 +473,9 @@ export function calcKuliner(inputs = {}) {
  * Addendum #9: supports panen_per_tahun for M2 income conversion.
  */
 export function calcPerkebunanTahunan(inputs = {}) {
+  if (inputs.income_method_perkebunan === 'PER_POHON') {
+    return calcKelapaPerTigaBulan(inputs);
+  }
   const rawValue    = parseFloat(inputs.total_pendapatan_tahunan) || 0;
   const panenPerTahun = parseInt(inputs.panen_per_tahun) || 4;
   const totalPendapatanKotor = convertHarvestToAnnual(rawValue, panenPerTahun);

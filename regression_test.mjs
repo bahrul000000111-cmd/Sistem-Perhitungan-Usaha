@@ -1429,8 +1429,42 @@ allCategories.forEach(catId => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────
-// Summary
+// SUITE 19: Addendum #10 — Metode "Per Pohon" pada Perkebunan Tahunan
 // ─────────────────────────────────────────────────────────────────────────
+console.log('\n══ SUITE 19: Perkebunan Tahunan — Per Pohon vs Per Periode ══\n');
+
+// 19.1 Non-regresi — default tanpa income_method_perkebunan tetap jalur lama
+{
+  const r = calculateRecord({
+    id: 'pk-legacy',
+    categoryId: 'perkebunan_tahunan',
+    inputs: { total_pendapatan_tahunan: '7000000', harvest_period_bulan: '12' }
+  }, []);
+  assert('Legacy (tanpa income_method_perkebunan) tetap Rp7.000.000 (identik Suite 11.1)', r.totalPendapatanTahunan, 7_000_000);
+}
+
+// 19.2 Mode Per Pohon menghasilkan pendapatan sesuai jumlah_pohon × 25 × 2000 × 4
+{
+  const r = calculateRecord({
+    id: 'pk-perpohon-50',
+    categoryId: 'perkebunan_tahunan',
+    inputs: { income_method_perkebunan: 'PER_POHON', jumlah_pohon: '50' }
+  }, []);
+  // 50 pohon * 25 * 2000 * 4 = 10.000.000
+  assert('Per Pohon (50 pohon) = Rp10.000.000 (50 × 200k)', r.totalPendapatanTahunan, 10_000_000);
+  assert('Hasil usaha bersih 50 pohon = Rp10.000.000', r.totalHasilUsaha, 10_000_000);
+}
+
+// 19.3 Mode Per Pohon dengan 30 pohon
+{
+  const r = calculateRecord({
+    id: 'pk-perpohon-30',
+    categoryId: 'perkebunan_tahunan',
+    inputs: { income_method_perkebunan: 'PER_POHON', jumlah_pohon: '30' }
+  }, []);
+  // 30 pohon * 25 * 2000 * 4 = 6.000.000
+  assert('Per Pohon (30 pohon) = Rp6.000.000 (30 × 200k)', r.totalPendapatanTahunan, 6_000_000);
+}
 console.log(`\n══ HASIL: ${pass} lulus, ${fail} gagal ══`);
 if (fail === 0) {
   console.log('✅ Semua regression test LULUS.');
