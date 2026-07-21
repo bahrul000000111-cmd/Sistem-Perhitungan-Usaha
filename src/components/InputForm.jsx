@@ -642,10 +642,7 @@ function ExpenseField({
             <select
               id={`${id}-freq`}
               value={freqKey}
-              onChange={e => {
-                onFreqChange(e.target.value);
-                if (onBlur) onBlur(e);
-              }}
+              onChange={e => onFreqChange(e.target.value)}
               className="h-full rounded-xl border border-white/[0.08] bg-surface-700 text-[11.5px] font-semibold text-indigo-300 px-2.5 pr-7 appearance-none cursor-pointer outline-none hover:border-indigo-500/30 focus:border-indigo-500/50 transition-all"
               style={{ minWidth: '90px' }}
             >

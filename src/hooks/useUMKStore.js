@@ -111,13 +111,13 @@ export function useUMKStore() {
   }, [setRecords]);
 
   /** Update inputs for an existing record */
-  const updateRecord = useCallback((id, updates) => {
+  const updateRecord = useCallback((id, updatesOrFn) => {
     setRecords(prev =>
-      prev.map(r =>
-        r.id === id
-          ? { ...r, ...updates, updatedAt: new Date().toISOString() }
-          : r
-      )
+      prev.map(r => {
+        if (r.id !== id) return r;
+        const resolvedUpdates = typeof updatesOrFn === 'function' ? updatesOrFn(r) : updatesOrFn;
+        return { ...r, ...resolvedUpdates, updatedAt: new Date().toISOString() };
+      })
     );
   }, [setRecords]);
 

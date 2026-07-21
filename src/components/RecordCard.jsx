@@ -170,9 +170,9 @@ export default function RecordCard({ record, allRecords, onUpdate, onDelete, onD
 
   const handleInputChange = (fieldOrObject, value) => {
     if (typeof fieldOrObject === 'object' && fieldOrObject !== null) {
-      onUpdate(record.id, { inputs: { ...record.inputs, ...fieldOrObject } });
+      onUpdate(record.id, prevRecord => ({ inputs: { ...(prevRecord?.inputs || {}), ...fieldOrObject } }));
     } else {
-      onUpdate(record.id, { inputs: { ...record.inputs, [fieldOrObject]: value } });
+      onUpdate(record.id, prevRecord => ({ inputs: { ...(prevRecord?.inputs || {}), [fieldOrObject]: value } }));
     }
   };
 
